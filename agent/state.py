@@ -35,3 +35,9 @@ class CustomerServiceState(TypedDict):
 
     # 会话 ID（用于 checkpointer 恢复）
     session_id: Optional[str]
+
+    # 用户情绪：'neutral'/'angry'/'sad'/'anxious'/'happy'
+    emotion: Optional[str]
+
+    # 情绪强度：1-5
+    emotion_intensity: int

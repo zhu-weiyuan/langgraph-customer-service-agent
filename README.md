@@ -4,6 +4,7 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 
 ## Core Features
 
+- **Sentiment Analysis**: Detects user emotion (angry/sad/anxious/happy) and adjusts bot tone accordingly
 - **RAG Knowledge Base**: Local docs/FAQ retrieval with TF-IDF scoring — grounded answers from product manuals
 - **Intent Identification**: Auto-classify user messages (consult / complaint / chat)
 - **Multi-turn Dialogue**: Context-aware continuous conversation
@@ -41,8 +42,9 @@ langgraph-customer-service-agent/
 ├── agent/
 │   ├── __init__.py
 │   ├── state.py          # State definition (TypedDict)
-│   ├── nodes.py          # Node function implementations (+RAG integration)
+│   ├── nodes.py          # Node function implementations (+RAG + Sentiment)
 │   ├── rag.py            # RAG retrieval (TF-IDF, no external deps)
+│   ├── sentiment.py      # Emotion detection + tone adjustment
 │   └── graph.py          # Graph construction and compilation
 ├── knowledge/            # Knowledge base (auto-loaded)
 │   ├── product-manual.md # Product specs, features, pricing

@@ -71,6 +71,8 @@ def run_agent(session_id, user_message):
     if state and state.values:
         intent = state.values.get('intent', 'unknown') or 'unknown'
         retry_count = state.values.get('retry_count', 0)
+        emotion = state.values.get('emotion', 'neutral') or 'neutral'
+        emotion_intensity = state.values.get('emotion_intensity', 1) or 1
 
     # Extract replies
     replies = []
@@ -89,6 +91,8 @@ def run_agent(session_id, user_message):
         "interrupted": interrupted,
         "intent": intent,
         "retry_count": retry_count,
+        "emotion": emotion,
+        "emotion_intensity": emotion_intensity,
         "next_action": next_action,
         "session_id": session_id
     }
@@ -199,6 +203,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
   <span><span class="label">Session:</span> <span id="infoSession">-</span></span>
   <span><span class="label">Intent:</span> <span id="infoIntent">-</span></span>
   <span><span class="label">Retries:</span> <span id="infoRetries">0</span></span>
+  <span><span class="label">Emotion:</span> <span id="infoEmotion">-</span></span>
   <span><span class="label">Status:</span> <span id="infoStatus">Active</span></span>
 </div>
 
@@ -300,6 +305,11 @@ async function sendMessage(text) {
 
       if (data.intent) document.getElementById('infoIntent').textContent = data.intent;
       if (data.retry_count !== undefined) document.getElementById('infoRetries').textContent = data.retry_count;
+      if (data.emotion) {
+        const emojiMap = { neutral: '😐', angry: '😠', sad: '😢', anxious: '😰', happy: '😊' };
+        const emoji = emojiMap[data.emotion] || '😐';
+        document.getElementById('infoEmotion').textContent = emoji + ' ' + data.emotion + (data.emotion_intensity ? '(' + data.emotion_intensity + ')' : '');
+      }
       document.getElementById('infoStatus').textContent = data.interrupted ? 'Escalated' : 'Active';
     }
   } catch (err) {

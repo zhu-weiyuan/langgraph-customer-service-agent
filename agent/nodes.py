@@ -14,6 +14,9 @@ from langchain_core.messages import HumanMessage, AIMessage
 # RAG integration
 from .rag import build_context as rag_build_context
 
+# Sentiment analysis integration
+from .sentiment import analyze as sentiment_analyze, get_tone_adjustment
+
 LLM_API_URL = "http://127.0.0.1:8080/v1/chat/completions"
 LLM_API_KEY = "your_key_here"
 
@@ -126,7 +129,7 @@ INTENT_SYSTEM = """你是一个意图分类器。分析用户消息，判断其�
 
 
 def identify_intent(state: Dict[str, Any]) -> Dict[str, Any]:
-    """意图识别节点 — 使用本地 LLM 进行意图分类。"""
+    """意图识别节点 — 使用本地 LLM 进行意图分类 + 情感分析。"""
     messages = state.get('messages', [])
     user_message = ''
     for msg in reversed(messages):
@@ -135,8 +138,9 @@ def identify_intent(state: Dict[str, Any]) -> Dict[str, Any]:
             break
 
     if not user_message:
-        return {'intent': 'consult', 'ending': False}
+        return {'intent': 'consult', 'ending': False, 'emotion': 'neutral', 'emotion_intensity': 1}
 
+    # Intent classification
     result = _call_llm_json(
         [{"role": "user", "content": user_message}],
         INTENT_SYSTEM
@@ -144,8 +148,22 @@ def identify_intent(state: Dict[str, Any]) -> Dict[str, Any]:
 
     intent = result.get('intent', 'consult')
     ending = result.get('ending', False)
+
+    # Sentiment analysis (lightweight — cached per message)
+    sentiment = sentiment_analyze(user_message, cache_key=state.get('session_id', '') + user_message[:30])
+    emotion = sentiment.get('emotion', 'neutral')
+    intensity = sentiment.get('intensity', 1)
+
     print(f"[意图识别] '{user_message}' → {intent}, 结束={ending}")
-    return {'intent': intent, 'ending': ending}
+    if emotion != 'neutral':
+        print(f"[情感分析] {emotion} (强度 {intensity}/5)")
+
+    return {
+        'intent': intent,
+        'ending': ending,
+        'emotion': emotion,
+        'emotion_intensity': intensity,
+    }
 
 
 # ============================================================
@@ -180,11 +198,17 @@ def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
             if rag_context:
                 print(f"[RAG] 找到 {rag_context.count('###')} 条相关知识")
 
-    # Build system prompt with RAG context
+    # Build system prompt with RAG context + sentiment tone adjustment
     if rag_context:
         system_prompt = RAG_SYSTEM_PROMPT_TEMPLATE.format(rag_context=rag_context)
     else:
         system_prompt = SYSTEM_PROMPT
+
+    # Sentiment-based tone adjustment
+    emotion = state.get('emotion', 'neutral')
+    intensity = state.get('emotion_intensity', 1)
+    tone_adj = get_tone_adjustment(emotion, intensity)
+    system_prompt = system_prompt + tone_adj
 
     if retry_count > 0:
         extra = f"\n\n注意：用户之前表示不满意，请用不同的方式重新回答。这是第 {retry_count} 次重试。"
