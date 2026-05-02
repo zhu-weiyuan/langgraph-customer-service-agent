@@ -24,6 +24,9 @@ from .memory import (
     mark_resolved,
 )
 
+# Dialogue summary
+from .summary import generate_summary, format_ticket
+
 LLM_API_URL = "http://127.0.0.1:8080/v1/chat/completions"
 LLM_API_KEY = "your_key_here"
 
@@ -348,8 +351,12 @@ def escalate_to_human(state: Dict[str, Any]) -> Dict[str, Any]:
 # ============================================================
 
 def finalize(state: Dict[str, Any]) -> Dict[str, Any]:
-    """结束对话节点 — 使用 LLM 生成自然的结束语。"""
+    """结束对话节点 — 使用 LLM 生成自然的结束语 + 生成工单摘要。"""
     session_id = state.get('session_id', '')
+    messages = state.get('messages', [])
+    satisfaction = state.get('satisfaction')
+    emotion = state.get('emotion', 'neutral')
+    emotion_intensity = state.get('emotion_intensity', 1)
 
     closing = _call_llm(
         [{"role": "user", "content": "请自然地结束这次客服对话，表达感谢和祝福"}],
@@ -358,6 +365,50 @@ def finalize(state: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     ai_message = AIMessage(content=closing)
+
+    # Generate ticket summary
+    if session_id and len(messages) >= 2:
+        try:
+            ticket = generate_summary(
+                messages=messages,
+                emotion=emotion,
+                emotion_intensity=emotion_intensity,
+                satisfaction=satisfaction,
+            )
+            print(format_ticket(ticket))
+            # Save ticket to memory DB
+            from .memory import _get_connection
+            conn = _get_connection()
+            conn.execute(
+                """CREATE TABLE IF NOT EXISTS tickets (
+                    ticket_id TEXT PRIMARY KEY,
+                    session_id TEXT,
+                    issue_category TEXT,
+                    description TEXT,
+                    resolution TEXT,
+                    satisfaction TEXT,
+                    priority TEXT,
+                    emotion TEXT,
+                    emotion_intensity INTEGER,
+                    message_count INTEGER,
+                    created_at TEXT
+                )"""
+            )
+            conn.execute(
+                """INSERT OR REPLACE INTO tickets
+                   (ticket_id, session_id, issue_category, description, resolution,
+                    satisfaction, priority, emotion, emotion_intensity, message_count, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (ticket['ticket_id'], session_id, ticket['issue_category'],
+                 ticket['description'], ticket['resolution'],
+                 ticket['satisfaction'], ticket['priority'],
+                 ticket['emotion'], ticket['emotion_intensity'],
+                 ticket['message_count'], ticket['created_at'])
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"[工单生成失败] {e}")
 
     # Mark all issues as resolved when session ends positively
     if session_id:

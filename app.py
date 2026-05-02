@@ -20,18 +20,23 @@ if sys.platform == 'win32':
 from langchain_core.messages import HumanMessage, AIMessage
 from agent.graph import build_graph
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from langgraph.checkpoint.memory import MemorySaver
+import os
 
 PORT = 7860
 
-_shared_checkpointer = MemorySaver()
 _graph = None
 
 
 def init():
+    """Initialize the agent graph.
+
+    Set USE_SQLITE=1 environment variable for persistent checkpointing.
+    """
     global _graph
-    _graph = build_graph()
-    print(f"[Server] Agent initialized (Real LLM via llama.cpp)")
+    use_sqlite = os.environ.get('USE_SQLITE', '0') == '1'
+    db_path = os.environ.get('CHECKPOINT_DB', 'checkpoints.db')
+    _graph = build_graph(use_sqlite=use_sqlite, db_path=db_path)
+    print(f"[Server] Agent initialized (Real LLM via llama.cpp, sqlite={use_sqlite})")
 
 
 def run_agent(session_id, user_message):

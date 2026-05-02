@@ -11,6 +11,8 @@ This is a single unified graph with conditional routing.
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
+import os
 
 from .state import CustomerServiceState
 from .nodes import (
@@ -91,10 +93,25 @@ def _build_core_graph():
     return graph
 
 
-def build_graph():
-    """Build and compile the customer service agent graph."""
+def build_graph(use_sqlite: bool = False, db_path: str = "checkpoints.db"):
+    """Build and compile the customer service agent graph.
+
+    Args:
+        use_sqlite: Use SQLite persistence instead of in-memory (for production)
+        db_path: SQLite database file path
+    """
     graph = _build_core_graph()
-    checkpointer = MemorySaver()
+
+    if use_sqlite:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        checkpointer = SqliteSaver(conn)
+        checkpointer.setup()
+        print(f"[Graph] Using SQLite checkpointer: {db_path}")
+    else:
+        checkpointer = MemorySaver()
+        print("[Graph] Using in-memory checkpointer (test mode)")
+
     compiled = graph.compile(checkpointer=checkpointer)
 
     print(f"[Graph] Customer service agent compiled (Real LLM)")
