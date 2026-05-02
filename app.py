@@ -45,10 +45,19 @@ def run_agent(session_id, user_message):
     if current_state and current_state.values:
         existing_count = len(current_state.values.get('messages', []))
 
+    # Restore emotion state from previous turn if exists
+    prev_emotion = 'neutral'
+    prev_intensity = 1
+    if existing_count > 0 and current_state and current_state.values:
+        prev_emotion = current_state.values.get('emotion', 'neutral') or 'neutral'
+        prev_intensity = current_state.values.get('emotion_intensity', 1) or 1
+
     input_data = {
         "messages": [human_msg],
         "session_id": session_id,
         "retry_count": 0,
+        "emotion": prev_emotion,
+        "emotion_intensity": prev_intensity,
     }
 
     all_new_messages = []
@@ -157,14 +166,47 @@ CHAT_HTML = r"""<!DOCTYPE html>
   .input-area button { padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 24px; font-size: 14px; cursor: pointer; }
   .input-area button:hover { opacity: 0.9; }
   .input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .info-bar { background: #f8fafc; padding: 8px 24px; font-size: 12px; color: #6b7280; display: flex; gap: 20px; border-top: 1px solid #e5e7eb; }
-  .info-bar span { display: flex; align-items: center; gap: 4px; }
+  .info-bar { background: #f8fafc; padding: 8px 24px; font-size: 12px; color: #6b7280; display: flex; gap: 20px; border-top: 1px solid #e5e7eb; overflow-x: auto; }
+  .info-bar span { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
   .info-bar .label { color: #9ca3af; }
   .typing-indicator { display: flex; gap: 4px; padding: 12px 16px; align-items: center; }
   .typing-indicator .dot { width: 8px; height: 8px; background: #9ca3af; border-radius: 50%; animation: bounce 1.4s infinite; }
   .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
   .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
   @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-8px); } }
+
+  /* Typing cursor for character-by-character animation */
+  .typing-cursor::after {
+    content: '▊';
+    animation: blink 0.8s infinite;
+    color: #667eea;
+    font-weight: 300;
+  }
+  @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+  /* Memory indicator */
+  .memory-badge { display: inline-block; font-size: 10px; padding: 2px 6px; background: #e0e7ff; color: #4338ca; border-radius: 8px; margin-left: 8px; }
+
+  /* Mobile responsive */
+  @media (max-width: 640px) {
+    .header { padding: 12px 16px; }
+    .header h1 { font-size: 15px; }
+    .toolbar { padding: 8px 16px; gap: 6px; flex-wrap: wrap; }
+    .test-cases { padding: 8px 16px; }
+    .chat-container { padding: 16px;
+      gap: 12px; }
+    .message { max-width: 88%; }
+    .input-area { padding: 12px 16px; }
+    .info-bar { padding: 6px 16px; font-size: 11px; gap: 12px; }
+    .avatar { width: 30px; height: 30px; font-size: 15px; }
+    .bubble { padding: 10px 14px; font-size: 13px; }
+  }
+
+  /* Scrollbar styling */
+  .chat-container::-webkit-scrollbar { width: 6px; }
+  .chat-container::-webkit-scrollbar-track { background: transparent; }
+  .chat-container::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+  .chat-container::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 </style>
 </head>
 <body>
@@ -224,7 +266,7 @@ messageInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !isProcessing) sendMessage();
 });
 
-function addMessage(role, content, type) {
+function addMessage(role, content, type, animate) {
   const div = document.createElement('div');
   div.className = `message ${role}`;
   const avatar = document.createElement('div');
@@ -232,11 +274,33 @@ function addMessage(role, content, type) {
   avatar.textContent = role === 'user' ? '\u{1F464}' : '\u{1F916}';
   const bubble = document.createElement('div');
   bubble.className = `bubble ${type || ''}`;
-  bubble.textContent = content;
   div.appendChild(avatar);
   div.appendChild(bubble);
   chatContainer.appendChild(div);
   chatContainer.scrollTop = chatContainer.scrollHeight;
+
+  if (animate && role === 'bot') {
+    typeWriter(bubble, content, 20);
+  } else {
+    bubble.textContent = content;
+  }
+}
+
+function typeWriter(element, text, speed) {
+  element.classList.add('typing-cursor');
+  let i = 0;
+  const len = text.length;
+  function type() {
+    if (i < len) {
+      element.textContent = text.substring(0, i + 1);
+      i++;
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      setTimeout(type, speed);
+    } else {
+      element.classList.remove('typing-cursor');
+    }
+  }
+  type();
 }
 
 function addSystemMsg(text) {
@@ -296,11 +360,11 @@ async function sendMessage(text) {
     removeTyping();
 
     if (data.error) {
-      addMessage('bot', 'Error: ' + data.error, '');
+      addMessage('bot', 'Error: ' + data.error, '', false);
     } else {
       for (const reply of data.replies) {
         const typeMap = { satisfaction: 'satisfaction', closing: 'closing' };
-        addMessage('bot', reply.content, typeMap[reply.type] || '');
+        addMessage('bot', reply.content, typeMap[reply.type] || '', true);
       }
 
       if (data.intent) document.getElementById('infoIntent').textContent = data.intent;

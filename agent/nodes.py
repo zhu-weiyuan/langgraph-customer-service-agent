@@ -17,6 +17,13 @@ from .rag import build_context as rag_build_context
 # Sentiment analysis integration
 from .sentiment import analyze as sentiment_analyze, get_tone_adjustment
 
+# Multi-turn memory
+from .memory import (
+    save_conversation,
+    build_memory_context,
+    mark_resolved,
+)
+
 LLM_API_URL = "http://127.0.0.1:8080/v1/chat/completions"
 LLM_API_KEY = "your_key_here"
 
@@ -198,11 +205,18 @@ def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
             if rag_context:
                 print(f"[RAG] 找到 {rag_context.count('###')} 条相关知识")
 
-    # Build system prompt with RAG context + sentiment tone adjustment
+    # Build system prompt with RAG context + memory + sentiment tone adjustment
     if rag_context:
         system_prompt = RAG_SYSTEM_PROMPT_TEMPLATE.format(rag_context=rag_context)
     else:
         system_prompt = SYSTEM_PROMPT
+
+    # Multi-turn memory: inject user context
+    session_id = state.get('session_id', '')
+    if session_id:
+        memory_ctx = build_memory_context(session_id)
+        if memory_ctx:
+            system_prompt = system_prompt + memory_ctx
 
     # Sentiment-based tone adjustment
     emotion = state.get('emotion', 'neutral')
@@ -218,6 +232,24 @@ def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
     reply = _call_llm(context_messages, system_prompt + extra, max_tokens=512)
     ai_message = AIMessage(content=reply)
     print(f"[生成回复] intent={intent}, retry={retry_count}, rag={'yes' if rag_context else 'no'}")
+
+    # Save to memory
+    if session_id:
+        latest_user = ''
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                latest_user = msg.content
+                break
+        if latest_user:
+            save_conversation(
+                session_id=session_id,
+                user_message=latest_user,
+                bot_reply=reply,
+                intent=intent,
+                emotion=state.get('emotion', 'neutral'),
+                emotion_intensity=state.get('emotion_intensity', 1),
+            )
+
     return {'messages': [ai_message], 'bot_reply': reply}
 
 
@@ -317,6 +349,8 @@ def escalate_to_human(state: Dict[str, Any]) -> Dict[str, Any]:
 
 def finalize(state: Dict[str, Any]) -> Dict[str, Any]:
     """结束对话节点 — 使用 LLM 生成自然的结束语。"""
+    session_id = state.get('session_id', '')
+
     closing = _call_llm(
         [{"role": "user", "content": "请自然地结束这次客服对话，表达感谢和祝福"}],
         SYSTEM_PROMPT + "\n只生成结束语，简短温暖。",
@@ -324,5 +358,10 @@ def finalize(state: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     ai_message = AIMessage(content=closing)
+
+    # Mark all issues as resolved when session ends positively
+    if session_id:
+        mark_resolved(session_id)
+
     print(f"[结束对话] 服务完成")
     return {'messages': [ai_message]}
