@@ -107,6 +107,7 @@ python main.py
 | `/` | GET | Web UI |
 | `/api/chat` | POST | `{"message": "...", "session_id": "..."}` → bot response |
 | `/api/session/<id>` | GET | Get session state (messages, intent, emotion) |
+| `/api/export/<id>` | GET | Export full session history as JSON (downloadable) |
 | `/api/stats` | GET | Memory database statistics |
 
 ## Extending

@@ -12,6 +12,7 @@ import sys
 import io
 import json
 from uuid import uuid4
+from datetime import datetime
 
 if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
@@ -265,6 +266,22 @@ CHAT_HTML = r"""<!DOCTYPE html>
     .bubble { padding: 10px 14px; font-size: 13px; }
   }
 
+  /* Emotion intensity bar */
+  .emotion-bar { display: inline-flex; gap: 2px; vertical-align: middle; }
+  .emotion-bar .seg { width: 8px; height: 14px; border-radius: 2px; background: #d1d5db; transition: background 0.3s; }
+  .emotion-bar .seg.active { background: #667eea; }
+  .emotion-bar .seg.high { background: #ef4444; }
+
+  /* Session export modal */
+  .export-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+  .export-modal.show { display: flex; }
+  .export-modal-content { background: var(--bg-toolbar); border-radius: 12px; padding: 24px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+  .export-modal-content h3 { margin-bottom: 12px; color: var(--text-primary); }
+  .export-modal-content pre { background: var(--system-msg-bg); padding: 16px; border-radius: 8px; font-size: 12px; overflow-x: auto; max-height: 50vh; color: var(--text-primary); white-space: pre-wrap; word-break: break-all; }
+  .export-modal-content .btn-row { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+  .export-modal-content button { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border-color); cursor: pointer; background: var(--bg-toolbar); color: var(--text-primary); }
+  .export-modal-content button.primary { background: #667eea; color: white; border-color: #667eea; }
+
   /* Scrollbar styling */
   .chat-container::-webkit-scrollbar { width: 6px; }
   .chat-container::-webkit-scrollbar-track { background: transparent; }
@@ -300,6 +317,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
   <button class="tc-btn red" onclick="quickTest('不满意')">不满意</button>
   <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px"></span>
   <button class="tc-btn blue" onclick="runFullFlow()">自动完整流程</button>
+  <button class="tc-btn blue" onclick="exportSession()">导出会话</button>
 </div>
 
 <div class="chat-container" id="chatContainer"></div>
@@ -308,7 +326,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
   <span><span class="label">Session:</span> <span id="infoSession">-</span></span>
   <span><span class="label">Intent:</span> <span id="infoIntent">-</span></span>
   <span><span class="label">Retries:</span> <span id="infoRetries">0</span></span>
-  <span><span class="label">Emotion:</span> <span id="infoEmotion">-</span></span>
+  <span><span class="label">Emotion:</span> <span id="infoEmotion">-</span> <span id="emotionBar" class="emotion-bar"></span></span>
   <span><span class="label">Messages:</span> <span id="infoMessages">0</span></span>
   <span><span class="label">Status:</span> <span id="infoStatus">Active</span></span>
 </div>
@@ -316,6 +334,19 @@ CHAT_HTML = r"""<!DOCTYPE html>
 <div class="input-area">
   <input type="text" id="messageInput" placeholder="输入消息..." autocomplete="off" />
   <button id="sendBtn" onclick="sendMessage()">发送</button>
+</div>
+
+<!-- Export Modal -->
+<div class="export-modal" id="exportModal">
+  <div class="export-modal-content">
+    <h3>📋 会话导出</h3>
+    <pre id="exportContent">加载中...</pre>
+    <div class="btn-row">
+      <button onclick="copyExport()">📋 复制</button>
+      <button onclick="downloadExport()">💾 下载 JSON</button>
+      <button class="primary" onclick="closeExportModal()">关闭</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -518,7 +549,8 @@ async function sendMessage(text) {
       if (data.emotion) {
         const emojiMap = { neutral: '😐', angry: '😠', sad: '😢', anxious: '😰', happy: '😊' };
         const emoji = emojiMap[data.emotion] || '😐';
-        document.getElementById('infoEmotion').textContent = emoji + ' ' + data.emotion + (data.emotion_intensity ? '(' + data.emotion_intensity + ')' : '');
+        document.getElementById('infoEmotion').textContent = emoji + ' ' + data.emotion + (data.emotion_intensity ? '(' + data.emotion_intensity + '/5)' : '');
+        updateEmotionBar(data.emotion, data.emotion_intensity);
       }
       document.getElementById('infoStatus').textContent = data.interrupted ? 'Escalated' : 'Active';
     }
@@ -555,6 +587,54 @@ function resetAll() {
 }
 
 function quickTest(text) { messageInput.value = text; sendMessage(text); }
+
+// Session export
+async function exportSession() {
+  if (!currentSession) { addSystemMsg('没有活跃的会话可导出'); return; }
+  document.getElementById('exportContent').textContent = '加载中...';
+  document.getElementById('exportModal').classList.add('show');
+  try {
+    const resp = await fetch(`/api/export/${currentSession}`);
+    const data = await resp.json();
+    if (data.error) {
+      document.getElementById('exportContent').textContent = '错误: ' + data.error;
+    } else {
+      window._exportData = data;
+      document.getElementById('exportContent').textContent = JSON.stringify(data, null, 2);
+    }
+  } catch(e) {
+    document.getElementById('exportContent').textContent = '网络错误: ' + e.message;
+  }
+}
+
+function closeExportModal() { document.getElementById('exportModal').classList.remove('show'); }
+
+function copyExport() {
+  const text = document.getElementById('exportContent').textContent;
+  navigator.clipboard.writeText(text).then(() => addSystemMsg('已复制到剪贴板')).catch(() => addSystemMsg('复制失败'));
+}
+
+function downloadExport() {
+  if (!window._exportData) return;
+  const blob = new Blob([JSON.stringify(window._exportData, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `session-${window._exportData.session_id || 'export'}.json`;
+  a.click(); URL.revokeObjectURL(url);
+  addSystemMsg('会话已导出为 JSON 文件');
+}
+
+// Update emotion bar with visual intensity indicator
+function updateEmotionBar(emotion, intensity) {
+  const bar = document.getElementById('emotionBar');
+  if (!bar || !intensity) { bar.innerHTML = ''; return; }
+  let html = '';
+  for (let i = 1; i <= 5; i++) {
+    const cls = i <= intensity ? (intensity >= 4 ? 'seg active high' : 'seg active') : 'seg';
+    html += `<span class="${cls}"></span>`;
+  }
+  bar.innerHTML = html;
+}
 
 async function runFullFlow() {
   clearChat();
@@ -619,6 +699,37 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.end_headers()
             self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
+        elif self.path.startswith('/api/export/'): 
+            # GET /api/export/<session_id> - export session history as JSON
+            session_id = self.path.split('/')[-1]
+            try:
+                config = {"configurable": {"thread_id": session_id}}
+                state = _graph.get_state(config)
+                if state and state.values:
+                    msgs = []
+                    for m in state.values.get('messages', []):
+                        msgs.append({
+                            'role': 'user' if isinstance(m, HumanMessage) else 'assistant',
+                            'content': m.content
+                        })
+                    export_data = {
+                        'session_id': session_id,
+                        'exported_at': datetime.now().isoformat(),
+                        'message_count': len(msgs),
+                        'messages': msgs,
+                        'intent': state.values.get('intent', 'unknown'),
+                        'emotion': state.values.get('emotion', 'neutral'),
+                        'emotion_intensity': state.values.get('emotion_intensity', 1),
+                        'retry_count': state.values.get('retry_count', 0),
+                    }
+                else:
+                    export_data = {'session_id': session_id, 'messages': [], 'exported_at': datetime.now().isoformat()}
+            except Exception as e:
+                export_data = {'error': str(e)}
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(export_data, ensure_ascii=False).encode('utf-8'))
         elif self.path == '/api/stats':
             # GET /api/stats - get memory database stats
             try:
