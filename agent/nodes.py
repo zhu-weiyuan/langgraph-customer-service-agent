@@ -141,6 +141,7 @@ INTENT_SYSTEM = """你是一个意图分类器。分析用户消息，判断其�
 def identify_intent(state: Dict[str, Any]) -> Dict[str, Any]:
     """意图识别节点 — 使用本地 LLM 进行意图分类 + 情感分析。"""
     messages = state.get('messages', [])
+
     user_message = ''
     for msg in reversed(messages):
         if isinstance(msg, HumanMessage):
@@ -180,20 +181,43 @@ def identify_intent(state: Dict[str, Any]) -> Dict[str, Any]:
 # 回复生成
 # ============================================================
 
+def _trim_messages(messages: List, keep_last: int = 10) -> List:
+    """Trim message list to prevent unbounded growth in checkpointer state.
+
+    LangGraph best practice (docs.langchain.com/oss/python/langgraph/add-memory):
+    Long conversations pose a challenge — full history may not fit inside an LLM's
+    context window, and most LLMs perform poorly over long contexts. This function
+    keeps the last N message pairs (user+assistant), preserving recency while
+    reducing state bloat in checkpoints.
+
+    Args:
+        messages: Full message list from state
+        keep_last: Number of recent message pairs to keep (default 10 = 20 messages)
+
+    Returns:
+        Trimmed message list
+    """
+    if len(messages) <= keep_last * 2:
+        return messages
+    # Keep the last N pairs — preserves the most recent conversation context
+    return messages[-keep_last * 2:]
+
+
 def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
     """生成回复节点 — 使用本地 LLM + RAG 生成自然对话回复。"""
     intent = state.get('intent', 'consult')
     retry_count = state.get('retry_count', 0)
 
     messages = state.get('messages', [])
+
+    # Trim to recent context for LLM call (avoids context window overflow)
+    trimmed = _trim_messages(messages, keep_last=6)  # 12 messages for LLM
     context_messages = []
-    for msg in messages:
+    for msg in trimmed:
         if isinstance(msg, HumanMessage):
             context_messages.append({"role": "user", "content": msg.content})
         elif isinstance(msg, AIMessage):
             context_messages.append({"role": "assistant", "content": msg.content})
-
-    context_messages = context_messages[-12:]
 
     # --- RAG: retrieve relevant knowledge for the latest user message ---
     rag_context = ""
