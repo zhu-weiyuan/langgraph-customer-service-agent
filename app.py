@@ -133,24 +133,75 @@ CHAT_HTML = r"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LangGraph 智能客服 Agent</title>
 <style>
+  :root {
+    --bg-primary: #f0f2f5;
+    --bg-toolbar: white;
+    --bg-test-cases: #f9fafb;
+    --bg-input-area: white;
+    --bg-info-bar: #f8fafc;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --text-muted: #9ca3af;
+    --border-color: #e5e7eb;
+    --bot-bubble-bg: white;
+    --bot-bubble-shadow: rgba(0,0,0,0.1);
+    --system-msg-bg: #f3f4f6;
+    --system-msg-text: #6b7280;
+    --satisfaction-bg: #fef3c7;
+    --closing-bg: #dcfce7;
+    --quick-reply-bg: white;
+    --quick-reply-border: #d1d5db;
+    --quick-reply-hover: #f3f4f6;
+    --scrollbar-thumb: #d1d5db;
+    --scrollbar-thumb-hover: #9ca3af;
+  }
+
+  [data-theme="dark"] {
+    --bg-primary: #0f172a;
+    --bg-toolbar: #1e293b;
+    --bg-test-cases: #1e293b;
+    --bg-input-area: #1e293b;
+    --bg-info-bar: #1e293b;
+    --text-primary: #e2e8f0;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --border-color: #334155;
+    --bot-bubble-bg: #1e293b;
+    --bot-bubble-shadow: rgba(0,0,0,0.3);
+    --system-msg-bg: #334155;
+    --system-msg-text: #94a3b8;
+    --satisfaction-bg: #422006;
+    --closing-bg: #14532d;
+    --quick-reply-bg: #1e293b;
+    --quick-reply-border: #475569;
+    --quick-reply-hover: #334155;
+    --scrollbar-thumb: #475569;
+    --scrollbar-thumb-hover: #64748b;
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); height: 100vh; display: flex; flex-direction: column; transition: background 0.3s; color: var(--text-primary); }
   .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
   .header h1 { font-size: 18px; font-weight: 600; }
-  .status { font-size: 13px; opacity: 0.9; }
-  .status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; margin-right: 6px; }
-  .toolbar { background: white; padding: 10px 24px; display: flex; gap: 10px; border-bottom: 1px solid #e5e7eb; }
-  .toolbar button { padding: 8px 16px; border: 1px solid #d1d5db; background: white; border-radius: 6px; cursor: pointer; font-size: 13px; color: #374151; transition: all 0.15s; }
-  .toolbar button:hover { background: #f3f4f6; }
+  .status { font-size: 13px; opacity: 0.9; display: flex; align-items: center; gap: 8px; }
+  .status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; }
+  .theme-toggle { background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer; font-size: 16px; padding: 4px 8px; border-radius: 6px; transition: background 0.15s; }
+  .theme-toggle:hover { background: rgba(255,255,255,0.3); }
+  .toolbar { background: var(--bg-toolbar); padding: 10px 24px; display: flex; gap: 10px; border-bottom: 1px solid var(--border-color); transition: background 0.3s; }
+  .toolbar button { padding: 8px 16px; border: 1px solid var(--border-color); background: var(--bg-toolbar); border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-primary); transition: all 0.15s; }
+  .toolbar button:hover { filter: brightness(0.97); }
   .toolbar button.primary { background: #667eea; color: white; border-color: #667eea; }
   .toolbar button.danger { background: #ef4444; color: white; border-color: #ef4444; }
-  .test-cases { background: #f9fafb; padding: 10px 24px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #e5e7eb; }
-  .test-cases .label { font-size: 12px; color: #6b7280; margin-right: 4px; font-weight: 600; }
-  .tc-btn { padding: 5px 12px; background: white; border: 1px solid #d1d5db; border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
-  .tc-btn:hover { background: #f3f4f6; }
+  .test-cases { background: var(--bg-test-cases); padding: 10px 24px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--border-color); transition: background 0.3s; }
+  .test-cases .label { font-size: 12px; color: var(--text-secondary); margin-right: 4px; font-weight: 600; }
+  .tc-btn { padding: 5px 12px; background: var(--bg-toolbar); border: 1px solid var(--border-color); border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.15s; color: var(--text-primary); }
+  .tc-btn:hover { filter: brightness(0.97); }
   .tc-btn.green { border-color: #86efac; color: #166534; background: #f0fdf4; }
   .tc-btn.red { border-color: #fca5a5; color: #991b1b; background: #fef2f2; }
   .tc-btn.blue { border-color: #93c5fd; color: #1e40af; background: #eff6ff; }
+  [data-theme="dark"] .tc-btn.green { background: #052e16; color: #86efac; }
+  [data-theme="dark"] .tc-btn.red { background: #450a0a; color: #fca5a5; }
+  [data-theme="dark"] .tc-btn.blue { background: #172554; color: #93c5fd; }
   .chat-container { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
   .message { display: flex; gap: 12px; max-width: 75%; animation: fadeIn 0.3s ease; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -161,21 +212,27 @@ CHAT_HTML = r"""<!DOCTYPE html>
   .message.bot .avatar { background: linear-gradient(135deg, #f093fb, #f5576c); }
   .bubble { padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
   .message.user .bubble { background: #667eea; color: white; border-bottom-right-radius: 4px; }
-  .message.bot .bubble { background: white; color: #1f2937; border-bottom-left-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-  .message.bot .bubble.satisfaction { background: #fef3c7; border: 1px solid #f59e0b; }
-  .message.bot .bubble.closing { background: #dcfce7; border: 1px solid #22c55e; }
-  .system-msg { align-self: center; padding: 6px 16px; background: #f3f4f6; border-radius: 12px; font-size: 12px; color: #6b7280; }
-  .input-area { background: white; padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; }
-  .input-area input { flex: 1; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 24px; font-size: 14px; outline: none; transition: border-color 0.15s; }
+  .message.bot .bubble { background: var(--bot-bubble-bg); color: var(--text-primary); border-bottom-left-radius: 4px; box-shadow: 0 1px 3px var(--bot-bubble-shadow); transition: background 0.3s; }
+  .message.bot .bubble.satisfaction { background: var(--satisfaction-bg); border: 1px solid #f59e0b; }
+  .message.bot .bubble.closing { background: var(--closing-bg); border: 1px solid #22c55e; }
+  .system-msg { align-self: center; padding: 6px 16px; background: var(--system-msg-bg); border-radius: 12px; font-size: 12px; color: var(--system-msg-text); transition: background 0.3s; }
+
+  /* Quick reply suggestions */
+  .quick-replies { display: flex; gap: 8px; flex-wrap: wrap; align-self: flex-start; margin-left: 48px; animation: fadeIn 0.3s ease; }
+  .quick-reply-btn { padding: 6px 14px; background: var(--quick-reply-bg); border: 1px solid var(--quick-reply-border); border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.15s; color: var(--text-secondary); }
+  .quick-reply-btn:hover { background: var(--quick-reply-hover); border-color: #667eea; color: #667eea; }
+
+  .input-area { background: var(--bg-input-area); padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; gap: 12px; transition: background 0.3s; }
+  .input-area input { flex: 1; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 24px; font-size: 14px; outline: none; transition: border-color 0.15s; background: var(--bg-toolbar); color: var(--text-primary); }
   .input-area input:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
   .input-area button { padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 24px; font-size: 14px; cursor: pointer; }
   .input-area button:hover { opacity: 0.9; }
   .input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .info-bar { background: #f8fafc; padding: 8px 24px; font-size: 12px; color: #6b7280; display: flex; gap: 20px; border-top: 1px solid #e5e7eb; overflow-x: auto; }
+  .info-bar { background: var(--bg-info-bar); padding: 8px 24px; font-size: 12px; color: var(--text-secondary); display: flex; gap: 20px; border-top: 1px solid var(--border-color); overflow-x: auto; transition: background 0.3s; }
   .info-bar span { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-  .info-bar .label { color: #9ca3af; }
+  .info-bar .label { color: var(--text-muted); }
   .typing-indicator { display: flex; gap: 4px; padding: 12px 16px; align-items: center; }
-  .typing-indicator .dot { width: 8px; height: 8px; background: #9ca3af; border-radius: 50%; animation: bounce 1.4s infinite; }
+  .typing-indicator .dot { width: 8px; height: 8px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.4s infinite; }
   .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
   .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
   @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-8px); } }
@@ -201,6 +258,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
     .chat-container { padding: 16px;
       gap: 12px; }
     .message { max-width: 88%; }
+    .quick-replies { margin-left: 42px; }
     .input-area { padding: 12px 16px; }
     .info-bar { padding: 6px 16px; font-size: 11px; gap: 12px; }
     .avatar { width: 30px; height: 30px; font-size: 15px; }
@@ -210,15 +268,15 @@ CHAT_HTML = r"""<!DOCTYPE html>
   /* Scrollbar styling */
   .chat-container::-webkit-scrollbar { width: 6px; }
   .chat-container::-webkit-scrollbar-track { background: transparent; }
-  .chat-container::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
-  .chat-container::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+  .chat-container::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+  .chat-container::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
 </style>
 </head>
 <body>
 
 <div class="header">
   <h1>LangGraph 智能客服 Agent</h1>
-  <div class="status"><span class="dot"></span>在线 (本地 LLM)</div>
+  <div class="status"><span class="dot"></span>在线 (本地 LLM) <button class="theme-toggle" onclick="toggleTheme()" title="切换深色/浅色模式">🌙</button></div>
 </div>
 
 <div class="toolbar">
@@ -251,6 +309,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
   <span><span class="label">Intent:</span> <span id="infoIntent">-</span></span>
   <span><span class="label">Retries:</span> <span id="infoRetries">0</span></span>
   <span><span class="label">Emotion:</span> <span id="infoEmotion">-</span></span>
+  <span><span class="label">Messages:</span> <span id="infoMessages">0</span></span>
   <span><span class="label">Status:</span> <span id="infoStatus">Active</span></span>
 </div>
 
@@ -262,6 +321,42 @@ CHAT_HTML = r"""<!DOCTYPE html>
 <script>
 let currentSession = null;
 let isProcessing = false;
+let messageCount = 0;
+
+// Quick reply suggestions based on context
+const QUICK_REPLIES = {
+  default: ['产品怎么用？', '我要投诉', '价格是多少？', '有保修吗？'],
+  after_greeting: ['产品怎么用？', '价格是多少？', '有什么功能？'],
+  after_reply: ['能详细说说吗？', '还有其他问题', '谢谢，没问题了'],
+  satisfaction: ['满意', '不满意'],
+};
+
+// Theme management
+function toggleTheme() {
+  const html = document.documentElement;
+  const btn = document.querySelector('.theme-toggle');
+  if (html.getAttribute('data-theme') === 'dark') {
+    html.removeAttribute('data-theme');
+    btn.textContent = '🌙';
+    localStorage.setItem('theme', 'light');
+  } else {
+    html.setAttribute('data-theme', 'dark');
+    btn.textContent = '☀️';
+    localStorage.setItem('theme', 'dark');
+  }
+}
+
+// Restore theme on load
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    setTimeout(() => {
+      const btn = document.querySelector('.theme-toggle');
+      if (btn) btn.textContent = '☀️';
+    }, 0);
+  }
+})();
 
 const chatContainer = document.getElementById('chatContainer');
 const messageInput = document.getElementById('messageInput');
@@ -272,6 +367,9 @@ messageInput.addEventListener('keydown', (e) => {
 });
 
 function addMessage(role, content, type, animate) {
+  messageCount++;
+  document.getElementById('infoMessages').textContent = messageCount;
+
   const div = document.createElement('div');
   div.className = `message ${role}`;
   const avatar = document.createElement('div');
@@ -284,8 +382,13 @@ function addMessage(role, content, type, animate) {
   chatContainer.appendChild(div);
   chatContainer.scrollTop = chatContainer.scrollHeight;
 
+  // Remove existing quick replies when new message added
+  removeQuickReplies();
+
   if (animate && role === 'bot') {
-    typeWriter(bubble, content, 20);
+    // Slower speed for Chinese text (40ms/char) vs English (25ms/char)
+    const hasChinese = /[\u4e00-\u9fff]/.test(content);
+    typeWriter(bubble, content, hasChinese ? 35 : 20);
   } else {
     bubble.textContent = content;
   }
@@ -337,6 +440,36 @@ function removeTyping() {
   if (el) el.remove();
 }
 
+// Quick reply suggestions
+function showQuickReplies(replies) {
+  removeQuickReplies();
+  const container = document.createElement('div');
+  container.className = 'quick-replies';
+  container.id = 'quickRepliesContainer';
+  for (const text of replies) {
+    const btn = document.createElement('button');
+    btn.className = 'quick-reply-btn';
+    btn.textContent = text;
+    btn.onclick = () => quickTest(text);
+    container.appendChild(btn);
+  }
+  chatContainer.appendChild(container);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function removeQuickReplies() {
+  const el = document.getElementById('quickRepliesContainer');
+  if (el) el.remove();
+}
+
+// Get contextual quick replies based on last bot message type
+function getContextualQuickReplies(lastReplyType) {
+  if (lastReplyType === 'satisfaction') return QUICK_REPLIES.satisfaction;
+  if (lastReplyType === 'closing') return [];
+  if (lastReplyType === 'reply') return QUICK_REPLIES.after_reply;
+  return QUICK_REPLIES.default;
+}
+
 async function sendMessage(text) {
   if (isProcessing) return;
   const message = text || messageInput.value.trim();
@@ -367,9 +500,17 @@ async function sendMessage(text) {
     if (data.error) {
       addMessage('bot', 'Error: ' + data.error, '', false);
     } else {
+      let lastReplyType = '';
       for (const reply of data.replies) {
         const typeMap = { satisfaction: 'satisfaction', closing: 'closing' };
-        addMessage('bot', reply.content, typeMap[reply.type] || '', true);
+        lastReplyType = typeMap[reply.type] || 'reply';
+        addMessage('bot', reply.content, lastReplyType, true);
+      }
+
+      // Show contextual quick replies after bot responds
+      const suggestions = getContextualQuickReplies(lastReplyType);
+      if (suggestions && suggestions.length > 0) {
+        setTimeout(() => showQuickReplies(suggestions), 800);
       }
 
       if (data.intent) document.getElementById('infoIntent').textContent = data.intent;
@@ -404,10 +545,12 @@ function clearChat() { chatContainer.innerHTML = ''; }
 
 function resetAll() {
   currentSession = null;
+  messageCount = 0;
   chatContainer.innerHTML = '';
   document.getElementById('infoSession').textContent = '-';
   document.getElementById('infoIntent').textContent = '-';
   document.getElementById('infoRetries').textContent = '0';
+  document.getElementById('infoMessages').textContent = '0';
   document.getElementById('infoStatus').textContent = 'Active';
 }
 
@@ -419,9 +562,9 @@ async function runFullFlow() {
   await new Promise(r => setTimeout(r, 500));
 
   const steps = [
-    { msg: '产品怎么用？', label: '步骤1：咨询产品用法', delay: 12000 },
-    { msg: '谢谢，没问题了', label: '步骤2：结束对话 → 满意度检查', delay: 12000 },
-    { msg: '满意', label: '步骤3：满意 → 结束语', delay: 12000 },
+    { msg: '产品怎么用？', label: '步骤1：咨询产品用法' },
+    { msg: '谢谢，没问题了', label: '步骤2：结束对话 → 满意度检查' },
+    { msg: '满意', label: '步骤3：满意 → 结束语' },
   ];
 
   for (const step of steps) {
@@ -429,7 +572,9 @@ async function runFullFlow() {
     await new Promise(r => setTimeout(r, 500));
     messageInput.value = step.msg;
     await sendMessage(step.msg);
-    await new Promise(r => setTimeout(r, step.delay));
+    // Wait until processing finishes plus a short buffer
+    while (isProcessing) { await new Promise(r => setTimeout(r, 200)); }
+    await new Promise(r => setTimeout(r, 1500));
   }
 
   addSystemMsg('完整流程演示完成！');
@@ -447,6 +592,44 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.end_headers()
             self.wfile.write(CHAT_HTML.encode('utf-8'))
+        elif self.path.startswith('/api/session/'):
+            # GET /api/session/<session_id> - get session state
+            session_id = self.path.split('/')[-1]
+            try:
+                config = {"configurable": {"thread_id": session_id}}
+                state = _graph.get_state(config)
+                if state and state.values:
+                    msgs = []
+                    for m in state.values.get('messages', []):
+                        msgs.append({
+                            'role': 'user' if isinstance(m, HumanMessage) else 'assistant',
+                            'content': m.content
+                        })
+                    result = {
+                        'messages': msgs,
+                        'intent': state.values.get('intent', 'unknown'),
+                        'emotion': state.values.get('emotion', 'neutral'),
+                        'retry_count': state.values.get('retry_count', 0),
+                    }
+                else:
+                    result = {'messages': [], 'intent': 'unknown', 'emotion': 'neutral', 'retry_count': 0}
+            except Exception as e:
+                result = {'error': str(e)}
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
+        elif self.path == '/api/stats':
+            # GET /api/stats - get memory database stats
+            try:
+                from agent.memory import get_stats
+                result = get_stats()
+            except Exception as e:
+                result = {'error': str(e)}
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
         else:
             self.send_response(404)
             self.end_headers()

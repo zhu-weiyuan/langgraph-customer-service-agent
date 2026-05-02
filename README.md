@@ -8,9 +8,15 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 - **RAG Knowledge Base**: Local docs/FAQ retrieval with TF-IDF scoring — grounded answers from product manuals
 - **Intent Identification**: Auto-classify user messages (consult / complaint / chat)
 - **Multi-turn Dialogue**: Context-aware continuous conversation
+- **Multi-turn Memory**: Cross-session user preferences, product interests, and history (SQLite)
+- **Dialogue Summary**: Auto-generate service ticket summaries at session end
 - **Satisfaction Check**: Retry on dissatisfaction, max 3 attempts
 - **Human Escalation**: Use `interrupt` to suspend session for human handling
 - **Session Persistence**: SQLite-based state checkpointing and recovery
+- **Dark Mode UI**: Toggle between light/dark themes with localStorage persistence
+- **Quick Reply Buttons**: Context-aware suggestion buttons after bot responses
+- **Typing Animation**: Character-by-character output with adaptive speed (Chinese vs English)
+- **Session History API**: REST endpoints for session state and memory stats
 
 ## Architecture
 
@@ -93,6 +99,15 @@ python main.py
 | **Edges** | `add_edge()` for fixed transitions; `add_conditional_edges()` for dynamic routing |
 | **Checkpointer** | `SqliteSaver` for persistence; `MemorySaver` for testing |
 | **Interrupt** | Pause graph execution for human-in-the-loop workflows |
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Web UI |
+| `/api/chat` | POST | `{"message": "...", "session_id": "..."}` → bot response |
+| `/api/session/<id>` | GET | Get session state (messages, intent, emotion) |
+| `/api/stats` | GET | Memory database statistics |
 
 ## Extending
 
