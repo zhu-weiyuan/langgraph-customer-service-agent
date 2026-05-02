@@ -1,11 +1,11 @@
 """
-节点函数 - LangGraph 智能客服 Agent (Real LLM via local llama.cpp)
+节点函数 - LangGraph 智能客服 Agent (本地 LLM via llama.cpp)
 
-New flow:
-1. User asks question → bot replies (NO satisfaction check)
-2. User continues asking → bot keeps answering
-3. User signals ending ("bye", "thanks", "good") → THEN ask satisfaction
-4. Satisfied → closing; Not satisfied → retry or escalate
+新流程：
+1. 用户提问 → bot 回复（不问满意度）
+2. 用户继续问 → bot 继续回答
+3. 用户表示结束（"再见"、"谢谢"、"好了"）→ 才问满意度
+4. 满意 → 结束语；不满意 → 重试或转人工
 """
 
 from typing import Dict, Any, List
@@ -14,25 +14,24 @@ from langchain_core.messages import HumanMessage, AIMessage
 LLM_API_URL = "http://127.0.0.1:8080/v1/chat/completions"
 LLM_API_KEY = "your_key_here"
 
-SYSTEM_PROMPT = """You are a professional customer service assistant for "SmartLink Tech".
-Company products: smart speakers, smart home kits, cloud services.
+SYSTEM_PROMPT = """你是一个专业的智能客服助手，服务于"智联科技"公司。
+公司产品：智能音箱、智能家居套装、云服务。
 
-Your duties:
-1. Friendly answers to product questions
-2. Handle complaints with patience and empathy
-3. For casual chat, respond politely and guide to product topics
+你的职责：
+1. 友好地回答用户关于产品的咨询
+2. 处理用户投诉，保持耐心和同理心
+3. 如果是闲聊，礼貌回应并引导到产品话题
 
-Response rules:
-- Reply in Chinese (中文)
-- Natural, warm tone like a real human agent
-- Give targeted answers based on user's specific question
-- If user complains, apologize first then solve
-- If unsure, honestly say you don't know
-- Keep responses concise and helpful"""
+回复要求：
+- 用中文回复
+- 语气自然、亲切，像一个真人客服
+- 根据用户的问题给出有针对性的回答，不要模板化
+- 如果用户投诉，先道歉再解决问题
+- 如果不确定，诚实说不知道，不要编造信息"""
 
 
 def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT, max_tokens: int = 512) -> str:
-    """Call local llama.cpp via HTTP API."""
+    """调用本地 llama.cpp HTTP API。"""
     import urllib.request
     import json
 
@@ -56,12 +55,12 @@ def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT, max_tokens: int
             result = json.loads(resp.read().decode("utf-8"))
             return result["choices"][0]["message"]["content"]
     except Exception as e:
-        print(f"[LLM Error] {e}")
-        return "Sorry, I'm having trouble processing your request. Please try again later."
+        print(f"[LLM 错误] {e}")
+        return "抱歉，我暂时无法处理您的请求，请稍后再试。"
 
 
 def _call_llm_json(messages: List[dict], system: str, max_tokens: int = 256) -> dict:
-    """Call local llama.cpp and parse JSON response."""
+    """调用本地 llama.cpp 并解析 JSON 响应。"""
     import urllib.request
     import json
 
@@ -93,31 +92,31 @@ def _call_llm_json(messages: List[dict], system: str, max_tokens: int = 256) -> 
                         continue
             return {"intent": "consult"}
     except Exception as e:
-        print(f"[LLM JSON Error] {e}")
+        print(f"[LLM JSON 错误] {e}")
         return {"intent": "consult"}
 
 
 # ============================================================
-# Intent identification (includes end-of-conversation detection)
+# 意图识别（包含对话结束检测）
 # ============================================================
 
-INTENT_SYSTEM = """You are an intent classifier. Analyze the user message and classify it.
+INTENT_SYSTEM = """你是一个意图分类器。分析用户消息，判断其意图。
 
-Return strict JSON only:
-{"intent": "type", "ending": false}
+返回严格的 JSON 格式（不要任何其他文字）：
+{"intent": "类型", "ending": false}
 
-Intent types:
-- "consult": product questions, feature inquiries, tech support
-- "complaint": complaints, grievances, refunds, returns, bad reviews
-- "chat": greetings, casual chat ("hello", "hi", "how are you")
-- "ending": user wants to end the conversation ("bye", "thanks", "good", "that's all", "再见", "谢谢", "好了", "没问题了")
+意图类型：
+- "consult"：产品咨询、功能询问、技术支持
+- "complaint"：投诉、抱怨、退款、退货、差评
+- "chat"：打招呼、闲聊（如"你好"、"hi"、"在吗"）
+- "ending"：用户想结束对话（"再见"、"谢谢"、"好了"、"没问题了"、"bye"、"thanks"、"that's all"）
 
-The "ending" field is true ONLY if intent is "ending". Otherwise false.
-Be careful: "谢谢" alone = ending. "谢谢但是..." = not ending (still has a question)."""
+"ending" 字段只有在 intent 为 "ending" 时才为 true，否则为 false。
+注意："谢谢"单独出现 = ending；"谢谢但是..." = 不是 ending（还有问题）。"""
 
 
 def identify_intent(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Classify user intent using local LLM."""
+    """意图识别节点 — 使用本地 LLM 进行意图分类。"""
     messages = state.get('messages', [])
     user_message = ''
     for msg in reversed(messages):
@@ -135,16 +134,16 @@ def identify_intent(state: Dict[str, Any]) -> Dict[str, Any]:
 
     intent = result.get('intent', 'consult')
     ending = result.get('ending', False)
-    print(f"[Intent] '{user_message}' -> {intent}, ending={ending}")
+    print(f"[意图识别] '{user_message}' → {intent}, 结束={ending}")
     return {'intent': intent, 'ending': ending}
 
 
 # ============================================================
-# Reply generation
+# 回复生成
 # ============================================================
 
 def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate natural conversational reply using local LLM."""
+    """生成回复节点 — 使用本地 LLM 生成自然对话回复。"""
     intent = state.get('intent', 'consult')
     retry_count = state.get('retry_count', 0)
 
@@ -159,50 +158,50 @@ def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
     context_messages = context_messages[-12:]
 
     if retry_count > 0:
-        extra = f"\n\nImportant: The user was not satisfied with your previous answer. Please rephrase and try a different approach. This is retry #{retry_count}."
+        extra = f"\n\n注意：用户之前表示不满意，请用不同的方式重新回答。这是第 {retry_count} 次重试。"
     else:
         extra = ""
 
     reply = _call_llm(context_messages, SYSTEM_PROMPT + extra, max_tokens=512)
     ai_message = AIMessage(content=reply)
-    print(f"[Reply] intent={intent}, retry={retry_count}")
+    print(f"[生成回复] intent={intent}, retry={retry_count}")
     return {'messages': [ai_message], 'bot_reply': reply}
 
 
 # ============================================================
-# Satisfaction check (only called at end of conversation)
+# 满意度检查（仅在对话结束时调用）
 # ============================================================
 
 def check_satisfaction(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Ask user for satisfaction feedback at conversation end."""
+    """满意度检查节点 — 使用 LLM 生成自然的满意度询问。"""
     prompt = _call_llm(
-        [{"role": "user", "content": "Please ask the user if they are satisfied with this service in a natural, friendly way. Keep it brief."}],
-        SYSTEM_PROMPT + "\nOnly generate the satisfaction question.",
+        [{"role": "user", "content": "请自然地询问用户是否满意刚才的服务，简短友好"}],
+        SYSTEM_PROMPT + "\n只生成满意度询问的话，不要回复其他内容。",
         max_tokens=80
     )
 
     ai_message = AIMessage(content=prompt)
-    print(f"[Satisfaction Check] Asking user")
+    print(f"[满意度检查] 询问用户")
     return {'messages': [ai_message]}
 
 
 # ============================================================
-# Process satisfaction feedback
+# 处理满意度反馈
 # ============================================================
 
-SATISFACTION_SYSTEM = """You are a satisfaction judge. Based on the user's reply, determine if they are satisfied.
+SATISFACTION_SYSTEM = """你是一个满意度判断器。根据用户回复判断是否满意。
 
-Return strict JSON only:
-{"satisfied": true} or {"satisfied": false}
+返回严格的 JSON（不要其他文字）：
+{"satisfied": true} 或 {"satisfied": false}
 
-Rules:
-- "满意", "好", "可以", "OK", "谢谢", "great", "good", "fine" -> true
-- "不满意", "不好", "不行", "一般", continued complaints -> false
-- If user asks a NEW question (not answering satisfaction) -> false"""
+规则：
+- "满意"、"好"、"可以"、"OK"、"谢谢" → true
+- "不满意"、"不好"、"不行"、"一般"、继续抱怨 → false
+- 如果用户提出了新问题（不是回答满意度）→ false"""
 
 
 def process_satisfaction(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Use LLM to judge if user is satisfied."""
+    """处理满意度反馈节点 — 使用 LLM 判断用户是否满意。"""
     messages = state.get('messages', [])
     retry_count = state.get('retry_count', 0)
 
@@ -216,33 +215,33 @@ def process_satisfaction(state: Dict[str, Any]) -> Dict[str, Any]:
         return {'satisfaction': None, 'retry_count': retry_count}
 
     judge_result = _call_llm_json(
-        [{"role": "user", "content": f"User reply: {user_message}\nDetermine if they are satisfied with the service."}],
+        [{"role": "user", "content": f"用户回复：{user_message}\n判断用户对服务是否满意。"}],
         SATISFACTION_SYSTEM
     )
 
     satisfaction = judge_result.get('satisfied', False)
     new_retry = retry_count + (0 if satisfaction else 1)
-    print(f"[Process Satisfaction] '{user_message}' -> satisfied={satisfaction}, retries={new_retry}")
+    print(f"[处理满意度] '{user_message}' → 满意={satisfaction}, 重试={new_retry}")
     return {'satisfaction': satisfaction, 'retry_count': new_retry}
 
 
 # ============================================================
-# Escalate to human
+# 转人工
 # ============================================================
 
 def escalate_to_human(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Escalate to human agent using interrupt."""
+    """转人工节点 — 使用 interrupt 挂起等待人工介入。"""
     from langgraph.types import interrupt
 
     session_id = state.get('session_id', 'unknown')
     intent = state.get('intent', 'unknown')
     retry_count = state.get('retry_count', 0)
 
-    print(f"[Escalate] Upgrading! session={session_id}, intent={intent}, retries={retry_count}")
+    print(f"[转人工] 问题升级！session={session_id}, intent={intent}, retries={retry_count}")
 
     human_response = interrupt({
         "type": "human_intervention_required",
-        "message": "Human agent intervention needed",
+        "message": "需要人工客服介入处理",
         "session_id": session_id,
         "context": {
             "intent": intent,
@@ -253,24 +252,24 @@ def escalate_to_human(state: Dict[str, Any]) -> Dict[str, Any]:
 
     if human_response:
         return {
-            'messages': [AIMessage(content=f"[Human Agent]: {human_response}")],
+            'messages': [AIMessage(content=f"[人工客服]: {human_response}")],
             'escalate': False
         }
     return {'escalate': True}
 
 
 # ============================================================
-# Finalize
+# 结束对话
 # ============================================================
 
 def finalize(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Generate natural closing message using LLM."""
+    """结束对话节点 — 使用 LLM 生成自然的结束语。"""
     closing = _call_llm(
-        [{"role": "user", "content": "Please naturally end this customer service conversation with thanks and warm wishes."}],
-        SYSTEM_PROMPT + "\nOnly generate the closing message, brief and warm.",
+        [{"role": "user", "content": "请自然地结束这次客服对话，表达感谢和祝福"}],
+        SYSTEM_PROMPT + "\n只生成结束语，简短温暖。",
         max_tokens=100
     )
 
     ai_message = AIMessage(content=closing)
-    print(f"[Finalize] Conversation ended")
+    print(f"[结束对话] 服务完成")
     return {'messages': [ai_message]}

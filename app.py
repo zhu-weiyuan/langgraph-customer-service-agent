@@ -113,7 +113,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LangGraph Customer Service Agent</title>
+<title>LangGraph 智能客服 Agent</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; height: 100vh; display: flex; flex-direction: column; }
@@ -166,31 +166,31 @@ CHAT_HTML = r"""<!DOCTYPE html>
 <body>
 
 <div class="header">
-  <h1>LangGraph Customer Service Agent</h1>
-  <div class="status"><span class="dot"></span>Online (Real LLM)</div>
+  <h1>LangGraph 智能客服 Agent</h1>
+  <div class="status"><span class="dot"></span>在线 (本地 LLM)</div>
 </div>
 
 <div class="toolbar">
-  <button class="primary" onclick="newSession()">New Session</button>
-  <button onclick="clearChat()">Clear Chat</button>
-  <button class="danger" onclick="resetAll()">Reset All</button>
+  <button class="primary" onclick="newSession()">新会话</button>
+  <button onclick="clearChat()">清空聊天</button>
+  <button class="danger" onclick="resetAll()">重置全部</button>
 </div>
 
 <div class="test-cases">
-  <span class="label">Test:</span>
-  <button class="tc-btn blue" onclick="quickTest('How do I use the product?')">Product Usage</button>
-  <button class="tc-btn red" onclick="quickTest('I want to complain, the quality is terrible')">Complaint</button>
-  <button class="tc-btn" onclick="quickTest('Hello')">Greeting</button>
+  <span class="label">测试：</span>
+  <button class="tc-btn blue" onclick="quickTest('产品怎么用？')">产品咨询</button>
+  <button class="tc-btn red" onclick="quickTest('我要投诉，产品质量太差了')">投诉</button>
+  <button class="tc-btn" onclick="quickTest('你好')">打招呼</button>
   <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px"></span>
-  <span class="label">End:</span>
-  <button class="tc-btn green" onclick="quickTest('Thanks, that\'s all')">Thanks & End</button>
-  <button class="tc-btn red" onclick="quickTest('Bye')">Say Bye</button>
+  <span class="label">结束：</span>
+  <button class="tc-btn green" onclick="quickTest('谢谢，没问题了')">感谢并结束</button>
+  <button class="tc-btn red" onclick="quickTest('再见')">说再见</button>
   <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px"></span>
-  <span class="label">Feedback:</span>
-  <button class="tc-btn green" onclick="quickTest('Satisfied')">Satisfied</button>
-  <button class="tc-btn red" onclick="quickTest('Not satisfied')">Not Satisfied</button>
+  <span class="label">反馈：</span>
+  <button class="tc-btn green" onclick="quickTest('满意')">满意</button>
+  <button class="tc-btn red" onclick="quickTest('不满意')">不满意</button>
   <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px"></span>
-  <button class="tc-btn blue" onclick="runFullFlow()">Auto Full Flow</button>
+  <button class="tc-btn blue" onclick="runFullFlow()">自动完整流程</button>
 </div>
 
 <div class="chat-container" id="chatContainer"></div>
@@ -203,8 +203,8 @@ CHAT_HTML = r"""<!DOCTYPE html>
 </div>
 
 <div class="input-area">
-  <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off" />
-  <button id="sendBtn" onclick="sendMessage()">Send</button>
+  <input type="text" id="messageInput" placeholder="输入消息..." autocomplete="off" />
+  <button id="sendBtn" onclick="sendMessage()">发送</button>
 </div>
 
 <script>
@@ -318,7 +318,7 @@ function newSession() {
   document.getElementById('infoIntent').textContent = '-';
   document.getElementById('infoRetries').textContent = '0';
   document.getElementById('infoStatus').textContent = 'Active';
-  addSystemMsg('New session started');
+  addSystemMsg('新会话已启动');
 }
 
 function clearChat() { chatContainer.innerHTML = ''; }
@@ -340,9 +340,9 @@ async function runFullFlow() {
   await new Promise(r => setTimeout(r, 500));
 
   const steps = [
-    { msg: "How do I use the smart speaker?", label: "Step 1: Ask about product", delay: 12000 },
-    { msg: "Thanks, that's all!", label: "Step 2: End conversation -> satisfaction check", delay: 12000 },
-    { msg: "Satisfied", label: "Step 3: Satisfied -> closing", delay: 12000 },
+    { msg: '产品怎么用？', label: '步骤1：咨询产品用法', delay: 12000 },
+    { msg: '谢谢，没问题了', label: '步骤2：结束对话 → 满意度检查', delay: 12000 },
+    { msg: '满意', label: '步骤3：满意 → 结束语', delay: 12000 },
   ];
 
   for (const step of steps) {
@@ -353,7 +353,7 @@ async function runFullFlow() {
     await new Promise(r => setTimeout(r, step.delay));
   }
 
-  addSystemMsg('Full flow demo complete!');
+  addSystemMsg('完整流程演示完成！');
 }
 </script>
 
