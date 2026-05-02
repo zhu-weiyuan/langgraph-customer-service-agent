@@ -11,6 +11,9 @@
 from typing import Dict, Any, List
 from langchain_core.messages import HumanMessage, AIMessage
 
+# RAG integration
+from .rag import build_context as rag_build_context
+
 LLM_API_URL = "http://127.0.0.1:8080/v1/chat/completions"
 LLM_API_KEY = "your_key_here"
 
@@ -27,7 +30,14 @@ SYSTEM_PROMPT = """你是一个专业的智能客服助手，服务于"智联科
 - 语气自然、亲切，像一个真人客服
 - 根据用户的问题给出有针对性的回答，不要模板化
 - 如果用户投诉，先道歉再解决问题
-- 如果不确定，诚实说不知道，不要编造信息"""
+- 如果不确定，诚实说不知道，不要编造信息
+- 优先使用下方参考资料中的信息回答产品相关问题"""
+
+# RAG-enhanced system prompt template
+RAG_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT + """
+
+{rag_context}
+请基于以上参考资料回答用户问题。如果参考资料中没有相关信息，诚实说明你不确定。"""
 
 
 def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT, max_tokens: int = 512) -> str:
@@ -143,7 +153,7 @@ def identify_intent(state: Dict[str, Any]) -> Dict[str, Any]:
 # ============================================================
 
 def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
-    """生成回复节点 — 使用本地 LLM 生成自然对话回复。"""
+    """生成回复节点 — 使用本地 LLM + RAG 生成自然对话回复。"""
     intent = state.get('intent', 'consult')
     retry_count = state.get('retry_count', 0)
 
@@ -157,14 +167,33 @@ def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
 
     context_messages = context_messages[-12:]
 
+    # --- RAG: retrieve relevant knowledge for the latest user message ---
+    rag_context = ""
+    if intent == 'consult':
+        latest_user = ''
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                latest_user = msg.content
+                break
+        if latest_user:
+            rag_context = rag_build_context(latest_user)
+            if rag_context:
+                print(f"[RAG] 找到 {rag_context.count('###')} 条相关知识")
+
+    # Build system prompt with RAG context
+    if rag_context:
+        system_prompt = RAG_SYSTEM_PROMPT_TEMPLATE.format(rag_context=rag_context)
+    else:
+        system_prompt = SYSTEM_PROMPT
+
     if retry_count > 0:
         extra = f"\n\n注意：用户之前表示不满意，请用不同的方式重新回答。这是第 {retry_count} 次重试。"
     else:
         extra = ""
 
-    reply = _call_llm(context_messages, SYSTEM_PROMPT + extra, max_tokens=512)
+    reply = _call_llm(context_messages, system_prompt + extra, max_tokens=512)
     ai_message = AIMessage(content=reply)
-    print(f"[生成回复] intent={intent}, retry={retry_count}")
+    print(f"[生成回复] intent={intent}, retry={retry_count}, rag={'yes' if rag_context else 'no'}")
     return {'messages': [ai_message], 'bot_reply': reply}
 
 

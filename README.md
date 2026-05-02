@@ -4,6 +4,7 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 
 ## Core Features
 
+- **RAG Knowledge Base**: Local docs/FAQ retrieval with TF-IDF scoring — grounded answers from product manuals
 - **Intent Identification**: Auto-classify user messages (consult / complaint / chat)
 - **Multi-turn Dialogue**: Context-aware continuous conversation
 - **Satisfaction Check**: Retry on dissatisfaction, max 3 attempts
@@ -13,17 +14,24 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 ## Architecture
 
 ```
-START -> identify_intent -> generate_reply -> check_satisfaction
-                                                  |
-                                            process_satisfaction
-                                                  |
-                                    +-------------+------------+
-                                    |             |            |
-                               (satisfied)   (not satisfied)  (3 retries used)
-                                    |             |            |
-                               finalize      retry        escalate_to_human
-                                              |                  |
-                                         generate_reply       finalize
+START -> identify_intent -> generate_reply (+RAG) -> check_satisfaction
+                                                      |
+                                                 process_satisfaction
+                                                      |
+                                      +---------------+--------------+
+                                      |               |              |
+                                 (satisfied)    (not satisfied)   (3 retries used)
+                                      |               |              |
+                                 finalize         retry        escalate_to_human
+                                                   |                  |
+                                              generate_reply       finalize
+```
+
+### RAG Pipeline
+
+```
+User Question → TF-IDF Retrieval → Top-3 Sections → Context Injection → LLM Reply
+(knowledge/*.md)    (rag.py)        (scored)      (nodes.py)
 ```
 
 ## Project Structure
@@ -33,8 +41,14 @@ langgraph-customer-service-agent/
 ├── agent/
 │   ├── __init__.py
 │   ├── state.py          # State definition (TypedDict)
-│   ├── nodes.py          # Node function implementations
+│   ├── nodes.py          # Node function implementations (+RAG integration)
+│   ├── rag.py            # RAG retrieval (TF-IDF, no external deps)
 │   └── graph.py          # Graph construction and compilation
+├── knowledge/            # Knowledge base (auto-loaded)
+│   ├── product-manual.md # Product specs, features, pricing
+│   ├── troubleshooting.md # Troubleshooting guides
+│   └── faq.md            # Common Q&A
+├── app.py                # Web UI (port 7860)
 ├── main.py               # Entry point (interactive / test / resume modes)
 ├── test_agent.py         # Automated test suite
 ├── requirements.txt      # Dependencies
@@ -79,6 +93,23 @@ python main.py
 | **Interrupt** | Pause graph execution for human-in-the-loop workflows |
 
 ## Extending
+
+### Add Knowledge Base Documents
+
+Drop any `.md` file into `knowledge/` — it's auto-loaded on startup:
+
+```markdown
+# 新功能说明书
+
+## 产品概述
+...
+
+## 常见问题
+**Q: 怎么用？**
+A: ...
+```
+
+The RAG module parses headings into sections and scores them against user queries.
 
 ### Connect a real LLM
 
