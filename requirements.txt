@@ -1,0 +1,14 @@
+# LangGraph 智能客服 Agent - 依赖列表
+
+# LangGraph 核心库
+langgraph>=1.0.0
+langchain-core>=1.0.0
+
+# SQLite Checkpointer（持久化状态存储）
+langgraph-checkpoint-sqlite>=3.0.0
+
+# 可选：如果需要真实 LLM 集成，取消注释以下依赖
+# openai>=1.0.0
+# langchain-openai>=0.2.0
+# anthropic>=0.30.0
+# langchain-anthropic>=0.3.0
