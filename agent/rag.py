@@ -80,27 +80,32 @@ def _parse_markdown(text: str, title: str) -> dict:
     return {"title": title, "content": text, "sections": sections}
 
 
-def _tokenize(text: str) -> List[str]:
+def _tokenize(text: str, include_title: bool = False) -> List[str]:
     """Chinese + English tokenizer.
     
-    For Chinese: extracts individual characters as tokens (since Chinese has no word boundaries).
+    For Chinese: extracts n-grams (unigram..trigram) from contiguous Chinese runs.
     For English: splits on whitespace and keeps words with 2+ chars.
-    Uses bigram pairs for multi-character Chinese terms to improve matching.
+    Numbers are kept as-is.
     """
-    # Separate Chinese and non-Chinese parts
-    chinese_chars = re.findall(r'[\u4e00-\u9fff]', text)
+    # Extract contiguous Chinese character sequences
+    chinese_runs = re.findall(r'[\u4e00-\u9fff]+', text)
     english_words = re.findall(r'[a-zA-Z]+', text)
     numbers = re.findall(r'\d+', text)
     
     tokens = []
     
-    # Chinese characters as individual tokens
-    for c in chinese_chars:
-        tokens.append(c)
-    
-    # Also create bigram pairs for common multi-char terms
-    for i in range(len(chinese_chars) - 1):
-        tokens.append(chinese_chars[i] + chinese_chars[i+1])
+    # Generate n-grams from each contiguous Chinese run
+    for run in chinese_runs:
+        chars = list(run)
+        # Unigrams (individual characters) — lower weight at scoring time
+        for c in chars:
+            tokens.append(c)
+        # Bigrams
+        for i in range(len(chars) - 1):
+            tokens.append(chars[i] + chars[i+1])
+        # Trigrams (captures 3-char terms like "开发票", "质保期")
+        for i in range(len(chars) - 2):
+            tokens.append(chars[i] + chars[i+1] + chars[i+2])
     
     # English words (lowercase, 2+ chars)
     for w in english_words:
@@ -152,6 +157,9 @@ def _compute_similarity(query_tokens: List[str], doc_tokens: List[str]) -> float
 def retrieve(query: str, top_k: int = 3) -> List[dict]:
     """Retrieve most relevant knowledge base sections for a query.
 
+    Uses text similarity + title boost. Section titles are strong relevance signals
+    because they summarize the content (e.g., "保修政策" directly matches "保修多久").
+
     Args:
         query: User's question
         top_k: Number of sections to return
@@ -170,6 +178,15 @@ def retrieve(query: str, top_k: int = 3) -> List[dict]:
         for section in doc["sections"]:
             section_tokens = _tokenize(section["text"])
             score = _compute_similarity(query_tokens, section_tokens)
+
+            # Title boost: section titles are strong relevance signals
+            title_tokens = _tokenize(section["title"])
+            if title_tokens:
+                title_score = _compute_similarity(query_tokens, title_tokens)
+                # Title matches count extra — multiply by 1.8x boost
+                if title_score > 0:
+                    score = score * 1.5 + title_score * 2.0
+
             if score > 0:
                 scored_sections.append({
                     "title": section["title"],
