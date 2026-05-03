@@ -26,11 +26,23 @@ import json
 import urllib.request
 import os
 import time
+import logging
 
 # Windows console UTF-8 fix
 if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    try:
+        if not isinstance(sys.stdout, io.TextIOWrapper):
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    except (OSError, ValueError):
+        pass
+
+
+    """Print safely in multi-threaded LangGraph context."""
+    try:
+        print(msg)
+    except (ValueError, OSError):
+        logging.warning(msg)
 
 # ============================================================
 # 配置
@@ -136,6 +148,52 @@ CITY_COORDS = {
     '德宏': '98.5787,24.4362',
     '怒江': '98.8549,25.7863',
     '迪庆': '99.7068,27.8272',
+    # 省级/地区级目的地（用省会/主要城市坐标）
+    '云南': '102.8329,24.8801',      # 昆明
+    '贵州': '106.6302,26.6470',      # 贵阳
+    '四川': '104.0668,30.5728',      # 成都
+    '广西': '108.3665,22.8170',      # 南宁
+    '海南': '110.3497,20.0174',      # 海口
+    '西藏': '91.1409,29.6456',       # 拉萨
+    '新疆': '87.6168,43.8256',       # 乌鲁木齐
+    '甘肃': '103.8343,36.0611',      # 兰州
+    '青海': '101.7782,36.6171',      # 西宁
+    '宁夏': '106.2309,38.4872',      # 银川
+    '内蒙古': '111.7519,40.8414',    # 呼和浩特
+    '黑龙江': '126.6424,45.7500',    # 哈尔滨
+    '吉林': '125.3235,43.8171',      # 长春
+    '辽宁': '123.4328,41.8086',      # 沈阳
+    '河北': '114.5149,38.0428',      # 石家庄
+    '山西': '112.5492,37.8573',      # 太原
+    '山东': '117.0208,36.6683',      # 济南
+    '河南': '113.6253,34.7466',      # 郑州
+    '江苏': '118.7969,32.0603',      # 南京
+    '浙江': '120.1551,30.2741',      # 杭州
+    '安徽': '117.2272,31.8206',      # 合肥
+    '江西': '115.8579,28.6829',      # 南昌
+    '湖北': '114.3054,30.5931',      # 武汉
+    '湖南': '112.9388,28.2282',      # 长沙
+    '福建': '119.2965,26.0745',      # 福州
+    '广东': '113.2644,23.1291',      # 广州
+    # 国外国家/地区
+    '日本': '139.6917,35.6895',      # 东京
+    '韩国': '126.9780,37.5665',      # 首尔
+    '泰国': '100.5018,13.7563',      # 曼谷
+    '马来西亚': '101.6869,3.1390',   # 吉隆坡
+    '印度尼西亚': '106.8451,-6.2088', # 雅加达
+    '越南': '105.8540,21.0278',      # 河内
+    '菲律宾': '120.9842,14.5995',    # 马尼拉
+    '英国': '-0.1276,51.5074',       # 伦敦
+    '法国': '2.3522,48.8566',        # 巴黎
+    '德国': '13.4050,52.5200',       # 柏林
+    '意大利': '12.4964,41.9028',     # 罗马
+    '西班牙': '-3.7038,40.4168',     # 马德里
+    '美国': '-74.0060,40.7128',      # 纽约
+    '澳大利亚': '151.2093,-33.8688', # 悉尼
+    '加拿大': '-79.3832,43.6532',    # 多伦多
+    '俄罗斯': '37.6173,55.7558',     # 莫斯科
+    '埃及': '31.2357,30.0444',       # 开罗
+}
     # 国外热门城市
     '东京': '139.6917,35.6895',
     '大阪': '135.5023,34.6937',
@@ -257,7 +315,7 @@ def _request(endpoint: str, coord: str, params: str = '') -> dict:
             # Caiyun returns error=0 on success, or error=None in some cases
             err = data.get('error')
             if err is not None and err != 0:
-                print(f"[彩云API] 错误: {err} - {data.get('error_message', '')}")
+                _safe_print(f"[彩云API] 错误: {err} - {data.get('error_message', '')}")
                 return {}
             _cache[cache_key] = (now, data)
             return data
@@ -265,7 +323,7 @@ def _request(endpoint: str, coord: str, params: str = '') -> dict:
         if e.code == 429:
             # Rate limited — wait and retry once
             retry_after = int(e.headers.get('Retry-After', 3))
-            print(f"[彩云API] 限流 429，等待 {retry_after}s 后重试...")
+            _safe_print(f"[彩云API] 限流 429，等待 {retry_after}s 后重试...")
             time.sleep(retry_after)
             try:
                 req2 = urllib.request.Request(url, headers={'User-Agent': 'TravelPlanner/1.0'})
@@ -277,13 +335,13 @@ def _request(endpoint: str, coord: str, params: str = '') -> dict:
                     _cache[cache_key] = (now, data)
                     return data
             except Exception as e2:
-                print(f"[彩云API] 重试仍失败: {e2}")
+                _safe_print(f"[彩云API] 重试仍失败: {e2}")
                 return {}
         else:
-            print(f"[彩云API] HTTP 错误 ({endpoint}): {e.code} {e.reason}")
+            _safe_print(f"[彩云API] HTTP 错误 ({endpoint}): {e.code} {e.reason}")
             return {}
     except Exception as e:
-        print(f"[彩云API] 请求失败 ({endpoint}): {e}")
+        _safe_print(f"[彩云API] 请求失败 ({endpoint}): {e}")
         return {}
 
 
@@ -293,17 +351,20 @@ def _resolve_coord(destination: str) -> str:
     if destination in CITY_COORDS:
         return CITY_COORDS[destination]
 
-    # 模糊匹配（去掉"市"等后缀）
-    clean = destination.replace('市', '').replace('省', '').replace('县', '')
+    # 模糊匹配（去掉"市/省/县/地区"等后缀）
+    clean = destination.replace('市', '').replace('省', '').replace('县', '').replace('地区', '')
     for name, coord in CITY_COORDS.items():
-        if clean in name or name in clean:
+        if clean == name or clean in name or name in clean:
             return coord
 
     # 如果已经是坐标格式 "lon,lat"
     if ',' in destination and all(part.replace('.', '').replace('-', '').isdigit() for part in destination.split(',')):
         return destination
 
-    print(f"[彩云天气] 未找到 '{destination}' 的坐标，尝试用 wttr.in 备用")
+    try:
+        _safe_print(f"[彩云天气] 未找到 '{destination}' 的坐标")
+    except (ValueError, OSError):
+        pass
     return None
 
 
@@ -605,26 +666,26 @@ def format_weather_summary(destination: str) -> str:
 # ============================================================
 
 if __name__ == '__main__':
-    print("=== 彩云天气 API 测试 ===\n")
+    _safe_print("=== 彩云天气 API 测试 ===\n")
 
     # 测试实况
-    print("--- 北京实况 ---")
+    _safe_print("--- 北京实况 ---")
     rt = get_realtime('北京')
-    print(json.dumps(rt, ensure_ascii=False, indent=2))
+    _safe_print(json.dumps(rt, ensure_ascii=False, indent=2))
 
-    print("\n--- 东京实况 ---")
+    _safe_print("\n--- 东京实况 ---")
     rt_tokyo = get_realtime('东京')
-    print(json.dumps(rt_tokyo, ensure_ascii=False, indent=2))
+    _safe_print(json.dumps(rt_tokyo, ensure_ascii=False, indent=2))
 
     # 测试分钟级降雨
-    print("\n--- 北京降雨预报 ---")
+    _safe_print("\n--- 北京降雨预报 ---")
     min_rain = get_minutely('北京')
-    print(json.dumps(min_rain, ensure_ascii=False, indent=2))
+    _safe_print(json.dumps(min_rain, ensure_ascii=False, indent=2))
 
     # 测试天级预报
-    print("\n--- 三亚5天预报 ---")
+    _safe_print("\n--- 三亚5天预报 ---")
     daily_sanya = get_daily('三亚', days=5)
-    print(json.dumps(daily_sanya, ensure_ascii=False, indent=2))
+    _safe_print(json.dumps(daily_sanya, ensure_ascii=False, indent=2))
 
     # 测试格式化输出
-    print("\n" + format_weather_summary('北京'))
+    _safe_print("\n" + format_weather_summary('北京'))
