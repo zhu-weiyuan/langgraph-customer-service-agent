@@ -23,7 +23,7 @@ if sys.platform == 'win32':
 
 from langchain_core.messages import HumanMessage, AIMessage
 from agent.graph import build_graph
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import os
 
 # ── Rate Limiter (sliding window) ───────────────────────────────
@@ -226,9 +226,10 @@ def run_agent_stream(session_id, user_message):
             emotion_intensity=intensity,
         )
 
-    # Add to graph state (write directly)
+    # Add to graph state (write both user + bot messages)
+    human_message = HumanMessage(content=user_message)
     ai_message = AIMessage(content=full_reply)
-    _graph.update_state(config, {'messages': [ai_message], 'bot_reply': full_reply})
+    _graph.update_state(config, {'messages': [human_message, ai_message], 'bot_reply': full_reply})
 
     # Final metadata event
     meta = {
@@ -361,7 +362,8 @@ body{
 .c-header .info{flex:1;min-width:0}
 .c-header .name{font-size:15px;font-weight:600}
 .c-header .st{font-size:12px;opacity:0.85;display:flex;align-items:center;gap:5px;margin-top:2px}
-.c-header .st::before{content:'';width:7px;height:7px;background:#4ade80;border-radius:50%;display:inline-block}
+.c-header .st::before{content:'';width:7px;height:7px;background:#4ade80;border-radius:50%;display:inline-block;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.6;transform:scale(0.85)}}
 .c-header .act{display:flex;gap:4px}
 .c-header .act button{
   background:rgba(255,255,255,0.15);border:none;color:#fff;
@@ -388,9 +390,30 @@ body{
 .msg.bot .av{background:#e8e5ff;color:#5b5fc7}
 .msg .body{min-width:0;display:flex;flex-direction:column;gap:2px}
 .msg .bub{
-  padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.55;
+  padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.6;
   white-space:pre-wrap;word-break:break-word;
 }
+.msg .bub strong,.msg .bub b{font-weight:700;color:#1a1a2e}
+[data-theme=dark] .msg .bub strong,[data-theme=dark] .msg .bub b{color:#e0e0e0}
+.msg .bub code{
+  background:#f3f4f6;border:1px solid #e5e7eb;border-radius:4px;
+  padding:1px 5px;font-size:12.5px;font-family:'SF Mono','Consolas',monospace;
+  color:#c7254e;
+}
+[data-theme=dark] .msg .bub code{background:#2a2a4a;border-color:#3a3a5a;color:#f0abfc}
+.msg .bub ul,.msg .bub ol{margin:6px 0 4px 16px;padding:0}
+.msg .bub li{margin-bottom:3px}
+.msg .bub h1,.msg .bub h2,.msg .bub h3{
+  font-size:14px;font-weight:700;margin:8px 0 4px;color:#1a1a2e;
+}
+[data-theme=dark] .msg .bub h1,[data-theme=dark] .msg .bub h2,
+[data-theme=dark] .msg .bub h3{color:#e0e0e0}
+.msg .bub pre{
+  background:#f8f9fb;border:1px solid #e5e7eb;border-radius:6px;
+  padding:8px 10px;margin:6px 0;font-size:12.5px;overflow-x:auto;
+  font-family:'SF Mono','Consolas',monospace;line-height:1.4;
+}
+[data-theme=dark] .msg .bub pre{background:#1e1e3a;border-color:#333355}
 .msg.user .bub{background:#5b5fc7;color:#fff;border-bottom-right-radius:4px}
 .msg.bot .bub{background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;border-bottom-left-radius:4px}
 .msg.bot .bub.satisfaction{border-color:#f59e0b;background:#fffbeb}
@@ -587,7 +610,35 @@ if(localStorage.getItem('th')==='dark'){document.documentElement.setAttribute('d
 function toggleInfo(){showI=!showI;document.getElementById('infoBar').style.display=showI?'flex':'none'}
 const chat=document.getElementById('chat'),inp=document.getElementById('inp'),sbtn=document.getElementById('sbtn');
 inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!busy)sendMsg()});
-function addMsg(role,text,type,anim){cnt++;if(showI)document.getElementById('iMsg').textContent=cnt;const row=document.createElement('div');row.className='msg '+role;const av=document.createElement('div');av.className='av';av.textContent=role==='user'?'你':'🤖';const body=document.createElement('div');body.className='body';const bub=document.createElement('div');bub.className='bub '+(type||'');const meta=document.createElement('div');meta.className='meta';const ts=document.createElement('span');ts.textContent=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});meta.appendChild(ts);if(role==='bot'&&text){const rt=document.createElement('span');rt.textContent=/[\u4e00-\u9fff]/.test(text)?Math.ceil(text.length/5)+'秒':Math.ceil(text.split(/\s+/).filter(w=>w).length/2.7)+'s';meta.appendChild(rt);const cp=document.createElement('button');cp.className='cp';cp.textContent='复制';cp.onclick=()=>{navigator.clipboard.writeText(bub.textContent).then(()=>{cp.textContent='✓';setTimeout(()=>cp.textContent='复制',1500)})};meta.appendChild(cp)}body.appendChild(bub);body.appendChild(meta);row.appendChild(av);row.appendChild(body);chat.appendChild(row);chat.scrollTop=chat.scrollHeight;rmQR();if(anim&&role==='bot'){const spd=/[\u4e00-\u9fff]/.test(text)?35:20;bub.classList.add('cur');let i=0;(function t(){if(i<text.length){bub.textContent=text.substring(0,i+1);i++;chat.scrollTop=chat.scrollHeight;setTimeout(t,spd)}else bub.classList.remove('cur')})()}else bub.textContent=text;if(role==='bot'&&type!=='satisfaction'&&type!=='closing'){bidx++;addStars(body,bidx)}return row}
+// ── Lightweight Markdown Renderer ───────────────────────────────
+function md(text){
+  if(!text)return text;
+  // Escape HTML first
+  let s=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Code blocks (```...```) — must be before inline code
+  s=s.replace(/```([\s\S]*?)```/g,'<pre><code>$1</code></pre>');
+  // Inline code (`...`)
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  // Bold (**...** or __...__)
+  s=s.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/__(.+?)__/g,'<strong>$1</strong>');
+  // Italic (*...* or _..._)
+  s=s.replace(/\*(.+?)\*/g,'<em>$1</em>');
+  s=s.replace(/(?<!\w)_(.+?)_(?!\w)/g,'<em>$1</em>');
+  // Headers (# ## ###)
+  s=s.replace(/^### (.+)$/gm,'<h3>$1</h3>');
+  s=s.replace(/^## (.+)$/gm,'<h2>$1</h2>');
+  s=s.replace(/^# (.+)$/gm,'<h1>$1</h1>');
+  // Unordered lists (- or * at line start)
+  s=s.replace(/^(?:[-*])\s+(.+)$/gm,'<li>$1</li>');
+  s=s.replace(/((?:<li>.*<\/li>\n?)+)/g,'<ul>$1</ul>');
+  // Horizontal rule
+  s=s.replace(/^---$/gm,'<hr>');
+  // Line breaks (double newline → <br><br>, single → keep as is for pre-wrap)
+  s=s.replace(/\n\n/g,'<br><br>');
+  return s;
+}
+function addMsg(role,text,type,anim){cnt++;if(showI)document.getElementById('iMsg').textContent=cnt;const row=document.createElement('div');row.className='msg '+role;const av=document.createElement('div');av.className='av';av.textContent=role==='user'?'你':'🤖';const body=document.createElement('div');body.className='body';const bub=document.createElement('div');bub.className='bub '+(type||'');const meta=document.createElement('div');meta.className='meta';const ts=document.createElement('span');ts.textContent=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});meta.appendChild(ts);if(role==='bot'&&text){const rt=document.createElement('span');rt.textContent=/[\u4e00-\u9fff]/.test(text)?Math.ceil(text.length/5)+'秒':Math.ceil(text.split(/\s+/).filter(w=>w).length/2.7)+'s';meta.appendChild(rt);const cp=document.createElement('button');cp.className='cp';cp.textContent='复制';cp.onclick=()=>{navigator.clipboard.writeText(bub.dataset.raw||bub.textContent).then(()=>{cp.textContent='✓';setTimeout(()=>cp.textContent='复制',1500)})};meta.appendChild(cp)}body.appendChild(bub);body.appendChild(meta);row.appendChild(av);row.appendChild(body);chat.appendChild(row);chat.scrollTop=chat.scrollHeight;rmQR();if(anim&&role==='bot'){const spd=/[\u4e00-\u9fff]/.test(text)?35:20;bub.classList.add('cur');bub.dataset.raw=text;let i=0;(function t(){if(i<text.length){bub.innerHTML=md(text.substring(0,i+1));i++;chat.scrollTop=chat.scrollHeight;setTimeout(t,spd)}else bub.classList.remove('cur')})()}else{if(role==='bot'){bub.dataset.raw=text;bub.innerHTML=md(text)}else bub.textContent=text}if(role==='bot'&&type!=='satisfaction'&&type!=='closing'){bidx++;addStars(body,bidx)}return row}
 function addSys(t){const d=document.createElement('div');d.className='sys';d.textContent=t;chat.appendChild(d);chat.scrollTop=chat.scrollHeight}
 function addTyping(){const row=document.createElement('div');row.className='msg bot';row.id='typing';row.innerHTML='<div class="av">🤖</div><div class="body"><div class="bub"><div class="typing"><span></span><span></span><span></span></div></div></div>';chat.appendChild(row);chat.scrollTop=chat.scrollHeight}
 function rmTyping(){const e=document.getElementById('typing');if(e)e.remove()}
@@ -597,7 +648,7 @@ function ctxQR(lt){if(lt==='satisfaction')return QR.sat;if(lt==='closing')return
 function addStars(parent,idx){const d=document.createElement('div');d.className='stars';const l=document.createElement('span');l.className='lbl';l.textContent='有帮助？';d.appendChild(l);for(let i=1;i<=5;i++){const b=document.createElement('button');b.textContent='⭐';b.title=i+'星';b.onclick=()=>rate(idx,i,d);b.onmouseenter=()=>d.querySelectorAll('button').forEach((x,j)=>{if(x.classList.contains('thx'))return;x.style.filter=j<i?'grayscale(0) opacity(1)':'grayscale(1) opacity(0.25)'});b.onmouseleave=()=>{if(!d.querySelector('.on'))d.querySelectorAll('button').forEach(x=>{if(x.classList.contains('thx'))return;x.style.filter='grayscale(1) opacity(0.25)'})};d.appendChild(b)}parent.appendChild(d)}
 function rate(idx,stars,d){d.querySelectorAll('button').forEach((b,j)=>{if(j<stars&&!b.classList.contains('thx'))b.classList.add('on');b.onclick=null;b.style.cursor='default'});const l=d.querySelector('.lbl');if(l)l.remove();const th=document.createElement('div');th.className='thx';th.textContent='感谢评价！'+stars+'⭐';d.replaceWith(th);if(sess)fetch('/api/rating',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sess,message_index:idx,stars})}).catch(()=>{})}
 async function sendMsg(text){if(busy)return;const msg=text||inp.value.trim();if(!msg)return;inp.value='';addMsg('user',msg);busy=true;sbtn.disabled=true;addTyping();try{const s=sess||crypto.randomUUID();if(!sess){sess=s;if(showI)document.getElementById('iSess').textContent=s.slice(0,8)+'...'}const resp=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,session_id:s,stream:true})});rmTyping();if(resp.headers.get('content-type')?.includes('text/event-stream')){await handleStream(resp)}else{const data=await resp.json();if(data.error){addMsg('bot','Error: '+data.error,'',false)}else{let lt='';for(const r of data.replies){const m={satisfaction:'satisfaction',closing:'closing'};lt=m[r.type]||'reply';addMsg('bot',r.content,lt,true)}const s2=ctxQR(lt);if(s2.length)setTimeout(()=>showQR(s2),800);updInfo(data)}}}catch(e){rmTyping();addMsg('bot','连接错误: '+e.message,'')}busy=false;sbtn.disabled=false;inp.focus()}
-async function handleStream(resp){const reader=resp.body.getReader(),dec=new TextDecoder();let buf='',full='',lt='reply',meta=null;const div=addMsg('bot','', 'reply',false);const bub=div.querySelector('.bub');bub.classList.add('cur');try{while(true){const{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()||'';for(const ln of lines){if(!ln.startsWith('data: '))continue;try{const d=JSON.parse(ln.slice(6));if(d.done){meta=d;bub.classList.remove('cur');break}else if(d.progress==='analyzing')bub.textContent='🤔 分析中...';else if(d.token!==undefined){full+=d.token;bub.textContent=full;chat.scrollTop=chat.scrollHeight}}catch(e){}}}}finally{reader.releaseLock()}if(meta){lt=meta.reply_type||'reply';bub.className='bub '+lt;updInfo(meta);const s=ctxQR(lt);if(s.length)setTimeout(()=>showQR(s),800)}}
+async function handleStream(resp){const reader=resp.body.getReader(),dec=new TextDecoder();let buf='',full='',lt='reply',meta=null;const div=addMsg('bot','', 'reply',false);const bub=div.querySelector('.bub');bub.classList.add('cur');const deadline=Date.now()+180000;let finished=false;try{while(Date.now()<deadline&&!finished){const{done,value}=await reader.read();if(done){finished;break}buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()||'';for(const ln of lines){if(!ln.startsWith('data: '))continue;try{const d=JSON.parse(ln.slice(6));if(d.done){meta=d;bub.classList.remove('cur');finished=true;break}else if(d.progress==='analyzing')bub.textContent='🤔 分析中...';else if(d.token!==undefined){full+=d.token;bub.dataset.raw=full;bub.innerHTML=md(full);chat.scrollTop=chat.scrollHeight}}catch(e){}}}if(!meta){bub.classList.remove('cur');lt='reply';updInfo({})}reader.cancel().catch(()=>{})}catch(e){bub.classList.remove('cur')}if(meta){lt=meta.reply_type||'reply';bub.className='bub '+lt;updInfo(meta);const s=ctxQR(lt);if(s.length)setTimeout(()=>showQR(s),800)}}
 function updInfo(d){if(!showI)return;if(d.intent)document.getElementById('iIntent').textContent=d.intent;if(d.emotion){const em={neutral:'😐',angry:'😠',sad:'😢',anxious:'😰',happy:'😊'};document.getElementById('iEmo').textContent=(em[d.emotion]||'😐')+' '+d.emotion+(d.emotion_intensity?'('+d.emotion_intensity+'/5)':'');updEmBar(d.emotion,d.emotion_intensity)}document.getElementById('iMsg').textContent=cnt}
 function updEmBar(em,intensity){const bar=document.getElementById('emBar');if(!bar||!intensity){bar.innerHTML='';return}let h='';for(let i=1;i<=5;i++)h+='<i class="'+(i<=intensity?(intensity>=4?'on hi':'on'):'')+'"></i>';bar.innerHTML=h}
 function newSess(){sess=crypto.randomUUID();if(showI)document.getElementById('iSess').textContent=sess.slice(0,8)+'...';chat.innerHTML='';cnt=0;bidx=0;addSys('新会话已启动');setTimeout(()=>{addMsg('bot','👋 您好！我是智能客服助手。\n\n可以帮您：\n• 📦 产品咨询与使用指导\n• 🔧 故障排查与技术支持\n• 💰 价格与保修政策\n• 📞 投诉与建议\n\n请问有什么可以帮您的？','reply',true);setTimeout(()=>showQR(['产品怎么用？','价格是多少？','我要投诉','有保修吗？']),1000)},300)}
@@ -926,6 +977,7 @@ class ChatHandler(BaseHTTPRequestHandler):
 
         _request_counter["total"] += 1
         start_time = time.time()
+        print(f"[POST] {self.path} from {self.client_address[0]}")
 
         try:
             self._handle_post(start_time)
@@ -986,9 +1038,14 @@ class ChatHandler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/event-stream; charset=utf-8')
                 self.send_header('Cache-Control', 'no-cache')
-                self.send_header('Connection', 'keep-alive')
+                self.send_header('Connection', 'close')
                 self.send_header('X-Accel-Buffering', 'no')
                 self.end_headers()
+                # Flush immediately so client sees headers
+                try:
+                    self.wfile.flush()
+                except Exception:
+                    pass
                 try:
                     for chunk in run_agent_stream(session_id, user_message):
                         self.wfile.write(chunk.encode('utf-8'))
@@ -1003,6 +1060,11 @@ class ChatHandler(BaseHTTPRequestHandler):
                     # Log streaming response time
                     elapsed = time.time() - start_time
                     print(f"[Stream] Response time: {elapsed*1000:.1f}ms")
+                    # Close connection explicitly so client knows stream ended
+                    try:
+                        self.wfile.flush()
+                    except Exception:
+                        pass
             else:
                 # Standard JSON response
                 try:
@@ -1029,7 +1091,7 @@ class ChatHandler(BaseHTTPRequestHandler):
 
 def main():
     init()
-    server = HTTPServer(('0.0.0.0', PORT), ChatHandler)
+    server = ThreadingHTTPServer(('0.0.0.0', PORT), ChatHandler)
     print(f"[Server] Running at http://localhost:{PORT}")
     try:
         server.serve_forever()
