@@ -38,6 +38,7 @@ if sys.platform == 'win32':
         pass
 
 
+def _safe_print(msg: str):
     """Print safely in multi-threaded LangGraph context."""
     try:
         print(msg)

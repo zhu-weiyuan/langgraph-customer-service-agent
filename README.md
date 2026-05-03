@@ -25,6 +25,7 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 - **Session History API**: REST endpoints for session state and memory stats
 - **Knowledge Base Hot Reload**: Reload KB without restarting the server via `/api/rag/reload`
 - **Health Check API**: `/api/health` returns LLM connectivity, DB stats, KB status, request counters
+- **Caiyun Weather API**: 彩云天气集成（实况/分钟降雨/小时预报/天级预报/生活指数/天气预警），支持 100+ 国内外城市
 - **Rate Limiting**: Sliding-window per-IP rate limiter (default 60 req/60s), configurable via env vars
 - **Conversation Analytics**: `/api/analytics` provides intent/emotion distribution, rating stats, ticket metrics
 - **Request Timing**: Every API response includes `X-Response-Time` header for latency monitoring
@@ -63,6 +64,7 @@ langgraph-customer-service-agent/
 │   ├── nodes.py          # Node function implementations (+RAG + Sentiment)
 │   ├── rag.py            # RAG retrieval (TF-IDF, no external deps)
 │   ├── sentiment.py      # Emotion detection + tone adjustment
+│   ├── caiyun_weather.py # 彩云天气 API (实况/降雨/预报/生活指数/预警)
 │   └── graph.py          # Graph construction and compilation
 ├── knowledge/            # Knowledge base (auto-loaded)
 │   ├── product-manual.md # Product specs, features, pricing
