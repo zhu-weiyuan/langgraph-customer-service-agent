@@ -14,6 +14,10 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 - **Satisfaction Check**: Retry on dissatisfaction, max 3 attempts
 - **Human Escalation**: Use `interrupt` to suspend session for human handling
 - **Session Persistence**: SQLite-based state checkpointing and recovery
+- **Welcome Message**: Auto-greeting with suggested topics on new session start
+- **Message Timestamps**: Each message shows send time for conversation tracking
+- **Read Time Estimation**: Bot messages show estimated reading time (Chinese: 5 chars/sec, English: 2.7 words/sec)
+- **Copy Button**: One-click copy button on bot message metadata for easy content sharing
 - **Dark Mode UI**: Toggle between light/dark themes with localStorage persistence
 - **Quick Reply Buttons**: Context-aware suggestion buttons after bot responses
 - **Typing Animation**: Character-by-character output with adaptive speed (Chinese vs English)

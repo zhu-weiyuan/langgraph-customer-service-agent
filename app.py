@@ -389,6 +389,9 @@ CHAT_HTML = r"""<!DOCTYPE html>
   .input-area button { padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 24px; font-size: 14px; cursor: pointer; }
   .input-area button:hover { opacity: 0.9; }
   .input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Keyboard shortcut hint */
+  .shortcut-hint { font-size: 10px; color: var(--text-muted); text-align: center; padding: 2px 0; }
   .info-bar { background: var(--bg-info-bar); padding: 8px 24px; font-size: 12px; color: var(--text-secondary); display: flex; gap: 20px; border-top: 1px solid var(--border-color); overflow-x: auto; transition: background 0.3s; }
   .info-bar span { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
   .info-bar .label { color: var(--text-muted); }
@@ -442,6 +445,16 @@ CHAT_HTML = r"""<!DOCTYPE html>
   .export-modal-content button { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border-color); cursor: pointer; background: var(--bg-toolbar); color: var(--text-primary); }
   .export-modal-content button.primary { background: #667eea; color: white; border-color: #667eea; }
 
+  /* Message timestamp */
+  .msg-time { font-size: 10px; color: var(--text-muted); margin-top: 4px; display: block; }
+
+  /* Read time estimation */
+  .read-time { font-size: 10px; color: var(--text-muted); margin-left: 8px; }
+
+  /* Copy button on bot messages */
+  .copy-btn { font-size: 10px; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: all 0.15s; margin-left: 4px; }
+  .copy-btn:hover { background: var(--quick-reply-hover); color: #667eea; }
+
   /* Scrollbar styling */
   .chat-container::-webkit-scrollbar { width: 6px; }
   .chat-container::-webkit-scrollbar-track { background: transparent; }
@@ -491,8 +504,9 @@ CHAT_HTML = r"""<!DOCTYPE html>
   <span><span class="label">Status:</span> <span id="infoStatus">Active</span></span>
 </div>
 
+<div class="shortcut-hint">按 Enter 发送 · Ctrl+Enter 换行</div>
 <div class="input-area">
-  <input type="text" id="messageInput" placeholder="输入消息..." autocomplete="off" />
+  <input type="text" id="messageInput" placeholder="输入消息... (Enter 发送)" autocomplete="off" />
   <button id="sendBtn" onclick="sendMessage()">发送</button>
 </div>
 
@@ -566,10 +580,67 @@ function addMessage(role, content, type, animate) {
   const avatar = document.createElement('div');
   avatar.className = 'avatar';
   avatar.textContent = role === 'user' ? '\u{1F464}' : '\u{1F916}';
+
+  // Bubble wrapper (contains bubble + metadata)
+  const wrapper = document.createElement('div');
+  wrapper.style.display = 'flex';
+  wrapper.style.flexDirection = 'column';
+  wrapper.style.alignSelf = role === 'user' ? 'flex-end' : 'flex-start';
+
   const bubble = document.createElement('div');
   bubble.className = `bubble ${type || ''}`;
+
+  // Timestamp + read time row
+  const metaRow = document.createElement('div');
+  metaRow.style.display = 'flex';
+  metaRow.style.alignItems = 'center';
+  metaRow.style.gap = '4px';
+  if (role === 'user') {
+    metaRow.style.justifyContent = 'flex-end';
+  }
+
+  const timeSpan = document.createElement('span');
+  timeSpan.className = 'msg-time';
+  timeSpan.textContent = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  metaRow.appendChild(timeSpan);
+
+  if (role === 'bot') {
+    // Estimate read time: Chinese ~5 chars/sec, English ~160 words/min ≈ 2.7 words/sec
+    const hasChinese = content && /[\u4e00-\u9fff]/.test(content);
+    let readTime;
+    if (content && hasChinese) {
+      const charCount = content.length;
+      const seconds = Math.ceil(charCount / 5); // ~5 Chinese chars per second
+      readTime = `${seconds}秒阅读`;
+    } else if (content) {
+      const wordCount = content.split(/\s+/).filter(w => w).length;
+      const seconds = Math.ceil(wordCount / 2.7);
+      readTime = `${seconds}s read`;
+    }
+    if (readTime) {
+      const rtSpan = document.createElement('span');
+      rtSpan.className = 'read-time';
+      rtSpan.textContent = readTime;
+      metaRow.appendChild(rtSpan);
+    }
+
+    // Copy button for bot messages
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.textContent = '📋';
+    copyBtn.title = '复制内容';
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(bubble.textContent)
+        .then(() => { copyBtn.textContent = '✅'; setTimeout(() => copyBtn.textContent = '📋', 1500); })
+        .catch(() => {});
+    };
+    metaRow.appendChild(copyBtn);
+  }
+
+  wrapper.appendChild(bubble);
+  wrapper.appendChild(metaRow);
   div.appendChild(avatar);
-  div.appendChild(bubble);
+  div.appendChild(wrapper);
   chatContainer.appendChild(div);
   chatContainer.scrollTop = chatContainer.scrollHeight;
 
@@ -583,6 +654,8 @@ function addMessage(role, content, type, animate) {
   } else {
     bubble.textContent = content;
   }
+
+  return div;
 }
 
 function typeWriter(element, text, speed) {
@@ -740,9 +813,9 @@ async function handleStreamResponse(response) {
   let lastReplyType = 'reply';
   let metadata = null;
 
-  // Create a streaming bubble
-  const streamBubble = addMessage('bot', '', 'reply', false);
-  const bubbleEl = streamBubble.querySelector('.bubble');
+  // Create a streaming bubble (no content yet, so no read time)
+  const streamDiv = addMessage('bot', '', 'reply', false);
+  const bubbleEl = streamDiv.querySelector('.bubble');
   bubbleEl.classList.add('typing-cursor');
 
   try {
@@ -806,8 +879,16 @@ function newSession() {
   document.getElementById('infoSession').textContent = currentSession.slice(0, 8) + '...';
   document.getElementById('infoIntent').textContent = '-';
   document.getElementById('infoRetries').textContent = '0';
+  document.getElementById('infoEmotion').textContent = '-';
+  document.getElementById('emotionBar').innerHTML = '';
   document.getElementById('infoStatus').textContent = 'Active';
   addSystemMsg('新会话已启动');
+
+  // Show welcome message with suggested topics
+  setTimeout(() => {
+    addMessage('bot', '👋 您好！我是智联科技智能客服助手。\n\n我可以帮您：\n• 📦 产品咨询（智能音箱、智能家居、云服务）\n• 🔧 故障排查与技术支援\n• 💰 价格与保修政策\n• 📞 投诉与建议\n\n请问有什么可以帮您的？', 'reply', true);
+    setTimeout(() => showQuickReplies(['产品怎么用？', '价格是多少？', '我要投诉', '有保修吗？']), 1200);
+  }, 300);
 }
 
 function clearChat() { chatContainer.innerHTML = ''; }
