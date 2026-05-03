@@ -367,7 +367,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
     --bg-info-bar: #1e293b;
     --text-primary: #e2e8f0;
     --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --text-muted: #94a3b8;
     --border-color: #334155;
     --bot-bubble-bg: #1e293b;
     --bot-bubble-shadow: rgba(0,0,0,0.3);
@@ -395,7 +395,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
   .toolbar button:hover { filter: brightness(0.97); }
   .toolbar button.primary { background: #667eea; color: white; border-color: #667eea; }
   .toolbar button.danger { background: #ef4444; color: white; border-color: #ef4444; }
-  .test-cases { background: var(--bg-test-cases); padding: 10px 24px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; border-bottom: 1px solid var(--border-color); transition: background 0.3s; }
+  .test-cases { background: var(--bg-test-cases); padding: 10px 24px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--border-color); transition: background 0.3s; }
   .test-cases .label { font-size: 12px; color: var(--text-secondary); margin-right: 4px; font-weight: 600; }
   .tc-btn { padding: 5px 12px; background: var(--bg-toolbar); border: 1px solid var(--border-color); border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.15s; color: var(--text-primary); }
   .tc-btn:hover { filter: brightness(0.97); }
@@ -460,7 +460,14 @@ CHAT_HTML = r"""<!DOCTYPE html>
     .header { padding: 12px 16px; }
     .header h1 { font-size: 15px; }
     .toolbar { padding: 8px 16px; gap: 6px; flex-wrap: wrap; }
-    .test-cases { padding: 8px 16px; }
+    .test-cases {
+      padding: 8px 16px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .test-cases::-webkit-scrollbar { display: none; }
     .chat-container { padding: 16px;
       gap: 12px; }
     .message { max-width: 88%; }
@@ -1158,6 +1165,13 @@ async function runFullFlow() {
 
   addSystemMsg('完整流程演示完成！');
 }
+
+// Auto-start new session on page load
+window.addEventListener('DOMContentLoaded', () => {
+  if (!currentSession) {
+    newSession();
+  }
+});
 </script>
 
 </body>
