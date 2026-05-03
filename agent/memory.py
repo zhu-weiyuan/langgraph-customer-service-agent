@@ -29,10 +29,20 @@ def _get_connection() -> sqlite3.Connection:
     return conn
 
 
+def get_connection():
+    """Context manager for database connections. Ensures proper cleanup."""
+    conn = _get_connection()
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
 def _init_db():
     """Initialize memory database tables."""
     conn = _get_connection()
-    conn.executescript("""
+    try:
+        conn.executescript("""
         CREATE TABLE IF NOT EXISTS user_profiles (
             session_id TEXT PRIMARY KEY,
             name TEXT,
@@ -65,9 +75,24 @@ def _init_db():
 
         CREATE INDEX IF NOT EXISTS idx_history_session ON conversation_history(session_id);
         CREATE INDEX IF NOT EXISTS idx_prefs_session ON user_preferences(session_id);
+
+        CREATE TABLE IF NOT EXISTS tickets (
+            ticket_id TEXT PRIMARY KEY,
+            session_id TEXT,
+            issue_category TEXT,
+            description TEXT,
+            resolution TEXT,
+            satisfaction TEXT,
+            priority TEXT,
+            emotion TEXT,
+            emotion_intensity INTEGER,
+            message_count INTEGER,
+            created_at TEXT
+        );
     """)
     conn.commit()
-    conn.close()
+    finally:
+        conn.close()
 
 
 # Auto-init on import
@@ -80,27 +105,31 @@ def save_profile(session_id: str, name: Optional[str] = None,
     """Save or update user profile."""
     now = datetime.now().isoformat()
     conn = _get_connection()
-    conn.execute(
-        """INSERT INTO user_profiles (session_id, name, preferred_name, language, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?)
-           ON CONFLICT(session_id) DO UPDATE SET
-             name = COALESCE(EXCLUDED.name, user_profiles.name),
-             preferred_name = COALESCE(EXCLUDED.preferred_name, user_profiles.preferred_name),
-             language = COALESCE(EXCLUDED.language, user_profiles.language),
-             updated_at = EXCLUDED.updated_at""",
-        (session_id, name, preferred_name, language, now, now)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            """INSERT INTO user_profiles (session_id, name, preferred_name, language, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(session_id) DO UPDATE SET
+                 name = COALESCE(EXCLUDED.name, user_profiles.name),
+                 preferred_name = COALESCE(EXCLUDED.preferred_name, user_profiles.preferred_name),
+                 language = COALESCE(EXCLUDED.language, user_profiles.language),
+                 updated_at = EXCLUDED.updated_at""",
+            (session_id, name, preferred_name, language, now, now)
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_profile(session_id: str) -> Dict[str, Any]:
     """Get user profile."""
     conn = _get_connection()
-    row = conn.execute(
-        "SELECT * FROM user_profiles WHERE session_id = ?", (session_id,)
-    ).fetchone()
-    conn.close()
+    try:
+        row = conn.execute(
+            "SELECT * FROM user_profiles WHERE session_id = ?", (session_id,)
+        ).fetchone()
+    finally:
+        conn.close()
 
     if row:
         return dict(row)
@@ -113,17 +142,19 @@ def save_conversation(session_id: str, user_message: str, bot_reply: str,
     """Save a conversation turn to history."""
     now = datetime.now().isoformat()
     conn = _get_connection()
-    conn.execute(
-        """INSERT INTO conversation_history
-           (session_id, user_message, bot_reply, intent, emotion, emotion_intensity, resolved, timestamp)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-        (session_id, user_message[:500], bot_reply[:500], intent, emotion, emotion_intensity, int(resolved), now)
-    )
+    try:
+        conn.execute(
+            """INSERT INTO conversation_history
+               (session_id, user_message, bot_reply, intent, emotion, emotion_intensity, resolved, timestamp)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (session_id, user_message[:500], bot_reply[:500], intent, emotion, emotion_intensity, int(resolved), now)
+        )
 
-    # Extract product mentions from user message
-    _update_product_interests(session_id, user_message)
-    conn.commit()
-    conn.close()
+        # Extract product mentions from user message
+        _update_product_interests(session_id, user_message)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def _update_product_interests(session_id: str, message: str):
@@ -143,29 +174,32 @@ def _update_product_interests(session_id: str, message: str):
         return
 
     conn = _get_connection()
-    # Merge with existing interests
-    existing = conn.execute(
-        "SELECT product_interests FROM user_preferences WHERE session_id = ?", (session_id,)
-    ).fetchone()
+    try:
+        # Merge with existing interests
+        existing = conn.execute(
+            "SELECT product_interests FROM user_preferences WHERE session_id = ?", (session_id,)
+        ).fetchone()
 
-    if existing and existing['product_interests']:
-        interests = json.loads(existing['product_interests'])
-    else:
-        interests = []
+        if existing and existing['product_interests']:
+            interests = json.loads(existing['product_interests'])
+        else:
+            interests = []
 
-    for p in detected:
-        if p not in interests:
-            interests.append(p)
+        for p in detected:
+            if p not in interests:
+                interests.append(p)
 
-    if interests:
-        conn.execute(
-            """INSERT INTO user_preferences (session_id, product_interests)
-               VALUES (?, ?)
-               ON CONFLICT(session_id, product_interests) DO UPDATE SET
-                 update_count = user_preferences.update_count + 1""",
-            (session_id, json.dumps(interests, ensure_ascii=False))
-        )
-    conn.close()
+        if interests:
+            conn.execute(
+                """INSERT INTO user_preferences (session_id, product_interests)
+                   VALUES (?, ?)
+                   ON CONFLICT(session_id, product_interests) DO UPDATE SET
+                     update_count = user_preferences.update_count + 1""",
+                (session_id, json.dumps(interests, ensure_ascii=False))
+            )
+            conn.commit()
+    finally:
+        conn.close()
 
 
 def get_user_context(session_id: str) -> Dict[str, Any]:
@@ -178,30 +212,32 @@ def get_user_context(session_id: str) -> Dict[str, Any]:
     known_issues = []
 
     conn = _get_connection()
-    prefs = conn.execute(
-        "SELECT product_interests, known_issues FROM user_preferences WHERE session_id = ?",
-        (session_id,)
-    ).fetchone()
+    try:
+        prefs = conn.execute(
+            "SELECT product_interests, known_issues FROM user_preferences WHERE session_id = ?",
+            (session_id,)
+        ).fetchone()
 
-    if prefs:
-        if prefs['product_interests']:
-            interests = json.loads(prefs['product_interests'])
-        if prefs['known_issues']:
-            known_issues = json.loads(prefs['known_issues'])
+        if prefs:
+            if prefs['product_interests']:
+                interests = json.loads(prefs['product_interests'])
+            if prefs['known_issues']:
+                known_issues = json.loads(prefs['known_issues'])
 
-    # Recent unresolved issues
-    recent_issues = conn.execute(
-        """SELECT user_message, intent FROM conversation_history
-           WHERE session_id = ? AND resolved = 0
-           ORDER BY timestamp DESC LIMIT 3""",
-        (session_id,)
-    ).fetchall()
+        # Recent unresolved issues
+        recent_issues = conn.execute(
+            """SELECT user_message, intent FROM conversation_history
+               WHERE session_id = ? AND resolved = 0
+               ORDER BY timestamp DESC LIMIT 3""",
+            (session_id,)
+        ).fetchall()
 
-    # Total conversation count
-    total = conn.execute(
-        "SELECT COUNT(*) as cnt FROM conversation_history WHERE session_id = ?", (session_id,)
-    ).fetchone()['cnt']
-    conn.close()
+        # Total conversation count
+        total = conn.execute(
+            "SELECT COUNT(*) as cnt FROM conversation_history WHERE session_id = ?", (session_id,)
+        ).fetchone()['cnt']
+    finally:
+        conn.close()
 
     return {
         "name": profile.get('name'),
@@ -242,23 +278,47 @@ def build_memory_context(session_id: str) -> str:
 def mark_resolved(session_id: str):
     """Mark all unresolved conversations for this session as resolved."""
     conn = _get_connection()
-    conn.execute(
-        "UPDATE conversation_history SET resolved = 1 WHERE session_id = ? AND resolved = 0",
-        (session_id,)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn.execute(
+            "UPDATE conversation_history SET resolved = 1 WHERE session_id = ? AND resolved = 0",
+            (session_id,)
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def save_ticket(ticket: Dict[str, Any]):
+    """Save a service ticket to the database."""
+    conn = _get_connection()
+    try:
+        conn.execute(
+            """INSERT OR REPLACE INTO tickets
+               (ticket_id, session_id, issue_category, description, resolution,
+                satisfaction, priority, emotion, emotion_intensity, message_count, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                ticket['ticket_id'], ticket.get('session_id', ''),
+                ticket['issue_category'], ticket['description'], ticket['resolution'],
+                ticket['satisfaction'], ticket['priority'],
+                ticket.get('emotion', 'neutral'), ticket.get('emotion_intensity', 1),
+                ticket.get('message_count', 0), ticket['created_at'],
+            )
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_stats() -> Dict[str, Any]:
     """Get memory database statistics."""
     conn = _get_connection()
-
-    sessions = conn.execute("SELECT COUNT(*) as cnt FROM user_profiles").fetchone()['cnt']
-    conversations = conn.execute("SELECT COUNT(*) as cnt FROM conversation_history").fetchone()['cnt']
-    unresolved = conn.execute("SELECT COUNT(*) as cnt FROM conversation_history WHERE resolved = 0").fetchone()['cnt']
-
-    conn.close()
+    try:
+        sessions = conn.execute("SELECT COUNT(*) as cnt FROM user_profiles").fetchone()['cnt']
+        conversations = conn.execute("SELECT COUNT(*) as cnt FROM conversation_history").fetchone()['cnt']
+        unresolved = conn.execute("SELECT COUNT(*) as cnt FROM conversation_history WHERE resolved = 0").fetchone()['cnt']
+    finally:
+        conn.close()
     return {
         "unique_sessions": sessions,
         "total_conversations": conversations,

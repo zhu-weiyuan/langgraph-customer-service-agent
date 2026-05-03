@@ -26,11 +26,20 @@ from .nodes import (
 
 
 def route_after_reply(state: dict) -> str:
-    """After generating reply, check if user signaled ending."""
+    """After generating reply, decide next step.
+
+    - If user signaled ending → check satisfaction
+    - If this is a retry (retry_count > 0) → finalize directly
+    - Otherwise → END (wait for next user message)
+    """
     ending = state.get('ending', False)
+    retry_count = state.get('retry_count', 0)
     if ending:
         return 'check_satisfaction'
-    return END  # just end, wait for next user message
+    elif retry_count > 0:
+        return 'finalize'
+    else:
+        return END  # just end, wait for next user message
 
 
 def should_resolve(state: dict) -> str:
@@ -84,8 +93,8 @@ def _build_core_graph():
         }
     )
 
-    # After retry reply, end (don't ask satisfaction again)
-    graph.add_edge('generate_reply', END)  # this is the retry path
+    # After retry reply, route through conditional edge (no separate unconditional edge)
+    # The conditional edge above handles: ending → satisfaction, retry → finalize, normal → END
     
     # Finalize -> END
     graph.add_edge('finalize', END)

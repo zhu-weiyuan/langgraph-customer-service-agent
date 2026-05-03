@@ -27,8 +27,7 @@ from .memory import (
 # Dialogue summary
 from .summary import generate_summary, format_ticket
 
-LLM_API_URL = "http://127.0.0.1:8080/v1/chat/completions"
-LLM_API_KEY = "your_key_here"
+from .llm_client import get_llm_client
 
 SYSTEM_PROMPT = """你是一个专业的智能客服助手，服务于"智联科技"公司。
 公司产品：智能音箱、智能家居套装、云服务。
@@ -54,69 +53,16 @@ RAG_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT + """
 
 
 def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT, max_tokens: int = 512) -> str:
-    """调用本地 llama.cpp HTTP API。"""
-    import urllib.request
-    import json
-
-    payload = {
-        "messages": [{"role": "system", "content": system}] + messages,
-        "max_tokens": max_tokens,
-        "temperature": 0.7,
-        "stream": False,
-    }
-
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        LLM_API_URL,
-        data=data,
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {LLM_API_KEY}"},
-        method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            return result["choices"][0]["message"]["content"]
-    except Exception as e:
-        print(f"[LLM 错误] {e}")
-        return "抱歉，我暂时无法处理您的请求，请稍后再试。"
+    """调用 LLM（通过统一客户端）。"""
+    return get_llm_client().chat(messages, system, max_tokens=max_tokens)
 
 
 def _call_llm_json(messages: List[dict], system: str, max_tokens: int = 256) -> dict:
-    """调用本地 llama.cpp 并解析 JSON 响应。"""
-    import urllib.request
-    import json
-
-    payload = {
-        "messages": [{"role": "system", "content": system}] + messages,
-        "max_tokens": max_tokens,
-        "temperature": 0.3,
-        "stream": False,
-    }
-
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        LLM_API_URL,
-        data=data,
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {LLM_API_KEY}"},
-        method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            text = result["choices"][0]["message"]["content"].strip()
-            for line in text.split("\n"):
-                line = line.strip()
-                if line.startswith("{"):
-                    try:
-                        return json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-            return {"intent": "consult"}
-    except Exception as e:
-        print(f"[LLM JSON 错误] {e}")
+    """调用 LLM 并解析 JSON 响应。"""
+    result = get_llm_client().chat_json(messages, system, max_tokens=max_tokens)
+    if not result:
         return {"intent": "consult"}
+    return result
 
 
 # ============================================================
@@ -400,37 +346,8 @@ def finalize(state: Dict[str, Any]) -> Dict[str, Any]:
                 satisfaction=satisfaction,
             )
             print(format_ticket(ticket))
-            # Save ticket to memory DB
-            from .memory import _get_connection
-            conn = _get_connection()
-            conn.execute(
-                """CREATE TABLE IF NOT EXISTS tickets (
-                    ticket_id TEXT PRIMARY KEY,
-                    session_id TEXT,
-                    issue_category TEXT,
-                    description TEXT,
-                    resolution TEXT,
-                    satisfaction TEXT,
-                    priority TEXT,
-                    emotion TEXT,
-                    emotion_intensity INTEGER,
-                    message_count INTEGER,
-                    created_at TEXT
-                )"""
-            )
-            conn.execute(
-                """INSERT OR REPLACE INTO tickets
-                   (ticket_id, session_id, issue_category, description, resolution,
-                    satisfaction, priority, emotion, emotion_intensity, message_count, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (ticket['ticket_id'], session_id, ticket['issue_category'],
-                 ticket['description'], ticket['resolution'],
-                 ticket['satisfaction'], ticket['priority'],
-                 ticket['emotion'], ticket['emotion_intensity'],
-                 ticket['message_count'], ticket['created_at'])
-            )
-            conn.commit()
-            conn.close()
+            from .memory import save_ticket
+            save_ticket(ticket)
         except Exception as e:
             print(f"[工单生成失败] {e}")
 

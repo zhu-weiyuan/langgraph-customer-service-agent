@@ -32,44 +32,15 @@ SENTIMENT_SYSTEM = """你是一个情感分析器。分析用户消息的情绪�
 _sentiment_cache = {}
 
 
+from .llm_client import get_llm_client
+
+
 def _call_llm_json(messages, system: str) -> dict:
-    """Call local LLM and parse JSON response (imported from nodes to avoid circular)."""
-    import urllib.request
-    import json
-
-    LLM_API_URL = "http://127.0.0.1:8080/v1/chat/completions"
-    LLM_API_KEY = "your_key_here"
-
-    payload = {
-        "messages": [{"role": "system", "content": system}] + messages,
-        "max_tokens": 64,
-        "temperature": 0.1,
-        "stream": False,
-    }
-
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        LLM_API_URL,
-        data=data,
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {LLM_API_KEY}"},
-        method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            text = result["choices"][0]["message"]["content"].strip()
-            for line in text.split("\n"):
-                line = line.strip()
-                if line.startswith("{"):
-                    try:
-                        return json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-            return {"emotion": "neutral", "intensity": 1}
-    except Exception as e:
-        print(f"[Sentiment LLM Error] {e}")
+    """Call LLM through shared client."""
+    result = get_llm_client().chat_json(messages, system, max_tokens=64)
+    if not result:
         return {"emotion": "neutral", "intensity": 1}
+    return result
 
 
 def analyze(text: str, cache_key: Optional[str] = None) -> Dict[str, Any]:
