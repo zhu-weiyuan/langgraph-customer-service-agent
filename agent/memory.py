@@ -10,6 +10,7 @@ Multi-turn Memory Module
 - 常用问题模式
 """
 
+import contextlib
 import sqlite3
 import json
 import os
@@ -29,8 +30,15 @@ def _get_connection() -> sqlite3.Connection:
     return conn
 
 
+@contextlib.contextmanager
 def get_connection():
-    """Context manager for database connections. Ensures proper cleanup."""
+    """Context manager for database connections. Ensures proper cleanup.
+
+    Usage:
+        with get_connection() as conn:
+            conn.execute(...)
+            conn.commit()
+    """
     conn = _get_connection()
     try:
         yield conn
@@ -43,54 +51,54 @@ def _init_db():
     conn = _get_connection()
     try:
         conn.executescript("""
-        CREATE TABLE IF NOT EXISTS user_profiles (
-            session_id TEXT PRIMARY KEY,
-            name TEXT,
-            preferred_name TEXT,
-            language TEXT DEFAULT 'zh',
-            created_at TEXT,
-            updated_at TEXT
-        );
+            CREATE TABLE IF NOT EXISTS user_profiles (
+                session_id TEXT PRIMARY KEY,
+                name TEXT,
+                preferred_name TEXT,
+                language TEXT DEFAULT 'zh',
+                created_at TEXT,
+                updated_at TEXT
+            );
 
-        CREATE TABLE IF NOT EXISTS conversation_history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT,
-            user_message TEXT,
-            bot_reply TEXT,
-            intent TEXT,
-            emotion TEXT,
-            emotion_intensity INTEGER DEFAULT 1,
-            resolved INTEGER DEFAULT 0,
-            timestamp TEXT
-        );
+            CREATE TABLE IF NOT EXISTS conversation_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT,
+                user_message TEXT,
+                bot_reply TEXT,
+                intent TEXT,
+                emotion TEXT,
+                emotion_intensity INTEGER DEFAULT 1,
+                resolved INTEGER DEFAULT 0,
+                timestamp TEXT
+            );
 
-        CREATE TABLE IF NOT EXISTS user_preferences (
-            session_id TEXT,
-            product_interests TEXT,       -- JSON array of products
-            known_issues TEXT,            -- JSON array of past issues
-            communication_style TEXT,     -- 'formal' / 'casual' / 'direct'
-            update_count INTEGER DEFAULT 1,
-            UNIQUE(session_id, product_interests)
-        );
+            CREATE TABLE IF NOT EXISTS user_preferences (
+                session_id TEXT,
+                product_interests TEXT,       -- JSON array of products
+                known_issues TEXT,            -- JSON array of past issues
+                communication_style TEXT,     -- 'formal' / 'casual' / 'direct'
+                update_count INTEGER DEFAULT 1,
+                UNIQUE(session_id, product_interests)
+            );
 
-        CREATE INDEX IF NOT EXISTS idx_history_session ON conversation_history(session_id);
-        CREATE INDEX IF NOT EXISTS idx_prefs_session ON user_preferences(session_id);
+            CREATE INDEX IF NOT EXISTS idx_history_session ON conversation_history(session_id);
+            CREATE INDEX IF NOT EXISTS idx_prefs_session ON user_preferences(session_id);
 
-        CREATE TABLE IF NOT EXISTS tickets (
-            ticket_id TEXT PRIMARY KEY,
-            session_id TEXT,
-            issue_category TEXT,
-            description TEXT,
-            resolution TEXT,
-            satisfaction TEXT,
-            priority TEXT,
-            emotion TEXT,
-            emotion_intensity INTEGER,
-            message_count INTEGER,
-            created_at TEXT
-        );
-    """)
-    conn.commit()
+            CREATE TABLE IF NOT EXISTS tickets (
+                ticket_id TEXT PRIMARY KEY,
+                session_id TEXT,
+                issue_category TEXT,
+                description TEXT,
+                resolution TEXT,
+                satisfaction TEXT,
+                priority TEXT,
+                emotion TEXT,
+                emotion_intensity INTEGER,
+                message_count INTEGER,
+                created_at TEXT
+            );
+        """)
+        conn.commit()
     finally:
         conn.close()
 
