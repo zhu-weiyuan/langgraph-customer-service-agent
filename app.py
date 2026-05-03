@@ -455,11 +455,42 @@ CHAT_HTML = r"""<!DOCTYPE html>
   .copy-btn { font-size: 10px; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: all 0.15s; margin-left: 4px; }
   .copy-btn:hover { background: var(--quick-reply-hover); color: #667eea; }
 
+  /* Inline star rating */
+  .star-rating { display: flex; gap: 2px; align-items: center; margin-top: 8px; padding-left: 4px; animation: fadeIn 0.3s ease; }
+  .star-rating .label { font-size: 10px; color: var(--text-muted); margin-right: 6px; }
+  .star-btn { background: none; border: none; cursor: pointer; font-size: 18px; padding: 2px 4px; transition: transform 0.15s, filter 0.15s; filter: grayscale(1) opacity(0.4); }
+  .star-btn:hover { transform: scale(1.3); filter: grayscale(0) opacity(1); }
+  .star-btn.rated { filter: grayscale(0) opacity(1); }
+  .star-rating.thanks { font-size: 12px; color: #22c55e; margin-top: 4px; padding-left: 4px; animation: fadeIn 0.3s ease; }
+
   /* Scrollbar styling */
   .chat-container::-webkit-scrollbar { width: 6px; }
   .chat-container::-webkit-scrollbar-track { background: transparent; }
   .chat-container::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
   .chat-container::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+
+  /* Scroll-to-bottom floating button */
+  .scroll-bottom-btn {
+    position: fixed;
+    bottom: 80px;
+    right: 24px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #667eea;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 50;
+  }
+  .scroll-bottom-btn:hover { transform: scale(1.1); }
+  .scroll-bottom-btn.show { display: flex; }
 </style>
 </head>
 <body>
@@ -473,6 +504,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
   <button class="primary" onclick="newSession()">新会话</button>
   <button onclick="clearChat()">清空聊天</button>
   <button class="danger" onclick="resetAll()">重置全部</button>
+  <button onclick="reloadKB()" title="Hot reload knowledge base">🔄 重载知识库</button>
 </div>
 
 <div class="test-cases">
@@ -494,6 +526,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
 </div>
 
 <div class="chat-container" id="chatContainer"></div>
+<button class="scroll-bottom-btn" id="scrollBottomBtn" onclick="scrollToBottom()" title="Scroll to bottom">↓</button>
 
 <div class="info-bar">
   <span><span class="label">Session:</span> <span id="infoSession">-</span></span>
@@ -527,6 +560,7 @@ CHAT_HTML = r"""<!DOCTYPE html>
 let currentSession = null;
 let isProcessing = false;
 let messageCount = 0;
+let botMessageIndex = 0;
 
 // Quick reply suggestions based on context
 const QUICK_REPLIES = {
@@ -566,6 +600,17 @@ function toggleTheme() {
 const chatContainer = document.getElementById('chatContainer');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
+const scrollBottomBtn = document.getElementById('scrollBottomBtn');
+
+// Show/hide scroll-to-bottom button based on scroll position
+chatContainer.addEventListener('scroll', () => {
+  const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
+  scrollBottomBtn.classList.toggle('show', !isNearBottom);
+});
+
+function scrollToBottom() {
+  chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+}
 
 messageInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !isProcessing) sendMessage();
@@ -655,6 +700,12 @@ function addMessage(role, content, type, animate) {
     bubble.textContent = content;
   }
 
+  // Add star rating for bot replies (not satisfaction/closing messages)
+  if (role === 'bot' && type !== 'satisfaction' && type !== 'closing') {
+    botMessageIndex++;
+    addStarRating(wrapper, botMessageIndex);
+  }
+
   return div;
 }
 
@@ -732,6 +783,76 @@ function getContextualQuickReplies(lastReplyType) {
   if (lastReplyType === 'closing') return [];
   if (lastReplyType === 'reply') return QUICK_REPLIES.after_reply;
   return QUICK_REPLIES.default;
+}
+
+// Inline star rating — add ⭐ buttons after bot messages
+function addStarRating(wrapperEl, msgIndex) {
+  const ratingDiv = document.createElement('div');
+  ratingDiv.className = 'star-rating';
+  ratingDiv.id = `starRating_${msgIndex}`;
+
+  const label = document.createElement('span');
+  label.className = 'label';
+  label.textContent = 'Helpful?';
+  ratingDiv.appendChild(label);
+
+  for (let i = 1; i <= 5; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'star-btn';
+    btn.textContent = '⭐';
+    btn.title = `${i} star${i > 1 ? 's' : ''}`;
+    btn.onclick = () => submitRating(msgIndex, i, ratingDiv);
+    // Hover highlight
+    btn.onmouseenter = () => {
+      const allBtns = ratingDiv.querySelectorAll('.star-btn');
+      allBtns.forEach((b, idx) => {
+        b.style.filter = idx < i ? 'grayscale(0) opacity(1)' : 'grayscale(1) opacity(0.4)';
+      });
+    };
+    btn.onmouseleave = () => {
+      const allBtns = ratingDiv.querySelectorAll('.star-btn');
+      const rated = ratingDiv.querySelector('.rated');
+      if (!rated) {
+        allBtns.forEach(b => b.style.filter = 'grayscale(1) opacity(0.4)');
+      }
+    };
+    ratingDiv.appendChild(btn);
+  }
+
+  wrapperEl.appendChild(ratingDiv);
+}
+
+function submitRating(msgIndex, stars, ratingDiv) {
+  // Mark stars as rated
+  const allBtns = ratingDiv.querySelectorAll('.star-btn');
+  allBtns.forEach((b, idx) => {
+    if (idx < stars) b.classList.add('rated');
+    b.onclick = null;
+    b.style.cursor = 'default';
+  });
+
+  // Remove label
+  const label = ratingDiv.querySelector('.label');
+  if (label) label.remove();
+
+  // Show thanks message
+  const thanks = document.createElement('div');
+  thanks.className = 'star-rating thanks';
+  thanks.textContent = `Thanks! You rated ${stars} ⭐`;
+  ratingDiv.replaceWith(thanks);
+
+  // Send rating to server for logging (fire-and-forget)
+  if (currentSession) {
+    fetch('/api/rating', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: currentSession,
+        message_index: msgIndex,
+        stars: stars
+      })
+    }).catch(() => {});
+  }
 }
 
 async function sendMessage(text) {
@@ -954,6 +1075,21 @@ function updateEmotionBar(emotion, intensity) {
   bar.innerHTML = html;
 }
 
+// Hot reload knowledge base
+async function reloadKB() {
+  try {
+    const resp = await fetch('/api/rag/reload');
+    const data = await resp.json();
+    if (data.error) {
+      addSystemMsg(`知识库重载失败: ${data.error}`);
+    } else {
+      addSystemMsg(`✅ 知识库已重载: ${data.documents} 个文档, ${data.sections} 个章节`);
+    }
+  } catch(e) {
+    addSystemMsg(`网络错误: ${e.message}`);
+  }
+}
+
 async function runFullFlow() {
   clearChat();
   newSession();
@@ -1048,11 +1184,35 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.end_headers()
             self.wfile.write(json.dumps(export_data, ensure_ascii=False).encode('utf-8'))
+        elif self.path == '/api/rag/reload':
+            # GET /api/rag/reload - hot reload knowledge base
+            try:
+                from agent.rag import reload as _rag_reload
+                docs = _rag_reload()
+                result = {'reloaded': True, 'documents': len(docs), 'sections': sum(len(d['sections']) for d in docs)}
+            except Exception as e:
+                result = {'error': str(e)}
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
         elif self.path == '/api/stats':
-            # GET /api/stats - get memory database stats
+            # GET /api/stats - get memory database stats + rating summary
             try:
                 from agent.memory import get_stats
                 result = get_stats()
+                # Add rating summary
+                try:
+                    from agent.memory import _get_connection
+                    conn = _get_connection()
+                    cur = conn.execute("SELECT COUNT(*), AVG(stars) FROM ratings")
+                    row = cur.fetchone()
+                    if row and row[0] > 0:
+                        result['total_ratings'] = row[0]
+                        result['avg_rating'] = round(row[1], 2)
+                    conn.close()
+                except Exception:
+                    pass
             except Exception as e:
                 result = {'error': str(e)}
             self.send_response(200)
@@ -1064,7 +1224,39 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
-        if self.path == '/api/chat':
+        if self.path == '/api/rating':
+            # POST /api/rating - log user satisfaction rating
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            session_id = data.get('session_id', '')
+            msg_index = data.get('message_index', 0)
+            stars = data.get('stars', 0)
+            print(f"[Rating] session={session_id}, msg={msg_index}, stars={stars}⭐")
+
+            # Store rating in memory DB
+            try:
+                from agent.memory import _get_connection
+                conn = _get_connection()
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS ratings (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "session_id TEXT, message_index INTEGER, stars INTEGER, rated_at TEXT)"
+                )
+                conn.execute(
+                    "INSERT INTO ratings (session_id, message_index, stars, rated_at) VALUES (?, ?, ?, ?)",
+                    (session_id, msg_index, stars, datetime.now().isoformat())
+                )
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f"[Rating DB Error] {e}")
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": True}).encode('utf-8'))
+        elif self.path == '/api/chat':
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length)
             data = json.loads(body.decode('utf-8'))

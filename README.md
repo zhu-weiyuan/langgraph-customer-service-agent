@@ -17,11 +17,14 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 - **Welcome Message**: Auto-greeting with suggested topics on new session start
 - **Message Timestamps**: Each message shows send time for conversation tracking
 - **Read Time Estimation**: Bot messages show estimated reading time (Chinese: 5 chars/sec, English: 2.7 words/sec)
+- **Inline Star Rating**: ⭐ 1-5 star helpfulness rating after each bot reply — logged to SQLite
 - **Copy Button**: One-click copy button on bot message metadata for easy content sharing
 - **Dark Mode UI**: Toggle between light/dark themes with localStorage persistence
 - **Quick Reply Buttons**: Context-aware suggestion buttons after bot responses
 - **Typing Animation**: Character-by-character output with adaptive speed (Chinese vs English)
 - **Session History API**: REST endpoints for session state and memory stats
+- **Knowledge Base Hot Reload**: Reload KB without restarting the server via `/api/rag/reload`
+- **Scroll-to-Bottom Button**: Floating button appears when user scrolls up, one-click return to latest messages
 
 ## Architecture
 
@@ -114,7 +117,9 @@ python main.py
 | `/api/chat` | POST | `{"message": "...", "stream": true}` → SSE streaming tokens (real-time token-by-token output) |
 | `/api/session/<id>` | GET | Get session state (messages, intent, emotion) |
 | `/api/export/<id>` | GET | Export full session history as JSON (downloadable) |
-| `/api/stats` | GET | Memory database statistics |
+| `/api/stats` | GET | Memory database statistics + rating summary |
+| `/api/rating` | POST | `{"session_id": "...", "stars": 5}` → log helpfulness rating |
+| `/api/rag/reload` | GET | Hot reload knowledge base (no restart needed) |
 
 ## Extending
 
