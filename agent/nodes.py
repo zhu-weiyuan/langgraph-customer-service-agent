@@ -74,7 +74,7 @@ def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT, max_tokens: int
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=180) as resp:
             result = json.loads(resp.read().decode("utf-8"))
             return result["choices"][0]["message"]["content"]
     except Exception as e:

@@ -40,7 +40,7 @@ def init():
     print(f"[Server] Agent initialized (Real LLM via llama.cpp, sqlite={use_sqlite})")
 
 
-def stream_llm_reply(messages, system_prompt, max_tokens=512):
+def stream_llm_reply(messages, system_prompt, max_tokens=384):
     """Stream LLM reply tokens via llama.cpp streaming API.
 
     Yields individual token strings as they arrive from the LLM.
@@ -64,7 +64,7 @@ def stream_llm_reply(messages, system_prompt, max_tokens=512):
     )
 
     try:
-        with _ur.urlopen(req, timeout=120) as resp:
+        with _ur.urlopen(req, timeout=180) as resp:
             buf = b""
             while True:
                 chunk = resp.read(4096)
@@ -167,7 +167,7 @@ def run_agent_stream(session_id, user_message):
 
     # Stream tokens
     full_reply = ""
-    for token in stream_llm_reply(context_messages, sys_prompt, max_tokens=512):
+    for token in stream_llm_reply(context_messages, sys_prompt, max_tokens=384):
         full_reply += token
         token_json = json.dumps({"token": token}, ensure_ascii=False)
         yield "data: " + token_json + "\n\n"
