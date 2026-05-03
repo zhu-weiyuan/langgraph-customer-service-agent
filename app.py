@@ -540,19 +540,101 @@ CHAT_HTML = r"""<!DOCTYPE html>
   }
   .scroll-bottom-btn:hover { transform: scale(1.1); }
   .scroll-bottom-btn.show { display: flex; }
+
+  /* Session switcher dropdown */
+  .session-switcher {
+    position: relative;
+    display: inline-block;
+  }
+  .session-switcher-btn {
+    padding: 4px 10px;
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .session-switcher-btn:hover { background: rgba(255,255,255,0.3); }
+  .session-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 4px;
+    background: var(--bg-toolbar);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    max-height: 300px;
+    overflow-y: auto;
+    min-width: 280px;
+    z-index: 200;
+  }
+  .session-dropdown.show { display: block; }
+  .session-dropdown-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.1s;
+    color: var(--text-primary);
+  }
+  .session-dropdown-item:hover { background: var(--quick-reply-hover); }
+  .session-dropdown-item:last-child { border-bottom: none; }
+  .session-dropdown-item .sid {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: monospace;
+  }
+  .session-dropdown-item .preview {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+  }
+  .session-dropdown-item .meta {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .session-dropdown-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  /* Character counter */
+  .char-counter {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: right;
+    padding: 2px 4px;
+  }
 </style>
 </head>
 <body>
 
 <div class="header">
   <h1>LangGraph 智能客服 Agent</h1>
-  <div class="status"><span class="dot"></span>在线 (本地 LLM) <button class="theme-toggle" onclick="toggleTheme()" title="切换深色/浅色模式">🌙</button></div>
+  <div class="status"><span class="dot"></span>在线 (本地 LLM)
+    <div class="session-switcher">
+      <button class="session-switcher-btn" onclick="toggleSessionDropdown()" title="切换会话">📂 历史会话</button>
+      <div class="session-dropdown" id="sessionDropdown"></div>
+    </div>
+    <button class="theme-toggle" onclick="toggleTheme()" title="切换深色/浅色模式">🌙</button>
+  </div>
 </div>
 
 <div class="toolbar">
   <button class="primary" onclick="newSession()">新会话</button>
   <button onclick="clearChat()">清空聊天</button>
   <button class="danger" onclick="resetAll()">重置全部</button>
+  <button onclick="toggleSessionDropdown()" title="View session history">📂 历史会话</button>
   <button onclick="reloadKB()" title="Hot reload knowledge base">🔄 重载知识库</button>
 </div>
 
@@ -588,7 +670,10 @@ CHAT_HTML = r"""<!DOCTYPE html>
 
 <div class="shortcut-hint">按 Enter 发送 · Ctrl+Enter 换行</div>
 <div class="input-area">
-  <input type="text" id="messageInput" placeholder="输入消息... (Enter 发送)" autocomplete="off" />
+  <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
+    <input type="text" id="messageInput" placeholder="输入消息... (Enter 发送)" autocomplete="off" oninput="updateCharCounter()" />
+    <div class="char-counter" id="charCounter"></div>
+  </div>
   <button id="sendBtn" onclick="sendMessage()">发送</button>
 </div>
 
@@ -1166,6 +1251,113 @@ async function runFullFlow() {
   addSystemMsg('完整流程演示完成！');
 }
 
+// Session switcher — load and display recent sessions
+async function toggleSessionDropdown() {
+  const dropdown = document.getElementById('sessionDropdown');
+  if (dropdown.classList.contains('show')) {
+    dropdown.classList.remove('show');
+    return;
+  }
+  dropdown.classList.add('show');
+  dropdown.innerHTML = '<div class="session-dropdown-empty">加载中...</div>';
+
+  try {
+    const resp = await fetch('/api/sessions');
+    const data = await resp.json();
+    if (data.error) {
+      dropdown.innerHTML = `<div class="session-dropdown-empty">加载失败: ${data.error}</div>`;
+      return;
+    }
+    if (!data.sessions || data.sessions.length === 0) {
+      dropdown.innerHTML = '<div class="session-dropdown-empty">暂无历史会话</div>';
+      return;
+    }
+
+    let html = '';
+    for (const s of data.sessions) {
+      const isActive = currentSession && s.session_id === currentSession;
+      const timeStr = s.last_activity ? new Date(s.last_activity).toLocaleString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+      html += `<div class="session-dropdown-item${isActive ? ' active' : ''}" onclick="switchSession('${s.session_id}')">
+        <div class="sid">${isActive ? '▶ ' : ''}${s.session_id.slice(0, 8)}...</div>
+        <div class="preview">${s.preview || '无消息'}</div>
+        <div class="meta">${s.message_count} 条消息 · ${timeStr}</div>
+      </div>`;
+    }
+    dropdown.innerHTML = html;
+  } catch(e) {
+    dropdown.innerHTML = `<div class="session-dropdown-empty">网络错误</div>`;
+  }
+}
+
+// Switch to a different session
+async function switchSession(sessionId) {
+  document.getElementById('sessionDropdown').classList.remove('show');
+  if (sessionId === currentSession) return;
+
+  // Load the session's messages from the server
+  try {
+    const resp = await fetch(`/api/session/${sessionId}`);
+    const data = await resp.json();
+
+    // Clear chat and rebuild
+    clearChat();
+    messageCount = 0;
+    botMessageIndex = 0;
+    currentSession = sessionId;
+
+    document.getElementById('infoSession').textContent = sessionId.slice(0, 8) + '...';
+
+    if (data.error) {
+      addSystemMsg(`加载会话失败: ${data.error}`);
+      return;
+    }
+
+    // Render existing messages
+    for (const msg of data.messages || []) {
+      const role = msg.role === 'user' ? 'user' : 'bot';
+      const typeMap = { satisfaction: 'satisfaction', closing: 'closing' };
+      let msgType = '';
+      if (role === 'bot') {
+        const content = msg.content || '';
+        if (content.includes('满意')) msgType = 'satisfaction';
+        else if (/再见|goodbye|祝您/.test(content)) msgType = 'closing';
+      }
+      addMessage(role, msg.content, msgType, false);
+    }
+
+    // Restore metadata
+    if (data.intent) document.getElementById('infoIntent').textContent = data.intent;
+    if (data.retry_count !== undefined) document.getElementById('infoRetries').textContent = data.retry_count;
+    document.getElementById('infoMessages').textContent = (data.messages || []).length;
+    document.getElementById('infoStatus').textContent = 'Active';
+
+    addSystemMsg(`已切换到会话 ${sessionId.slice(0, 8)}...`);
+    scrollToBottom();
+  } catch(e) {
+    addSystemMsg(`切换失败: ${e.message}`);
+  }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('sessionDropdown');
+  if (dropdown && !e.target.closest('.session-switcher')) {
+    dropdown.classList.remove('show');
+  }
+});
+
+// Character counter for input field
+function updateCharCounter() {
+  const input = document.getElementById('messageInput');
+  const counter = document.getElementById('charCounter');
+  const len = input.value.length;
+  if (len === 0) {
+    counter.textContent = '';
+  } else {
+    counter.textContent = `${len} 字`;
+  }
+}
+
 // Auto-start new session on page load
 window.addEventListener('DOMContentLoaded', () => {
   if (!currentSession) {
@@ -1333,6 +1525,50 @@ class ChatHandler(BaseHTTPRequestHandler):
                 result = {'reloaded': True, 'documents': len(docs), 'sections': sum(len(d['sections']) for d in docs)}
             except Exception as e:
                 result = {'error': str(e)}
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
+        elif self.path == '/api/sessions':
+            # GET /api/sessions - list all sessions from memory DB with summary
+            try:
+                from agent.memory import _get_connection
+                conn = _get_connection()
+
+                # Get distinct session IDs with their conversation counts and last activity
+                rows = conn.execute(
+                    """SELECT session_id, COUNT(*) as msg_count,
+                             MAX(timestamp) as last_at,
+                             GROUP_CONCAT(DISTINCT intent) as intents
+                      FROM conversation_history
+                      GROUP BY session_id
+                      ORDER BY last_at DESC
+                      LIMIT 50"""
+                ).fetchall()
+
+                sessions = []
+                for row in rows:
+                    sid = row[0]
+                    # Get the latest user message for preview
+                    last_msg_row = conn.execute(
+                        "SELECT user_message FROM conversation_history WHERE session_id = ? ORDER BY timestamp DESC LIMIT 1",
+                        (sid,)
+                    ).fetchone()
+                    preview = ''
+                    if last_msg_row:
+                        preview = last_msg_row[0][:60]
+
+                    sessions.append({
+                        'session_id': sid,
+                        'message_count': row[1],
+                        'last_activity': row[2] or '',
+                        'intents': row[3].split(',') if row[3] else [],
+                        'preview': preview,
+                    })
+
+                result = {'sessions': sessions, 'total': len(sessions)}
+            except Exception as e:
+                result = {'error': str(e), 'sessions': []}
             self.send_response(200)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.end_headers()

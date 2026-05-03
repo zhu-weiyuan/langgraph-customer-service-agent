@@ -29,6 +29,9 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 - **Rate Limiting**: Sliding-window per-IP rate limiter (default 60 req/60s), configurable via env vars
 - **Conversation Analytics**: `/api/analytics` provides intent/emotion distribution, rating stats, ticket metrics
 - **Request Timing**: Every API response includes `X-Response-Time` header for latency monitoring
+- **Session History API**: `GET /api/sessions` lists all sessions from memory DB with message counts, last activity time, intent tags, and preview text — enables session management dashboards
+- **Session Switcher UI**: Dropdown in header + toolbar button to browse and switch between historical sessions. Loads full conversation history from server on switch.
+- **Input Character Counter**: Live character count below input field for long message awareness
 - **Scroll-to-Bottom Button**: Floating button appears when user scrolls up, one-click return to latest messages
 
 ## Architecture
@@ -125,6 +128,7 @@ python main.py
 | `/api/stats` | GET | Memory database statistics + rating summary |
 | `/api/rating` | POST | `{"session_id": "...", "stars": 5}` → log helpfulness rating |
 | `/api/rag/reload` | GET | Hot reload knowledge base (no restart needed) |
+| `/api/sessions` | GET | List all sessions from memory DB (message count, preview, intents) |
 | `/api/health` | GET | Health check (LLM connectivity, DB stats, KB status) |
 | `/api/analytics` | GET | Conversation analytics (intent/emotion distribution, ratings, tickets) |
 
