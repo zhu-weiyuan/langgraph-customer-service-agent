@@ -31,8 +31,8 @@ class RateLimiter:
     """Simple in-memory sliding-window rate limiter per IP.
 
     Configurable via env vars:
-      RATE_LIMIT_REQUESTS  — max requests per window (default: 60)
-      RATE_LIMIT_WINDOW    — window size in seconds (default: 60)
+      RATE_LIMIT_REQUESTS  鈥?max requests per window (default: 60)
+      RATE_LIMIT_WINDOW    鈥?window size in seconds (default: 60)
     """
     def __init__(self, max_requests=60, window_seconds=60):
         self.max_requests = max_requests
@@ -126,7 +126,7 @@ def stream_llm_reply(messages, system_prompt, max_tokens=384):
                         except (json.JSONDecodeError, KeyError, IndexError):
                             pass
     except Exception as e:
-        print(f"[Streaming 错误] {e}")
+        print(f"[Streaming 閿欒] {e}")
         # Fallback: non-streaming call
         from agent.nodes import _call_llm
         fallback = _call_llm(messages, system_prompt, max_tokens)
@@ -329,363 +329,595 @@ def _classify_message(content):
 # HTML UI (English)
 # ============================================================
 
+
 CHAT_HTML = r"""<!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LangGraph 智能客服 Agent</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>智联科技 · 智能客服</title>
 <style>
+  /* ═══════════════════════════════════════════════════════════
+     Design System — CSS Variables
+     ═══════════════════════════════════════════════════════════ */
   :root {
-    --bg-primary: #f0f2f5;
-    --bg-toolbar: white;
-    --bg-test-cases: #f9fafb;
-    --bg-input-area: white;
-    --bg-info-bar: #f8fafc;
-    --text-primary: #1f2937;
-    --text-secondary: #6b7280;
-    --text-muted: #9ca3af;
-    --border-color: #e5e7eb;
-    --bot-bubble-bg: white;
-    --bot-bubble-shadow: rgba(0,0,0,0.1);
-    --system-msg-bg: #f3f4f6;
-    --system-msg-text: #6b7280;
-    --satisfaction-bg: #fef3c7;
-    --closing-bg: #dcfce7;
-    --quick-reply-bg: white;
-    --quick-reply-border: #d1d5db;
-    --quick-reply-hover: #f3f4f6;
-    --scrollbar-thumb: #d1d5db;
-    --scrollbar-thumb-hover: #9ca3af;
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --accent-glow: rgba(99,102,241,0.15);
+    --accent-soft: rgba(99,102,241,0.08);
+    --bg-app: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-elevated: #ffffff;
+    --bg-inset: #f1f5f9;
+    --bg-overlay: rgba(15,23,42,0.5);
+    --text-1: #0f172a;
+    --text-2: #475569;
+    --text-3: #94a3b8;
+    --text-on-accent: #ffffff;
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+    --success: #10b981;
+    --success-bg: #ecfdf5;
+    --warning: #f59e0b;
+    --warning-bg: #fffbeb;
+    --danger: #ef4444;
+    --danger-bg: #fef2f2;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+    --bot-bg: #ffffff;
+    --bot-border: #e2e8f0;
+    --scrollbar: #cbd5e1;
+    --scrollbar-hover: #94a3b8;
+    --r-sm: 8px;
+    --r-md: 12px;
+    --r-lg: 16px;
+    --r-xl: 20px;
+    --r-full: 9999px;
+    --ease: cubic-bezier(0.4,0,0.2,1);
   }
-
   [data-theme="dark"] {
-    --bg-primary: #0f172a;
-    --bg-toolbar: #1e293b;
-    --bg-test-cases: #1e293b;
-    --bg-input-area: #1e293b;
-    --bg-info-bar: #1e293b;
-    --text-primary: #e2e8f0;
-    --text-secondary: #94a3b8;
-    --text-muted: #94a3b8;
-    --border-color: #334155;
-    --bot-bubble-bg: #1e293b;
-    --bot-bubble-shadow: rgba(0,0,0,0.3);
-    --system-msg-bg: #334155;
-    --system-msg-text: #94a3b8;
-    --satisfaction-bg: #422006;
-    --closing-bg: #14532d;
-    --quick-reply-bg: #1e293b;
-    --quick-reply-border: #475569;
-    --quick-reply-hover: #334155;
-    --scrollbar-thumb: #475569;
-    --scrollbar-thumb-hover: #64748b;
+    --accent: #818cf8;
+    --accent-hover: #6366f1;
+    --accent-glow: rgba(129,140,248,0.2);
+    --accent-soft: rgba(129,140,248,0.1);
+    --bg-app: #0b1120;
+    --bg-card: #131c31;
+    --bg-elevated: #182240;
+    --bg-inset: #0f1729;
+    --text-1: #f1f5f9;
+    --text-2: #94a3b8;
+    --text-3: #64748b;
+    --border: #1e293b;
+    --border-light: #1e293b;
+    --success: #34d399;
+    --success-bg: #052e16;
+    --warning: #fbbf24;
+    --warning-bg: #422006;
+    --danger: #f87171;
+    --danger-bg: #450a0a;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+    --bot-bg: #182240;
+    --bot-border: #1e293b;
+    --scrollbar: #334155;
+    --scrollbar-hover: #475569;
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); height: 100vh; display: flex; flex-direction: column; transition: background 0.3s; color: var(--text-primary); }
-  .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-  .header h1 { font-size: 18px; font-weight: 600; }
-  .status { font-size: 13px; opacity: 0.9; display: flex; align-items: center; gap: 8px; }
-  .status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #4ade80; }
-  .theme-toggle { background: rgba(255,255,255,0.2); border: none; color: white; cursor: pointer; font-size: 16px; padding: 4px 8px; border-radius: 6px; transition: background 0.15s; }
-  .theme-toggle:hover { background: rgba(255,255,255,0.3); }
-  .toolbar { background: var(--bg-toolbar); padding: 10px 24px; display: flex; gap: 10px; border-bottom: 1px solid var(--border-color); transition: background 0.3s; }
-  .toolbar button { padding: 8px 16px; border: 1px solid var(--border-color); background: var(--bg-toolbar); border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-primary); transition: all 0.15s; }
-  .toolbar button:hover { filter: brightness(0.97); }
-  .toolbar button.primary { background: #667eea; color: white; border-color: #667eea; }
-  .toolbar button.danger { background: #ef4444; color: white; border-color: #ef4444; }
-  .test-cases { background: var(--bg-test-cases); padding: 10px 24px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid var(--border-color); transition: background 0.3s; }
-  .test-cases .label { font-size: 12px; color: var(--text-secondary); margin-right: 4px; font-weight: 600; }
-  .tc-btn { padding: 5px 12px; background: var(--bg-toolbar); border: 1px solid var(--border-color); border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.15s; color: var(--text-primary); }
-  .tc-btn:hover { filter: brightness(0.97); }
-  .tc-btn.green { border-color: #86efac; color: #166534; background: #f0fdf4; }
-  .tc-btn.red { border-color: #fca5a5; color: #991b1b; background: #fef2f2; }
-  .tc-btn.blue { border-color: #93c5fd; color: #1e40af; background: #eff6ff; }
-  [data-theme="dark"] .tc-btn.green { background: #052e16; color: #86efac; }
-  [data-theme="dark"] .tc-btn.red { background: #450a0a; color: #fca5a5; }
-  [data-theme="dark"] .tc-btn.blue { background: #172554; color: #93c5fd; }
-  .chat-container { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
-  .message { display: flex; gap: 12px; max-width: 75%; animation: fadeIn 0.3s ease; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-  .message.user { align-self: flex-end; flex-direction: row-reverse; }
-  .message.bot { align-self: flex-start; }
-  .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
-  .message.user .avatar { background: #667eea; }
-  .message.bot .avatar { background: linear-gradient(135deg, #f093fb, #f5576c); }
-  .bubble { padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
-  .message.user .bubble { background: #667eea; color: white; border-bottom-right-radius: 4px; }
-  .message.bot .bubble { background: var(--bot-bubble-bg); color: var(--text-primary); border-bottom-left-radius: 4px; box-shadow: 0 1px 3px var(--bot-bubble-shadow); transition: background 0.3s; }
-  .message.bot .bubble.satisfaction { background: var(--satisfaction-bg); border: 1px solid #f59e0b; }
-  .message.bot .bubble.closing { background: var(--closing-bg); border: 1px solid #22c55e; }
-  .system-msg { align-self: center; padding: 6px 16px; background: var(--system-msg-bg); border-radius: 12px; font-size: 12px; color: var(--system-msg-text); transition: background 0.3s; }
-
-  /* Quick reply suggestions */
-  .quick-replies { display: flex; gap: 8px; flex-wrap: wrap; align-self: flex-start; margin-left: 48px; animation: fadeIn 0.3s ease; }
-  .quick-reply-btn { padding: 6px 14px; background: var(--quick-reply-bg); border: 1px solid var(--quick-reply-border); border-radius: 16px; font-size: 12px; cursor: pointer; transition: all 0.15s; color: var(--text-secondary); }
-  .quick-reply-btn:hover { background: var(--quick-reply-hover); border-color: #667eea; color: #667eea; }
-
-  .input-area { background: var(--bg-input-area); padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; gap: 12px; transition: background 0.3s; }
-  .input-area input { flex: 1; padding: 12px 16px; border: 1px solid var(--border-color); border-radius: 24px; font-size: 14px; outline: none; transition: border-color 0.15s; background: var(--bg-toolbar); color: var(--text-primary); }
-  .input-area input:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
-  .input-area button { padding: 12px 24px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; border-radius: 24px; font-size: 14px; cursor: pointer; }
-  .input-area button:hover { opacity: 0.9; }
-  .input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* Keyboard shortcut hint */
-  .shortcut-hint { font-size: 10px; color: var(--text-muted); text-align: center; padding: 2px 0; }
-  .info-bar { background: var(--bg-info-bar); padding: 8px 24px; font-size: 12px; color: var(--text-secondary); display: flex; gap: 20px; border-top: 1px solid var(--border-color); overflow-x: auto; transition: background 0.3s; }
-  .info-bar span { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
-  .info-bar .label { color: var(--text-muted); }
-  .typing-indicator { display: flex; gap: 4px; padding: 12px 16px; align-items: center; }
-  .typing-indicator .dot { width: 8px; height: 8px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.4s infinite; }
-  .typing-indicator .dot:nth-child(2) { animation-delay: 0.2s; }
-  .typing-indicator .dot:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-8px); } }
-
-  /* Typing cursor for character-by-character animation */
-  .typing-cursor::after {
-    content: '▊';
-    animation: blink 0.8s infinite;
-    color: #667eea;
-    font-weight: 300;
-  }
-  @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
-
-  /* Memory indicator */
-  .memory-badge { display: inline-block; font-size: 10px; padding: 2px 6px; background: #e0e7ff; color: #4338ca; border-radius: 8px; margin-left: 8px; }
-
-  /* Mobile responsive */
-  @media (max-width: 640px) {
-    .header { padding: 12px 16px; }
-    .header h1 { font-size: 15px; }
-    .toolbar { padding: 8px 16px; gap: 6px; flex-wrap: wrap; }
-    .test-cases {
-      padding: 8px 16px;
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-    }
-    .test-cases::-webkit-scrollbar { display: none; }
-    .chat-container { padding: 16px;
-      gap: 12px; }
-    .message { max-width: 88%; }
-    .quick-replies { margin-left: 42px; }
-    .input-area { padding: 12px 16px; }
-    .info-bar { padding: 6px 16px; font-size: 11px; gap: 12px; }
-    .avatar { width: 30px; height: 30px; font-size: 15px; }
-    .bubble { padding: 10px 14px; font-size: 13px; }
-  }
-
-  /* Emotion intensity bar */
-  .emotion-bar { display: inline-flex; gap: 2px; vertical-align: middle; }
-  .emotion-bar .seg { width: 8px; height: 14px; border-radius: 2px; background: #d1d5db; transition: background 0.3s; }
-  .emotion-bar .seg.active { background: #667eea; }
-  .emotion-bar .seg.high { background: #ef4444; }
-
-  /* Session export modal */
-  .export-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
-  .export-modal.show { display: flex; }
-  .export-modal-content { background: var(--bg-toolbar); border-radius: 12px; padding: 24px; max-width: 700px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
-  .export-modal-content h3 { margin-bottom: 12px; color: var(--text-primary); }
-  .export-modal-content pre { background: var(--system-msg-bg); padding: 16px; border-radius: 8px; font-size: 12px; overflow-x: auto; max-height: 50vh; color: var(--text-primary); white-space: pre-wrap; word-break: break-all; }
-  .export-modal-content .btn-row { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
-  .export-modal-content button { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border-color); cursor: pointer; background: var(--bg-toolbar); color: var(--text-primary); }
-  .export-modal-content button.primary { background: #667eea; color: white; border-color: #667eea; }
-
-  /* Message timestamp */
-  .msg-time { font-size: 10px; color: var(--text-muted); margin-top: 4px; display: block; }
-
-  /* Read time estimation */
-  .read-time { font-size: 10px; color: var(--text-muted); margin-left: 8px; }
-
-  /* Copy button on bot messages */
-  .copy-btn { font-size: 10px; color: var(--text-muted); background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: all 0.15s; margin-left: 4px; }
-  .copy-btn:hover { background: var(--quick-reply-hover); color: #667eea; }
-
-  /* Inline star rating */
-  .star-rating { display: flex; gap: 2px; align-items: center; margin-top: 8px; padding-left: 4px; animation: fadeIn 0.3s ease; }
-  .star-rating .label { font-size: 10px; color: var(--text-muted); margin-right: 6px; }
-  .star-btn { background: none; border: none; cursor: pointer; font-size: 18px; padding: 2px 4px; transition: transform 0.15s, filter 0.15s; filter: grayscale(1) opacity(0.4); }
-  .star-btn:hover { transform: scale(1.3); filter: grayscale(0) opacity(1); }
-  .star-btn.rated { filter: grayscale(0) opacity(1); }
-  .star-rating.thanks { font-size: 12px; color: #22c55e; margin-top: 4px; padding-left: 4px; animation: fadeIn 0.3s ease; }
-
-  /* Scrollbar styling */
-  .chat-container::-webkit-scrollbar { width: 6px; }
-  .chat-container::-webkit-scrollbar-track { background: transparent; }
-  .chat-container::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
-  .chat-container::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
-
-  /* Scroll-to-bottom floating button */
-  .scroll-bottom-btn {
-    position: fixed;
-    bottom: 80px;
-    right: 24px;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: #667eea;
-    color: white;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    transition: opacity 0.2s, transform 0.2s;
-    z-index: 50;
-  }
-  .scroll-bottom-btn:hover { transform: scale(1.1); }
-  .scroll-bottom-btn.show { display: flex; }
-
-  /* Session switcher dropdown */
-  .session-switcher {
-    position: relative;
-    display: inline-block;
-  }
-  .session-switcher-btn {
-    padding: 4px 10px;
-    background: rgba(255,255,255,0.2);
-    border: none;
-    color: white;
-    cursor: pointer;
-    font-size: 13px;
-    border-radius: 6px;
-    transition: background 0.15s;
-  }
-  .session-switcher-btn:hover { background: rgba(255,255,255,0.3); }
-  .session-dropdown {
-    display: none;
-    position: absolute;
-    right: 0;
-    top: 100%;
-    margin-top: 4px;
-    background: var(--bg-toolbar);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-    max-height: 300px;
-    overflow-y: auto;
-    min-width: 280px;
-    z-index: 200;
-  }
-  .session-dropdown.show { display: block; }
-  .session-dropdown-item {
-    padding: 10px 14px;
-    cursor: pointer;
-    border-bottom: 1px solid var(--border-color);
-    transition: background 0.1s;
-    color: var(--text-primary);
-  }
-  .session-dropdown-item:hover { background: var(--quick-reply-hover); }
-  .session-dropdown-item:last-child { border-bottom: none; }
-  .session-dropdown-item .sid {
-    font-size: 11px;
-    color: var(--text-muted);
-    font-family: monospace;
-  }
-  .session-dropdown-item .preview {
-    font-size: 12px;
-    color: var(--text-secondary);
-    margin-top: 2px;
-    white-space: nowrap;
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    background: var(--bg-app);
+    color: var(--text-1);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.3s var(--ease), color 0.3s var(--ease);
+    -webkit-font-smoothing: antialiased;
     overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 250px;
-  }
-  .session-dropdown-item .meta {
-    font-size: 10px;
-    color: var(--text-muted);
-    margin-top: 2px;
-  }
-  .session-dropdown-empty {
-    padding: 16px;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 13px;
   }
 
-  /* Character counter */
-  .char-counter {
-    font-size: 10px;
-    color: var(--text-muted);
-    text-align: right;
-    padding: 2px 4px;
+  /* ── Header ────────────────────────────────────────── */
+  .header {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    transition: background 0.3s var(--ease);
+    z-index: 10;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    border-radius: var(--r-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: white; flex-shrink: 0;
+  }
+  .header-title { font-size: 15px; font-weight: 600; color: var(--text-1); letter-spacing: -0.01em; }
+  .header-subtitle { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+  .header-right { display: flex; align-items: center; gap: 6px; }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    background: var(--success-bg);
+    color: var(--success);
+    border-radius: var(--r-full);
+    font-size: 12px; font-weight: 500;
+  }
+  .status-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--success);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .icon-btn {
+    width: 32px; height: 32px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-2);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    transition: all 0.15s var(--ease);
+  }
+  .icon-btn:hover {
+    background: var(--bg-inset);
+    color: var(--text-1);
+    border-color: var(--accent);
+  }
+
+  /* ── Toolbar ───────────────────────────────────────── */
+  .toolbar {
+    background: var(--bg-card);
+    padding: 8px 24px;
+    display: flex; gap: 8px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    transition: background 0.3s var(--ease);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .toolbar::-webkit-scrollbar { display: none; }
+  .btn {
+    padding: 6px 14px;
+    border-radius: var(--r-full);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-2);
+    font-size: 12px; font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s var(--ease);
+    white-space: nowrap;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .btn.primary { background: var(--accent); color: var(--text-on-accent); border-color: var(--accent); }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.danger { color: var(--danger); border-color: var(--danger); }
+  .btn.danger:hover { background: var(--danger-bg); }
+  .btn .ico { font-size: 13px; }
+
+  /* ── Test Strip ────────────────────────────────────── */
+  .test-strip {
+    background: var(--bg-inset);
+    padding: 8px 24px;
+    display: flex; gap: 6px; align-items: center;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    transition: background 0.3s var(--ease);
+  }
+  .test-strip::-webkit-scrollbar { display: none; }
+  .test-strip .group-label {
+    font-size: 11px; color: var(--text-3);
+    font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.05em; margin-right: 2px; flex-shrink: 0;
+  }
+  .test-strip .divider { width: 1px; height: 16px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+  .pill {
+    padding: 4px 12px;
+    border-radius: var(--r-full);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-2);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s var(--ease);
+    white-space: nowrap;
+  }
+  .pill:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .pill.warn { border-color: var(--warning); color: #b45309; }
+  .pill.warn:hover { background: var(--warning-bg); }
+  .pill.danger { border-color: var(--danger); color: #b91c1c; }
+  .pill.danger:hover { background: var(--danger-bg); }
+  .pill.success { border-color: var(--success); color: #047857; }
+  .pill.success:hover { background: var(--success-bg); }
+  .pill.accent { border-color: var(--accent); color: var(--accent); }
+  .pill.accent:hover { background: var(--accent-soft); }
+  [data-theme="dark"] .pill.warn { color: var(--warning); }
+  [data-theme="dark"] .pill.danger { color: var(--danger); }
+  [data-theme="dark"] .pill.success { color: var(--success); }
+
+  /* ── Chat Area ─────────────────────────────────────── */
+  .chat-area {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    padding: 24px;
+    display: flex; flex-direction: column; gap: 20px;
+    scroll-behavior: smooth;
+  }
+  .chat-area::-webkit-scrollbar { width: 5px; }
+  .chat-area::-webkit-scrollbar-track { background: transparent; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+  .chat-area::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+  .msg-row {
+    display: flex; gap: 10px;
+    max-width: 720px; width: 100%;
+    margin: 0 auto;
+    animation: msgIn 0.35s var(--ease);
+  }
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg-row.user { flex-direction: row-reverse; align-self: flex-end; }
+  .msg-row.bot { align-self: flex-start; }
+
+  .msg-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0; margin-top: 2px;
+  }
+  .msg-row.user .msg-avatar { background: linear-gradient(135deg, var(--accent), #818cf8); color: white; }
+  .msg-row.bot .msg-avatar { background: linear-gradient(135deg, #f472b6, #c084fc); color: white; }
+
+  .msg-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+  .bubble {
+    padding: 10px 16px;
+    border-radius: var(--r-lg);
+    font-size: 14px; line-height: 1.65;
+    white-space: pre-wrap; word-break: break-word;
+    transition: background 0.3s var(--ease);
+  }
+  .msg-row.user .bubble { background: var(--accent); color: white; border-bottom-right-radius: var(--r-sm); }
+  .msg-row.bot .bubble {
+    background: var(--bot-bg); color: var(--text-1);
+    border: 1px solid var(--bot-border);
+    border-bottom-left-radius: var(--r-sm);
+  }
+  .msg-row.bot .bubble.satisfaction { border-color: var(--warning); background: var(--warning-bg); }
+  .msg-row.bot .bubble.closing { border-color: var(--success); background: var(--success-bg); }
+
+  .msg-meta { display: flex; align-items: center; gap: 8px; padding: 0 4px; }
+  .msg-row.user .msg-meta { justify-content: flex-end; }
+  .msg-time { font-size: 11px; color: var(--text-3); }
+  .msg-readtime { font-size: 11px; color: var(--text-3); }
+  .msg-copy {
+    font-size: 11px; color: var(--text-3);
+    background: none; border: none; cursor: pointer;
+    padding: 1px 4px; border-radius: 4px;
+    transition: all 0.15s; opacity: 0;
+  }
+  .msg-row:hover .msg-copy { opacity: 1; }
+  .msg-copy:hover { background: var(--accent-soft); color: var(--accent); }
+
+  .sys-msg {
+    align-self: center;
+    padding: 5px 14px;
+    background: var(--bg-inset);
+    border-radius: var(--r-full);
+    font-size: 12px; color: var(--text-3);
+    animation: msgIn 0.3s var(--ease);
+    max-width: 720px;
+  }
+
+  .quick-replies {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    max-width: 720px; width: 100%;
+    margin: 0 auto; padding-left: 44px;
+    animation: msgIn 0.3s var(--ease);
+  }
+  .qr-btn {
+    padding: 5px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-full);
+    font-size: 13px; color: var(--text-2);
+    cursor: pointer;
+    transition: all 0.15s var(--ease);
+  }
+  .qr-btn:hover {
+    border-color: var(--accent); color: var(--accent);
+    background: var(--accent-soft);
+    transform: translateY(-1px);
+  }
+
+  .typing-dots { display: flex; gap: 5px; padding: 14px 18px; align-items: center; }
+  .typing-dots span {
+    width: 7px; height: 7px;
+    background: var(--text-3); border-radius: 50%;
+    animation: dotBounce 1.4s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dotBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  .typing-cursor::after {
+    content: '\25ca';
+    animation: cursorBlink 0.8s infinite;
+    color: var(--accent); font-weight: 300; margin-left: 1px;
+  }
+  @keyframes cursorBlink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+
+  .emotion-bar { display: inline-flex; gap: 2px; vertical-align: middle; }
+  .emotion-bar .seg {
+    width: 6px; height: 12px; border-radius: 2px;
+    background: var(--border);
+    transition: background 0.3s var(--ease);
+  }
+  .emotion-bar .seg.active { background: var(--accent); }
+  .emotion-bar .seg.high { background: var(--danger); }
+
+  .star-row {
+    display: flex; gap: 2px; align-items: center;
+    margin-top: 6px; padding-left: 4px;
+    animation: msgIn 0.3s var(--ease);
+  }
+  .star-row .label { font-size: 11px; color: var(--text-3); margin-right: 6px; }
+  .star-btn {
+    background: none; border: none; cursor: pointer;
+    font-size: 16px; padding: 1px 3px;
+    transition: transform 0.15s var(--ease);
+    filter: grayscale(1) opacity(0.3);
+  }
+  .star-btn:hover { transform: scale(1.25); filter: grayscale(0) opacity(1); }
+  .star-btn.on { filter: grayscale(0) opacity(1); }
+  .star-thanks {
+    font-size: 12px; color: var(--success);
+    margin-top: 4px; padding-left: 4px;
+    animation: msgIn 0.3s var(--ease);
+  }
+
+  /* ── Info Bar ──────────────────────────────────────── */
+  .info-bar {
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    padding: 6px 24px;
+    font-size: 11px; color: var(--text-3);
+    display: flex; gap: 16px;
+    overflow-x: auto; scrollbar-width: none;
+    flex-shrink: 0;
+    transition: background 0.3s var(--ease);
+  }
+  .info-bar::-webkit-scrollbar { display: none; }
+  .info-item { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+  .info-label { color: var(--text-3); font-weight: 500; }
+  .info-value { color: var(--text-2); font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; font-size: 11px; }
+
+  /* ── Input Area ────────────────────────────────────── */
+  .input-area {
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    padding: 12px 24px 16px;
+    display: flex; gap: 10px; align-items: flex-end;
+    flex-shrink: 0;
+    transition: background 0.3s var(--ease);
+  }
+  .input-wrap { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .input-wrap input {
+    width: 100%;
+    padding: 10px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-full);
+    font-size: 14px; outline: none;
+    background: var(--bg-inset); color: var(--text-1);
+    transition: all 0.2s var(--ease);
+  }
+  .input-wrap input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+    background: var(--bg-card);
+  }
+  .input-wrap input::placeholder { color: var(--text-3); }
+  .input-hint { font-size: 11px; color: var(--text-3); text-align: center; }
+  .send-btn {
+    padding: 10px 20px;
+    background: var(--accent); color: white;
+    border: none; border-radius: var(--r-full);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s var(--ease);
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .send-btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
+  .send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* ── Scroll Button ─────────────────────────────────── */
+  .scroll-btn {
+    position: fixed; bottom: 90px; right: 28px;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--bg-card); color: var(--text-2);
+    border: 1px solid var(--border);
+    cursor: pointer; font-size: 16px;
+    display: none; align-items: center; justify-content: center;
+    box-shadow: var(--shadow-md);
+    transition: all 0.2s var(--ease); z-index: 50;
+  }
+  .scroll-btn:hover { color: var(--accent); border-color: var(--accent); transform: translateY(-2px); }
+  .scroll-btn.show { display: flex; }
+
+  /* ── Modal ─────────────────────────────────────────── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: var(--bg-overlay); z-index: 100;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 24px;
+    max-width: 700px; width: 92%; max-height: 80vh;
+    overflow-y: auto; box-shadow: var(--shadow-lg);
+  }
+  .modal h3 {
+    font-size: 16px; font-weight: 600; color: var(--text-1);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .modal pre {
+    background: var(--bg-inset);
+    border: 1px solid var(--border);
+    padding: 14px; border-radius: var(--r-sm);
+    font-size: 12px;
+    font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+    overflow-x: auto; max-height: 50vh;
+    color: var(--text-1);
+    white-space: pre-wrap; word-break: break-all; line-height: 1.5;
+  }
+  .modal-btns { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+
+  /* ── Session Switcher ──────────────────────────────── */
+  .session-dd { position: relative; display: inline-block; }
+  .session-panel {
+    display: none; position: absolute;
+    right: 0; top: calc(100% + 6px);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-lg);
+    max-height: 320px; overflow-y: auto;
+    min-width: 300px; z-index: 200;
+  }
+  .session-panel.show { display: block; }
+  .session-item {
+    padding: 10px 14px; cursor: pointer;
+    border-bottom: 1px solid var(--border-light);
+    transition: background 0.1s; color: var(--text-1);
+  }
+  .session-item:hover { background: var(--accent-soft); }
+  .session-item:last-child { border-bottom: none; }
+  .session-item .sid {
+    font-size: 11px; color: var(--text-3);
+    font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  }
+  .session-item .preview {
+    font-size: 13px; color: var(--text-2); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 270px;
+  }
+  .session-item .meta { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+  .session-empty { padding: 20px; text-align: center; color: var(--text-3); font-size: 13px; }
+
+  /* ── Responsive ────────────────────────────────────── */
+  @media (max-width: 640px) {
+    .header { padding: 0 16px; height: 50px; }
+    .header-subtitle { display: none; }
+    .toolbar { padding: 6px 16px; }
+    .test-strip { padding: 6px 16px; }
+    .chat-area { padding: 16px; gap: 16px; }
+    .msg-row { max-width: 100%; }
+    .msg-row.user, .msg-row.bot { align-self: stretch; }
+    .msg-avatar { width: 28px; height: 28px; font-size: 13px; }
+    .bubble { padding: 8px 14px; font-size: 13px; }
+    .quick-replies { padding-left: 38px; }
+    .input-area { padding: 10px 16px 14px; }
+    .info-bar { padding: 5px 16px; gap: 12px; font-size: 10px; }
+    .scroll-btn { right: 16px; bottom: 80px; }
   }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>LangGraph 智能客服 Agent</h1>
-  <div class="status"><span class="dot"></span>在线 (本地 LLM)
-    <div class="session-switcher">
-      <button class="session-switcher-btn" onclick="toggleSessionDropdown()" title="切换会话">📂 历史会话</button>
-      <div class="session-dropdown" id="sessionDropdown"></div>
+  <div class="header-left">
+    <div class="logo">🤖</div>
+    <div>
+      <div class="header-title">智联科技 · 智能客服</div>
+      <div class="header-subtitle">LangGraph Agent · 本地 LLM</div>
     </div>
-    <button class="theme-toggle" onclick="toggleTheme()" title="切换深色/浅色模式">🌙</button>
+  </div>
+  <div class="header-right">
+    <div class="status-pill"><span class="dot"></span>在线</div>
+    <div class="session-dd">
+      <button class="icon-btn" onclick="toggleSessionDropdown()" title="历史会话">📂</button>
+      <div class="session-panel" id="sessionDropdown"></div>
+    </div>
+    <button class="icon-btn" onclick="toggleTheme()" id="themeBtn" title="切换主题">🌙</button>
   </div>
 </div>
 
 <div class="toolbar">
-  <button class="primary" onclick="newSession()">新会话</button>
-  <button onclick="clearChat()">清空聊天</button>
-  <button class="danger" onclick="resetAll()">重置全部</button>
-  <button onclick="toggleSessionDropdown()" title="View session history">📂 历史会话</button>
-  <button onclick="reloadKB()" title="Hot reload knowledge base">🔄 重载知识库</button>
+  <button class="btn primary" onclick="newSession()"><span class="ico">＋</span> 新会话</button>
+  <button class="btn" onclick="clearChat()"><span class="ico">🗑</span> 清空</button>
+  <button class="btn danger" onclick="resetAll()"><span class="ico">↻</span> 重置</button>
+  <button class="btn" onclick="toggleSessionDropdown()"><span class="ico">📂</span> 历史</button>
+  <button class="btn" onclick="reloadKB()"><span class="ico">🔄</span> 重载知识库</button>
 </div>
 
-<div class="test-cases">
-  <span class="label">测试：</span>
-  <button class="tc-btn blue" onclick="quickTest('产品怎么用？')">产品咨询</button>
-  <button class="tc-btn red" onclick="quickTest('我要投诉，产品质量太差了')">投诉</button>
-  <button class="tc-btn" onclick="quickTest('你好')">打招呼</button>
-  <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px"></span>
-  <span class="label">结束：</span>
-  <button class="tc-btn green" onclick="quickTest('谢谢，没问题了')">感谢并结束</button>
-  <button class="tc-btn red" onclick="quickTest('再见')">说再见</button>
-  <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px"></span>
-  <span class="label">反馈：</span>
-  <button class="tc-btn green" onclick="quickTest('满意')">满意</button>
-  <button class="tc-btn red" onclick="quickTest('不满意')">不满意</button>
-  <span style="width:1px;height:20px;background:#d1d5db;margin:0 4px"></span>
-  <button class="tc-btn blue" onclick="runFullFlow()">自动完整流程</button>
-  <button class="tc-btn blue" onclick="exportSession()">导出会话</button>
+<div class="test-strip">
+  <span class="group-label">测试</span>
+  <button class="pill accent" onclick="quickTest('产品怎么用？')">产品咨询</button>
+  <button class="pill danger" onclick="quickTest('我要投诉，产品质量太差了')">投诉</button>
+  <button class="pill" onclick="quickTest('你好')">打招呼</button>
+  <div class="divider"></div>
+  <span class="group-label">结束</span>
+  <button class="pill success" onclick="quickTest('谢谢，没问题了')">感谢并结束</button>
+  <button class="pill danger" onclick="quickTest('再见')">说再见</button>
+  <div class="divider"></div>
+  <span class="group-label">反馈</span>
+  <button class="pill success" onclick="quickTest('满意')">满意</button>
+  <button class="pill danger" onclick="quickTest('不满意')">不满意</button>
+  <div class="divider"></div>
+  <button class="pill accent" onclick="runFullFlow()">▶ 自动流程</button>
+  <button class="pill accent" onclick="exportSession()">📋 导出</button>
 </div>
 
-<div class="chat-container" id="chatContainer"></div>
-<button class="scroll-bottom-btn" id="scrollBottomBtn" onclick="scrollToBottom()" title="Scroll to bottom">↓</button>
+<div class="chat-area" id="chatArea"></div>
+<button class="scroll-btn" id="scrollBtn" onclick="scrollToBottom()">↓</button>
 
 <div class="info-bar">
-  <span><span class="label">Session:</span> <span id="infoSession">-</span></span>
-  <span><span class="label">Intent:</span> <span id="infoIntent">-</span></span>
-  <span><span class="label">Retries:</span> <span id="infoRetries">0</span></span>
-  <span><span class="label">Emotion:</span> <span id="infoEmotion">-</span> <span id="emotionBar" class="emotion-bar"></span></span>
-  <span><span class="label">Messages:</span> <span id="infoMessages">0</span></span>
-  <span><span class="label">Status:</span> <span id="infoStatus">Active</span></span>
+  <div class="info-item"><span class="info-label">会话</span> <span class="info-value" id="infoSession">-</span></div>
+  <div class="info-item"><span class="info-label">意图</span> <span class="info-value" id="infoIntent">-</span></div>
+  <div class="info-item"><span class="info-label">重试</span> <span class="info-value" id="infoRetries">0</span></div>
+  <div class="info-item"><span class="info-label">情绪</span> <span id="infoEmotion">-</span> <span id="emotionBar" class="emotion-bar"></span></div>
+  <div class="info-item"><span class="info-label">消息</span> <span class="info-value" id="infoMessages">0</span></div>
+  <div class="info-item"><span class="info-label">状态</span> <span class="info-value" id="infoStatus">Active</span></div>
 </div>
 
-<div class="shortcut-hint">按 Enter 发送 · Ctrl+Enter 换行</div>
 <div class="input-area">
-  <div style="flex:1;display:flex;flex-direction:column;gap:4px;">
-    <input type="text" id="messageInput" placeholder="输入消息... (Enter 发送)" autocomplete="off" oninput="updateCharCounter()" />
-    <div class="char-counter" id="charCounter"></div>
+  <div class="input-wrap">
+    <input type="text" id="messageInput" placeholder="输入消息..." autocomplete="off" />
+    <div class="input-hint">Enter 发送 · Ctrl+Enter 换行</div>
   </div>
-  <button id="sendBtn" onclick="sendMessage()">发送</button>
+  <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
 </div>
 
-<!-- Export Modal -->
-<div class="export-modal" id="exportModal">
-  <div class="export-modal-content">
+<div class="modal-overlay" id="exportModal">
+  <div class="modal">
     <h3>📋 会话导出</h3>
     <pre id="exportContent">加载中...</pre>
-    <div class="btn-row">
-      <button onclick="copyExport()">📋 复制</button>
-      <button onclick="downloadExport()">💾 下载 JSON</button>
-      <button class="primary" onclick="closeExportModal()">关闭</button>
+    <div class="modal-btns">
+      <button class="btn" onclick="copyExport()">📋 复制</button>
+      <button class="btn" onclick="downloadExport()">💾 下载 JSON</button>
+      <button class="btn primary" onclick="closeExportModal()">关闭</button>
     </div>
   </div>
 </div>
@@ -696,7 +928,6 @@ let isProcessing = false;
 let messageCount = 0;
 let botMessageIndex = 0;
 
-// Quick reply suggestions based on context
 const QUICK_REPLIES = {
   default: ['产品怎么用？', '我要投诉', '价格是多少？', '有保修吗？'],
   after_greeting: ['产品怎么用？', '价格是多少？', '有什么功能？'],
@@ -704,10 +935,9 @@ const QUICK_REPLIES = {
   satisfaction: ['满意', '不满意'],
 };
 
-// Theme management
 function toggleTheme() {
   const html = document.documentElement;
-  const btn = document.querySelector('.theme-toggle');
+  const btn = document.getElementById('themeBtn');
   if (html.getAttribute('data-theme') === 'dark') {
     html.removeAttribute('data-theme');
     btn.textContent = '🌙';
@@ -718,284 +948,175 @@ function toggleTheme() {
     localStorage.setItem('theme', 'dark');
   }
 }
-
-// Restore theme on load
 (function() {
   const saved = localStorage.getItem('theme');
   if (saved === 'dark') {
     document.documentElement.setAttribute('data-theme', 'dark');
-    setTimeout(() => {
-      const btn = document.querySelector('.theme-toggle');
-      if (btn) btn.textContent = '☀️';
-    }, 0);
+    setTimeout(() => { const b = document.getElementById('themeBtn'); if (b) b.textContent = '☀️'; }, 0);
   }
 })();
 
-const chatContainer = document.getElementById('chatContainer');
+const chatArea = document.getElementById('chatArea');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
-const scrollBottomBtn = document.getElementById('scrollBottomBtn');
+const scrollBtn = document.getElementById('scrollBtn');
 
-// Show/hide scroll-to-bottom button based on scroll position
-chatContainer.addEventListener('scroll', () => {
-  const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
-  scrollBottomBtn.classList.toggle('show', !isNearBottom);
+chatArea.addEventListener('scroll', () => {
+  const near = chatArea.scrollHeight - chatArea.scrollTop - chatArea.clientHeight < 100;
+  scrollBtn.classList.toggle('show', !near);
 });
-
-function scrollToBottom() {
-  chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-}
-
-messageInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !isProcessing) sendMessage();
-});
+function scrollToBottom() { chatArea.scrollTo({ top: chatArea.scrollHeight, behavior: 'smooth' }); }
+messageInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !isProcessing) sendMessage(); });
 
 function addMessage(role, content, type, animate) {
   messageCount++;
   document.getElementById('infoMessages').textContent = messageCount;
-
-  const div = document.createElement('div');
-  div.className = `message ${role}`;
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + role;
   const avatar = document.createElement('div');
-  avatar.className = 'avatar';
+  avatar.className = 'msg-avatar';
   avatar.textContent = role === 'user' ? '\u{1F464}' : '\u{1F916}';
-
-  // Bubble wrapper (contains bubble + metadata)
-  const wrapper = document.createElement('div');
-  wrapper.style.display = 'flex';
-  wrapper.style.flexDirection = 'column';
-  wrapper.style.alignSelf = role === 'user' ? 'flex-end' : 'flex-start';
-
+  const body = document.createElement('div');
+  body.className = 'msg-body';
   const bubble = document.createElement('div');
-  bubble.className = `bubble ${type || ''}`;
+  bubble.className = 'bubble ' + (type || '');
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  const ts = document.createElement('span');
+  ts.className = 'msg-time';
+  ts.textContent = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  meta.appendChild(ts);
 
-  // Timestamp + read time row
-  const metaRow = document.createElement('div');
-  metaRow.style.display = 'flex';
-  metaRow.style.alignItems = 'center';
-  metaRow.style.gap = '4px';
-  if (role === 'user') {
-    metaRow.style.justifyContent = 'flex-end';
-  }
-
-  const timeSpan = document.createElement('span');
-  timeSpan.className = 'msg-time';
-  timeSpan.textContent = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-  metaRow.appendChild(timeSpan);
-
-  if (role === 'bot') {
-    // Estimate read time: Chinese ~5 chars/sec, English ~160 words/min ≈ 2.7 words/sec
-    const hasChinese = content && /[\u4e00-\u9fff]/.test(content);
-    let readTime;
-    if (content && hasChinese) {
-      const charCount = content.length;
-      const seconds = Math.ceil(charCount / 5); // ~5 Chinese chars per second
-      readTime = `${seconds}秒阅读`;
-    } else if (content) {
-      const wordCount = content.split(/\s+/).filter(w => w).length;
-      const seconds = Math.ceil(wordCount / 2.7);
-      readTime = `${seconds}s read`;
-    }
-    if (readTime) {
-      const rtSpan = document.createElement('span');
-      rtSpan.className = 'read-time';
-      rtSpan.textContent = readTime;
-      metaRow.appendChild(rtSpan);
-    }
-
-    // Copy button for bot messages
-    const copyBtn = document.createElement('button');
-    copyBtn.className = 'copy-btn';
-    copyBtn.textContent = '📋';
-    copyBtn.title = '复制内容';
-    copyBtn.onclick = () => {
+  if (role === 'bot' && content) {
+    const hasCN = /[\u4e00-\u9fff]/.test(content);
+    const rt = hasCN ? Math.ceil(content.length / 5) + '秒' : Math.ceil(content.split(/\s+/).filter(w=>w).length / 2.7) + 's';
+    const rtS = document.createElement('span');
+    rtS.className = 'msg-readtime';
+    rtS.textContent = rt;
+    meta.appendChild(rtS);
+    const cp = document.createElement('button');
+    cp.className = 'msg-copy';
+    cp.textContent = '复制';
+    cp.onclick = () => {
       navigator.clipboard.writeText(bubble.textContent)
-        .then(() => { copyBtn.textContent = '✅'; setTimeout(() => copyBtn.textContent = '📋', 1500); })
-        .catch(() => {});
+        .then(() => { cp.textContent = '✓'; setTimeout(() => cp.textContent = '复制', 1500); }).catch(() => {});
     };
-    metaRow.appendChild(copyBtn);
+    meta.appendChild(cp);
   }
 
-  wrapper.appendChild(bubble);
-  wrapper.appendChild(metaRow);
-  div.appendChild(avatar);
-  div.appendChild(wrapper);
-  chatContainer.appendChild(div);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
-
-  // Remove existing quick replies when new message added
+  body.appendChild(bubble);
+  body.appendChild(meta);
+  row.appendChild(avatar);
+  row.appendChild(body);
+  chatArea.appendChild(row);
+  chatArea.scrollTop = chatArea.scrollHeight;
   removeQuickReplies();
 
   if (animate && role === 'bot') {
-    // Slower speed for Chinese text (40ms/char) vs English (25ms/char)
-    const hasChinese = /[\u4e00-\u9fff]/.test(content);
-    typeWriter(bubble, content, hasChinese ? 35 : 20);
-  } else {
-    bubble.textContent = content;
-  }
+    const hasCN = /[\u4e00-\u9fff]/.test(content);
+    typeWriter(bubble, content, hasCN ? 35 : 20);
+  } else { bubble.textContent = content; }
 
-  // Add star rating for bot replies (not satisfaction/closing messages)
   if (role === 'bot' && type !== 'satisfaction' && type !== 'closing') {
     botMessageIndex++;
-    addStarRating(wrapper, botMessageIndex);
+    addStarRating(body, botMessageIndex);
   }
-
-  return div;
+  return row;
 }
 
-function typeWriter(element, text, speed) {
-  element.classList.add('typing-cursor');
+function typeWriter(el, text, speed) {
+  el.classList.add('typing-cursor');
   let i = 0;
-  const len = text.length;
   function type() {
-    if (i < len) {
-      element.textContent = text.substring(0, i + 1);
+    if (i < text.length) {
+      el.textContent = text.substring(0, i + 1);
       i++;
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      chatArea.scrollTop = chatArea.scrollHeight;
       setTimeout(type, speed);
-    } else {
-      element.classList.remove('typing-cursor');
-    }
+    } else { el.classList.remove('typing-cursor'); }
   }
   type();
 }
 
 function addSystemMsg(text) {
-  const div = document.createElement('div');
-  div.className = 'system-msg';
-  div.textContent = text;
-  chatContainer.appendChild(div);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  const d = document.createElement('div');
+  d.className = 'sys-msg';
+  d.textContent = text;
+  chatArea.appendChild(d);
+  chatArea.scrollTop = chatArea.scrollHeight;
 }
 
 function addTyping() {
-  const div = document.createElement('div');
-  div.className = 'message bot';
-  div.id = 'typingIndicator';
-  const avatar = document.createElement('div');
-  avatar.className = 'avatar';
-  avatar.textContent = '\u{1F916}';
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-  bubble.innerHTML = '<div class="typing-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
-  div.appendChild(avatar);
-  div.appendChild(bubble);
-  chatContainer.appendChild(div);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  const row = document.createElement('div');
+  row.className = 'msg-row bot';
+  row.id = 'typingIndicator';
+  row.innerHTML = '<div class="msg-avatar">\u{1F916}</div><div class="msg-body"><div class="bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div></div>';
+  chatArea.appendChild(row);
+  chatArea.scrollTop = chatArea.scrollHeight;
 }
+function removeTyping() { const e = document.getElementById('typingIndicator'); if (e) e.remove(); }
 
-function removeTyping() {
-  const el = document.getElementById('typingIndicator');
-  if (el) el.remove();
-}
-
-// Quick reply suggestions
 function showQuickReplies(replies) {
   removeQuickReplies();
-  const container = document.createElement('div');
-  container.className = 'quick-replies';
-  container.id = 'quickRepliesContainer';
-  for (const text of replies) {
-    const btn = document.createElement('button');
-    btn.className = 'quick-reply-btn';
-    btn.textContent = text;
-    btn.onclick = () => quickTest(text);
-    container.appendChild(btn);
+  const c = document.createElement('div');
+  c.className = 'quick-replies';
+  c.id = 'qrContainer';
+  for (const t of replies) {
+    const b = document.createElement('button');
+    b.className = 'qr-btn';
+    b.textContent = t;
+    b.onclick = () => quickTest(t);
+    c.appendChild(b);
   }
-  chatContainer.appendChild(container);
-  chatContainer.scrollTop = chatContainer.scrollHeight;
+  chatArea.appendChild(c);
+  chatArea.scrollTop = chatArea.scrollHeight;
 }
-
-function removeQuickReplies() {
-  const el = document.getElementById('quickRepliesContainer');
-  if (el) el.remove();
-}
-
-// Get contextual quick replies based on last bot message type
-function getContextualQuickReplies(lastReplyType) {
-  if (lastReplyType === 'satisfaction') return QUICK_REPLIES.satisfaction;
-  if (lastReplyType === 'closing') return [];
-  if (lastReplyType === 'reply') return QUICK_REPLIES.after_reply;
+function removeQuickReplies() { const e = document.getElementById('qrContainer'); if (e) e.remove(); }
+function getContextualQuickReplies(lastType) {
+  if (lastType === 'satisfaction') return QUICK_REPLIES.satisfaction;
+  if (lastType === 'closing') return [];
+  if (lastType === 'reply') return QUICK_REPLIES.after_reply;
   return QUICK_REPLIES.default;
 }
 
-// Inline star rating — add ⭐ buttons after bot messages
-function addStarRating(wrapperEl, msgIndex) {
-  const ratingDiv = document.createElement('div');
-  ratingDiv.className = 'star-rating';
-  ratingDiv.id = `starRating_${msgIndex}`;
-
-  const label = document.createElement('span');
-  label.className = 'label';
-  label.textContent = 'Helpful?';
-  ratingDiv.appendChild(label);
-
+function addStarRating(parentEl, idx) {
+  const d = document.createElement('div');
+  d.className = 'star-row';
+  d.id = 'star_' + idx;
+  const lbl = document.createElement('span');
+  lbl.className = 'label';
+  lbl.textContent = '有帮助？';
+  d.appendChild(lbl);
   for (let i = 1; i <= 5; i++) {
-    const btn = document.createElement('button');
-    btn.className = 'star-btn';
-    btn.textContent = '⭐';
-    btn.title = `${i} star${i > 1 ? 's' : ''}`;
-    btn.onclick = () => submitRating(msgIndex, i, ratingDiv);
-    // Hover highlight
-    btn.onmouseenter = () => {
-      const allBtns = ratingDiv.querySelectorAll('.star-btn');
-      allBtns.forEach((b, idx) => {
-        b.style.filter = idx < i ? 'grayscale(0) opacity(1)' : 'grayscale(1) opacity(0.4)';
-      });
-    };
-    btn.onmouseleave = () => {
-      const allBtns = ratingDiv.querySelectorAll('.star-btn');
-      const rated = ratingDiv.querySelector('.rated');
-      if (!rated) {
-        allBtns.forEach(b => b.style.filter = 'grayscale(1) opacity(0.4)');
-      }
-    };
-    ratingDiv.appendChild(btn);
+    const b = document.createElement('button');
+    b.className = 'star-btn';
+    b.textContent = '⭐';
+    b.title = i + ' 星';
+    b.onclick = () => submitRating(idx, i, d);
+    b.onmouseenter = () => { d.querySelectorAll('.star-btn').forEach((x,j) => { x.style.filter = j < i ? 'grayscale(0) opacity(1)' : 'grayscale(1) opacity(0.3)'; }); };
+    b.onmouseleave = () => { const r = d.querySelector('.on'); if (!r) d.querySelectorAll('.star-btn').forEach(x => x.style.filter = 'grayscale(1) opacity(0.3)'); };
+    d.appendChild(b);
   }
-
-  wrapperEl.appendChild(ratingDiv);
+  parentEl.appendChild(d);
 }
-
-function submitRating(msgIndex, stars, ratingDiv) {
-  // Mark stars as rated
-  const allBtns = ratingDiv.querySelectorAll('.star-btn');
-  allBtns.forEach((b, idx) => {
-    if (idx < stars) b.classList.add('rated');
-    b.onclick = null;
-    b.style.cursor = 'default';
-  });
-
-  // Remove label
-  const label = ratingDiv.querySelector('.label');
-  if (label) label.remove();
-
-  // Show thanks message
-  const thanks = document.createElement('div');
-  thanks.className = 'star-rating thanks';
-  thanks.textContent = `Thanks! You rated ${stars} ⭐`;
-  ratingDiv.replaceWith(thanks);
-
-  // Send rating to server for logging (fire-and-forget)
+function submitRating(idx, stars, d) {
+  d.querySelectorAll('.star-btn').forEach((b, j) => { if (j < stars) b.classList.add('on'); b.onclick = null; b.style.cursor = 'default'; });
+  const lbl = d.querySelector('.label'); if (lbl) lbl.remove();
+  const th = document.createElement('div');
+  th.className = 'star-thanks';
+  th.textContent = '感谢评价！' + stars + ' ⭐';
+  d.replaceWith(th);
   if (currentSession) {
-    fetch('/api/rating', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_id: currentSession,
-        message_index: msgIndex,
-        stars: stars
-      })
-    }).catch(() => {});
+    fetch('/api/rating', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({session_id:currentSession, message_index:idx, stars}) }).catch(()=>{});
   }
 }
 
 async function sendMessage(text) {
   if (isProcessing) return;
-  const message = text || messageInput.value.trim();
-  if (!message) return;
+  const msg = text || messageInput.value.trim();
+  if (!msg) return;
   messageInput.value = '';
-  addMessage('user', message);
-
+  addMessage('user', msg);
   isProcessing = true;
   sendBtn.disabled = true;
   addTyping();
@@ -1006,44 +1127,33 @@ async function sendMessage(text) {
       currentSession = session;
       document.getElementById('infoSession').textContent = session.slice(0, 8) + '...';
     }
-
-    // Try SSE streaming first; fall back to standard JSON
-    const response = await fetch('/api/chat', {
+    const resp = await fetch('/api/chat', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, session_id: session, stream: true })
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ message: msg, session_id: session, stream: true })
     });
-
     removeTyping();
 
-    if (response.headers.get('content-type') && response.headers.get('content-type').includes('text/event-stream')) {
-      // SSE streaming mode
-      await handleStreamResponse(response);
+    if (resp.headers.get('content-type') && resp.headers.get('content-type').includes('text/event-stream')) {
+      await handleStreamResponse(resp);
     } else {
-      // Fallback to standard JSON
-      const data = await response.json();
+      const data = await resp.json();
       if (data.error) {
         addMessage('bot', 'Error: ' + data.error, '', false);
       } else {
-        let lastReplyType = '';
-        for (const reply of data.replies) {
-          const typeMap = { satisfaction: 'satisfaction', closing: 'closing' };
-          lastReplyType = typeMap[reply.type] || 'reply';
-          addMessage('bot', reply.content, lastReplyType, true);
+        let lastType = '';
+        for (const r of data.replies) {
+          const tm = { satisfaction: 'satisfaction', closing: 'closing' };
+          lastType = tm[r.type] || 'reply';
+          addMessage('bot', r.content, lastType, true);
         }
-
-        // Show contextual quick replies after bot responds
-        const suggestions = getContextualQuickReplies(lastReplyType);
-        if (suggestions && suggestions.length > 0) {
-          setTimeout(() => showQuickReplies(suggestions), 800);
-        }
-
+        const sugg = getContextualQuickReplies(lastType);
+        if (sugg && sugg.length) setTimeout(() => showQuickReplies(sugg), 800);
         if (data.intent) document.getElementById('infoIntent').textContent = data.intent;
         if (data.retry_count !== undefined) document.getElementById('infoRetries').textContent = data.retry_count;
         if (data.emotion) {
-          const emojiMap = { neutral: '😐', angry: '😠', sad: '😢', anxious: '😰', happy: '😊' };
-          const emoji = emojiMap[data.emotion] || '😐';
-          document.getElementById('infoEmotion').textContent = emoji + ' ' + data.emotion + (data.emotion_intensity ? '(' + data.emotion_intensity + '/5)' : '');
+          const em = {neutral:'😐',angry:'😠',sad:'😢',anxious:'😰',happy:'😊'};
+          document.getElementById('infoEmotion').textContent = (em[data.emotion]||'😐')+' '+data.emotion+(data.emotion_intensity?'('+data.emotion_intensity+'/5)':'');
           updateEmotionBar(data.emotion, data.emotion_intensity);
         }
         document.getElementById('infoStatus').textContent = data.interrupted ? 'Escalated' : 'Active';
@@ -1051,84 +1161,51 @@ async function sendMessage(text) {
     }
   } catch (err) {
     removeTyping();
-    addMessage('bot', 'Connection error: ' + err.message, '');
+    addMessage('bot', '连接错误: ' + err.message, '');
   }
-
   isProcessing = false;
   sendBtn.disabled = false;
   messageInput.focus();
 }
 
-// SSE streaming handler
-async function handleStreamResponse(response) {
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder('utf-8');
-  let buffer = '';
-  let fullReply = '';
-  let lastReplyType = 'reply';
-  let metadata = null;
-
-  // Create a streaming bubble (no content yet, so no read time)
-  const streamDiv = addMessage('bot', '', 'reply', false);
-  const bubbleEl = streamDiv.querySelector('.bubble');
-  bubbleEl.classList.add('typing-cursor');
+async function handleStreamResponse(resp) {
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder('utf-8');
+  let buf = '', full = '', lastType = 'reply', meta = null;
+  const div = addMessage('bot', '', 'reply', false);
+  const bubble = div.querySelector('.bubble');
+  bubble.classList.add('typing-cursor');
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-
-      // Process complete SSE lines
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop() || '';
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
-        const dataStr = line.slice(6);
         try {
-          const data = JSON.parse(dataStr);
-          if (data.done) {
-            // Final metadata event
-            metadata = data;
-            bubbleEl.classList.remove('typing-cursor');
-            break;
-          } else if (data.progress === 'analyzing') {
-            // Show analyzing indicator in bubble
-            bubbleEl.textContent = '🤔 分析中...';
-          } else if (data.token !== undefined) {
-            fullReply += data.token;
-            bubbleEl.textContent = fullReply;
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-          }
-        } catch (e) {
-          // Skip malformed JSON
-        }
+          const d = JSON.parse(line.slice(6));
+          if (d.done) { meta = d; bubble.classList.remove('typing-cursor'); break; }
+          else if (d.progress === 'analyzing') bubble.textContent = '\u{1F914} 分析中...';
+          else if (d.token !== undefined) { full += d.token; bubble.textContent = full; chatArea.scrollTop = chatArea.scrollHeight; }
+        } catch (e) {}
       }
     }
-  } finally {
-    reader.releaseLock();
-  }
+  } finally { reader.releaseLock(); }
 
-  // Update metadata from final event
-  if (metadata) {
-    lastReplyType = metadata.reply_type || 'reply';
-    bubbleEl.className = `bubble ${lastReplyType}`;
-
-    if (metadata.intent) document.getElementById('infoIntent').textContent = metadata.intent;
-    if (metadata.emotion) {
-      const emojiMap = { neutral: '😐', angry: '😠', sad: '😢', anxious: '😰', happy: '😊' };
-      const emoji = emojiMap[metadata.emotion] || '😐';
-      document.getElementById('infoEmotion').textContent = emoji + ' ' + metadata.emotion + (metadata.emotion_intensity ? '(' + metadata.emotion_intensity + '/5)' : '');
-      updateEmotionBar(metadata.emotion, metadata.emotion_intensity);
+  if (meta) {
+    lastType = meta.reply_type || 'reply';
+    bubble.className = 'bubble ' + lastType;
+    if (meta.intent) document.getElementById('infoIntent').textContent = meta.intent;
+    if (meta.emotion) {
+      const em = {neutral:'😐',angry:'😠',sad:'😢',anxious:'😰',happy:'😊'};
+      document.getElementById('infoEmotion').textContent = (em[meta.emotion]||'😐')+' '+meta.emotion+(meta.emotion_intensity?'('+meta.emotion_intensity+'/5)':'');
+      updateEmotionBar(meta.emotion, meta.emotion_intensity);
     }
-
-    // Show quick replies after streaming completes
-    const suggestions = getContextualQuickReplies(lastReplyType);
-    if (suggestions && suggestions.length > 0) {
-      setTimeout(() => showQuickReplies(suggestions), 800);
-    }
+    const sugg = getContextualQuickReplies(lastType);
+    if (sugg && sugg.length) setTimeout(() => showQuickReplies(sugg), 800);
   }
 }
 
@@ -1141,233 +1218,145 @@ function newSession() {
   document.getElementById('emotionBar').innerHTML = '';
   document.getElementById('infoStatus').textContent = 'Active';
   addSystemMsg('新会话已启动');
-
-  // Show welcome message with suggested topics
   setTimeout(() => {
-    addMessage('bot', '👋 您好！我是智联科技智能客服助手。\n\n我可以帮您：\n• 📦 产品咨询（智能音箱、智能家居、云服务）\n• 🔧 故障排查与技术支援\n• 💰 价格与保修政策\n• 📞 投诉与建议\n\n请问有什么可以帮您的？', 'reply', true);
+    addMessage('bot', '\u{1F44B} 您好！我是智联科技智能客服助手。\n\n我可以帮您：\n• \u{1F4E6} 产品咨询（智能音箱、智能家居、云服务）\n• \u{1F527} 故障排查与技术支援\n• \u{1F4B0} 价格与保修政策\n• \u{1F4DE} 投诉与建议\n\n请问有什么可以帮您的？', 'reply', true);
     setTimeout(() => showQuickReplies(['产品怎么用？', '价格是多少？', '我要投诉', '有保修吗？']), 1200);
   }, 300);
 }
-
-function clearChat() { chatContainer.innerHTML = ''; }
-
+function clearChat() { chatArea.innerHTML = ''; }
 function resetAll() {
-  currentSession = null;
-  messageCount = 0;
-  chatContainer.innerHTML = '';
+  currentSession = null; messageCount = 0; chatArea.innerHTML = '';
   document.getElementById('infoSession').textContent = '-';
   document.getElementById('infoIntent').textContent = '-';
   document.getElementById('infoRetries').textContent = '0';
   document.getElementById('infoMessages').textContent = '0';
   document.getElementById('infoStatus').textContent = 'Active';
 }
-
 function quickTest(text) { messageInput.value = text; sendMessage(text); }
 
-// Session export
 async function exportSession() {
   if (!currentSession) { addSystemMsg('没有活跃的会话可导出'); return; }
   document.getElementById('exportContent').textContent = '加载中...';
   document.getElementById('exportModal').classList.add('show');
   try {
-    const resp = await fetch(`/api/export/${currentSession}`);
-    const data = await resp.json();
-    if (data.error) {
-      document.getElementById('exportContent').textContent = '错误: ' + data.error;
-    } else {
-      window._exportData = data;
-      document.getElementById('exportContent').textContent = JSON.stringify(data, null, 2);
-    }
-  } catch(e) {
-    document.getElementById('exportContent').textContent = '网络错误: ' + e.message;
-  }
+    const r = await fetch('/api/export/' + currentSession);
+    const d = await r.json();
+    if (d.error) { document.getElementById('exportContent').textContent = '错误: ' + d.error; }
+    else { window._exportData = d; document.getElementById('exportContent').textContent = JSON.stringify(d, null, 2); }
+  } catch(e) { document.getElementById('exportContent').textContent = '网络错误: ' + e.message; }
 }
-
 function closeExportModal() { document.getElementById('exportModal').classList.remove('show'); }
-
 function copyExport() {
-  const text = document.getElementById('exportContent').textContent;
-  navigator.clipboard.writeText(text).then(() => addSystemMsg('已复制到剪贴板')).catch(() => addSystemMsg('复制失败'));
+  navigator.clipboard.writeText(document.getElementById('exportContent').textContent)
+    .then(() => addSystemMsg('已复制到剪贴板')).catch(() => addSystemMsg('复制失败'));
 }
-
 function downloadExport() {
   if (!window._exportData) return;
-  const blob = new Blob([JSON.stringify(window._exportData, null, 2)], {type: 'application/json'});
+  const blob = new Blob([JSON.stringify(window._exportData, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `session-${window._exportData.session_id || 'export'}.json`;
+  const a = document.createElement('a'); a.href = url; a.download = 'session-' + (window._exportData.session_id||'export') + '.json';
   a.click(); URL.revokeObjectURL(url);
-  addSystemMsg('会话已导出为 JSON 文件');
+  addSystemMsg('已导出为 JSON 文件');
 }
 
-// Update emotion bar with visual intensity indicator
 function updateEmotionBar(emotion, intensity) {
   const bar = document.getElementById('emotionBar');
   if (!bar || !intensity) { bar.innerHTML = ''; return; }
-  let html = '';
+  let h = '';
   for (let i = 1; i <= 5; i++) {
     const cls = i <= intensity ? (intensity >= 4 ? 'seg active high' : 'seg active') : 'seg';
-    html += `<span class="${cls}"></span>`;
+    h += '<span class="' + cls + '"></span>';
   }
-  bar.innerHTML = html;
+  bar.innerHTML = h;
 }
 
-// Hot reload knowledge base
 async function reloadKB() {
   try {
-    const resp = await fetch('/api/rag/reload');
-    const data = await resp.json();
-    if (data.error) {
-      addSystemMsg(`知识库重载失败: ${data.error}`);
-    } else {
-      addSystemMsg(`✅ 知识库已重载: ${data.documents} 个文档, ${data.sections} 个章节`);
-    }
-  } catch(e) {
-    addSystemMsg(`网络错误: ${e.message}`);
-  }
+    const r = await fetch('/api/rag/reload');
+    const d = await r.json();
+    if (d.error) addSystemMsg('知识库重载失败: ' + d.error);
+    else addSystemMsg('✅ 知识库已重载: ' + d.documents + ' 个文档, ' + d.sections + ' 个章节');
+  } catch(e) { addSystemMsg('网络错误: ' + e.message); }
 }
 
 async function runFullFlow() {
-  clearChat();
-  newSession();
+  clearChat(); newSession();
   await new Promise(r => setTimeout(r, 500));
-
   const steps = [
     { msg: '产品怎么用？', label: '步骤1：咨询产品用法' },
-    { msg: '谢谢，没问题了', label: '步骤2：结束对话 → 满意度检查' },
-    { msg: '满意', label: '步骤3：满意 → 结束语' },
+    { msg: '谢谢，没问题了', label: '步骤2：结束对话' },
+    { msg: '满意', label: '步骤3：满意反馈' },
   ];
-
-  for (const step of steps) {
-    addSystemMsg(step.label);
+  for (const s of steps) {
+    addSystemMsg(s.label);
     await new Promise(r => setTimeout(r, 500));
-    messageInput.value = step.msg;
-    await sendMessage(step.msg);
-    // Wait until processing finishes plus a short buffer
-    while (isProcessing) { await new Promise(r => setTimeout(r, 200)); }
+    messageInput.value = s.msg;
+    await sendMessage(s.msg);
+    while (isProcessing) await new Promise(r => setTimeout(r, 200));
     await new Promise(r => setTimeout(r, 1500));
   }
-
   addSystemMsg('完整流程演示完成！');
 }
 
-// Session switcher — load and display recent sessions
 async function toggleSessionDropdown() {
-  const dropdown = document.getElementById('sessionDropdown');
-  if (dropdown.classList.contains('show')) {
-    dropdown.classList.remove('show');
-    return;
-  }
-  dropdown.classList.add('show');
-  dropdown.innerHTML = '<div class="session-dropdown-empty">加载中...</div>';
-
+  const dd = document.getElementById('sessionDropdown');
+  if (dd.classList.contains('show')) { dd.classList.remove('show'); return; }
+  dd.classList.add('show');
+  dd.innerHTML = '<div class="session-empty">加载中...</div>';
   try {
-    const resp = await fetch('/api/sessions');
-    const data = await resp.json();
-    if (data.error) {
-      dropdown.innerHTML = `<div class="session-dropdown-empty">加载失败: ${data.error}</div>`;
-      return;
-    }
-    if (!data.sessions || data.sessions.length === 0) {
-      dropdown.innerHTML = '<div class="session-dropdown-empty">暂无历史会话</div>';
-      return;
-    }
-
+    const r = await fetch('/api/sessions');
+    const d = await r.json();
+    if (d.error) { dd.innerHTML = '<div class="session-empty">加载失败</div>'; return; }
+    if (!d.sessions || !d.sessions.length) { dd.innerHTML = '<div class="session-empty">暂无历史会话</div>'; return; }
     let html = '';
-    for (const s of data.sessions) {
-      const isActive = currentSession && s.session_id === currentSession;
-      const timeStr = s.last_activity ? new Date(s.last_activity).toLocaleString('zh-CN', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
-      html += `<div class="session-dropdown-item${isActive ? ' active' : ''}" onclick="switchSession('${s.session_id}')">
-        <div class="sid">${isActive ? '▶ ' : ''}${s.session_id.slice(0, 8)}...</div>
-        <div class="preview">${s.preview || '无消息'}</div>
-        <div class="meta">${s.message_count} 条消息 · ${timeStr}</div>
-      </div>`;
+    for (const s of d.sessions) {
+      const active = currentSession && s.session_id === currentSession;
+      const t = s.last_activity ? new Date(s.last_activity).toLocaleString('zh-CN',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      html += '<div class="session-item" onclick="switchSession(\'' + s.session_id + '\')">' +
+        '<div class="sid">' + (active ? '▶ ' : '') + s.session_id.slice(0,8) + '...</div>' +
+        '<div class="preview">' + (s.preview||'无消息') + '</div>' +
+        '<div class="meta">' + s.message_count + ' 条消息 · ' + t + '</div></div>';
     }
-    dropdown.innerHTML = html;
-  } catch(e) {
-    dropdown.innerHTML = `<div class="session-dropdown-empty">网络错误</div>`;
-  }
+    dd.innerHTML = html;
+  } catch(e) { dd.innerHTML = '<div class="session-empty">网络错误</div>'; }
 }
-
-// Switch to a different session
-async function switchSession(sessionId) {
+async function switchSession(sid) {
   document.getElementById('sessionDropdown').classList.remove('show');
-  if (sessionId === currentSession) return;
-
-  // Load the session's messages from the server
+  if (sid === currentSession) return;
   try {
-    const resp = await fetch(`/api/session/${sessionId}`);
-    const data = await resp.json();
-
-    // Clear chat and rebuild
-    clearChat();
-    messageCount = 0;
-    botMessageIndex = 0;
-    currentSession = sessionId;
-
-    document.getElementById('infoSession').textContent = sessionId.slice(0, 8) + '...';
-
-    if (data.error) {
-      addSystemMsg(`加载会话失败: ${data.error}`);
-      return;
-    }
-
-    // Render existing messages
-    for (const msg of data.messages || []) {
-      const role = msg.role === 'user' ? 'user' : 'bot';
-      const typeMap = { satisfaction: 'satisfaction', closing: 'closing' };
-      let msgType = '';
+    const r = await fetch('/api/session/' + sid);
+    const d = await r.json();
+    clearChat(); messageCount = 0; botMessageIndex = 0; currentSession = sid;
+    document.getElementById('infoSession').textContent = sid.slice(0,8) + '...';
+    if (d.error) { addSystemMsg('加载失败: ' + d.error); return; }
+    for (const m of d.messages || []) {
+      const role = m.role === 'user' ? 'user' : 'bot';
+      let mt = '';
       if (role === 'bot') {
-        const content = msg.content || '';
-        if (content.includes('满意')) msgType = 'satisfaction';
-        else if (/再见|goodbye|祝您/.test(content)) msgType = 'closing';
+        if ((m.content||'').includes('满意')) mt = 'satisfaction';
+        else if (/再见|goodbye|祝您/.test(m.content||'')) mt = 'closing';
       }
-      addMessage(role, msg.content, msgType, false);
+      addMessage(role, m.content, mt, false);
     }
-
-    // Restore metadata
-    if (data.intent) document.getElementById('infoIntent').textContent = data.intent;
-    if (data.retry_count !== undefined) document.getElementById('infoRetries').textContent = data.retry_count;
-    document.getElementById('infoMessages').textContent = (data.messages || []).length;
-    document.getElementById('infoStatus').textContent = 'Active';
-
-    addSystemMsg(`已切换到会话 ${sessionId.slice(0, 8)}...`);
+    if (d.intent) document.getElementById('infoIntent').textContent = d.intent;
+    if (d.retry_count !== undefined) document.getElementById('infoRetries').textContent = d.retry_count;
+    document.getElementById('infoMessages').textContent = (d.messages||[]).length;
+    addSystemMsg('已切换到会话 ' + sid.slice(0,8) + '...');
     scrollToBottom();
-  } catch(e) {
-    addSystemMsg(`切换失败: ${e.message}`);
-  }
+  } catch(e) { addSystemMsg('切换失败: ' + e.message); }
 }
-
-// Close dropdown when clicking outside
 document.addEventListener('click', (e) => {
-  const dropdown = document.getElementById('sessionDropdown');
-  if (dropdown && !e.target.closest('.session-switcher')) {
-    dropdown.classList.remove('show');
-  }
+  const dd = document.getElementById('sessionDropdown');
+  if (dd && !e.target.closest('.session-dd')) dd.classList.remove('show');
 });
 
-// Character counter for input field
-function updateCharCounter() {
-  const input = document.getElementById('messageInput');
-  const counter = document.getElementById('charCounter');
-  const len = input.value.length;
-  if (len === 0) {
-    counter.textContent = '';
-  } else {
-    counter.textContent = `${len} 字`;
-  }
-}
-
-// Auto-start new session on page load
-window.addEventListener('DOMContentLoaded', () => {
-  if (!currentSession) {
-    newSession();
-  }
-});
+window.addEventListener('DOMContentLoaded', () => { if (!currentSession) newSession(); });
 </script>
 
 </body>
 </html>"""
+
+
 
 
 class ChatHandler(BaseHTTPRequestHandler):
@@ -1601,7 +1590,7 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def _send_health(self):
-        """Health check endpoint — returns system status, LLM connectivity, DB stats."""
+        """Health check endpoint 鈥?returns system status, LLM connectivity, DB stats."""
         try:
             # LLM connectivity
             llm_reachable = False
@@ -1699,7 +1688,7 @@ class ChatHandler(BaseHTTPRequestHandler):
             session_id = data.get('session_id', '')
             msg_index = data.get('message_index', 0)
             stars = data.get('stars', 0)
-            print(f"[Rating] session={session_id}, msg={msg_index}, stars={stars}⭐")
+            print(f"[Rating] session={session_id}, msg={msg_index}, stars={stars}")
 
             # Store rating in memory DB
             try:
