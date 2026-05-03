@@ -153,8 +153,8 @@ def _rewrite_query(llm, query: str) -> List[str]:
     except Exception as e:
         print(f"[Agentic RAG] Query rewrite failed: {e}")
 
-    # Fallback: use original query + simple variants
-    return [query, _truncate(query, 6)]
+    # Fallback: use original query + keyword extraction (no LLM needed)
+    return _fallback_queries(query)
 
 
 def _evaluate(llm, query: str, results_text: str) -> dict:
@@ -198,3 +198,36 @@ def _truncate(text: str, max_len: int) -> str:
     if len(text) <= max_len:
         return text
     return text[:max_len]
+
+
+def _fallback_queries(query: str) -> List[str]:
+    """Generate search query variants without LLM — used when rewrite fails.
+    
+    Strips common stop words and generates keyword combinations.
+    This is better than naive truncation because it preserves semantic keywords.
+    """
+    # Common Chinese stop words to strip for keyword extraction
+    STOP_WORDS = {'的', '了', '是', '在', '有', '和', '就', '都', '而',
+                  '与', '及', '这', '那', '吧', '吗', '呢', '啊', '哦',
+                  '什么', '怎么', '如何', '可以', '能够', '请问', '一下',
+                  '一下下', '帮我', '我想', '我要', '能不能', '有没有'}
+    
+    # Extract keywords by removing stop words
+    keywords = [w for w in query if w not in STOP_WORDS and len(w.strip()) > 0]
+    core = ''.join(keywords)
+    
+    queries = [query]  # Always include original
+    if core and core != query:
+        queries.append(core)  # Core keywords without stop words
+    if len(query) > 4:
+        queries.append(_truncate(query, 4))  # Short version
+    
+    # Deduplicate while preserving order
+    seen = set()
+    result = []
+    for q in queries:
+        if q not in seen:
+            seen.add(q)
+            result.append(q)
+    
+    return result[:3]
