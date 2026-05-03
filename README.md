@@ -4,6 +4,7 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 
 ## Core Features
 
+- **SSE Streaming**: Real-time token-by-token response streaming via Server-Sent Events — users see replies appear character by character instead of waiting for the full response
 - **Sentiment Analysis**: Detects user emotion (angry/sad/anxious/happy) and adjusts bot tone accordingly
 - **RAG Knowledge Base**: Local docs/FAQ retrieval with TF-IDF scoring — grounded answers from product manuals
 - **Intent Identification**: Auto-classify user messages (consult / complaint / chat)
@@ -105,7 +106,8 @@ python main.py
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | Web UI |
-| `/api/chat` | POST | `{"message": "...", "session_id": "..."}` → bot response |
+| `/api/chat` | POST | `{"message": "...", "session_id": "..."}` → bot response (JSON) |
+| `/api/chat` | POST | `{"message": "...", "stream": true}` → SSE streaming tokens (real-time token-by-token output) |
 | `/api/session/<id>` | GET | Get session state (messages, intent, emotion) |
 | `/api/export/<id>` | GET | Export full session history as JSON (downloadable) |
 | `/api/stats` | GET | Memory database statistics |

@@ -40,6 +40,166 @@ def init():
     print(f"[Server] Agent initialized (Real LLM via llama.cpp, sqlite={use_sqlite})")
 
 
+def stream_llm_reply(messages, system_prompt, max_tokens=512):
+    """Stream LLM reply tokens via llama.cpp streaming API.
+
+    Yields individual token strings as they arrive from the LLM.
+    Falls back to non-streaming if streaming fails.
+    """
+    import urllib.request as _ur
+
+    payload = {
+        "messages": [{"role": "system", "content": system_prompt}] + messages,
+        "max_tokens": max_tokens,
+        "temperature": 0.7,
+        "stream": True,
+    }
+
+    data = json.dumps(payload).encode("utf-8")
+    req = _ur.Request(
+        LLM_API_URL,
+        data=data,
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {LLM_API_KEY}"},
+        method="POST",
+    )
+
+    try:
+        with _ur.urlopen(req, timeout=120) as resp:
+            buf = b""
+            while True:
+                chunk = resp.read(4096)
+                if not chunk:
+                    break
+                buf += chunk
+                lines = buf.split(b"\n")
+                buf = lines.pop() or b""
+                for line in lines:
+                    line_str = line.decode("utf-8", errors="replace").strip()
+                    if line_str.startswith("data: "):
+                        json_str = line_str[6:]
+                        if json_str == "[DONE]":
+                            return
+                        try:
+                            obj = json.loads(json_str)
+                            delta = obj.get("choices", [{}])[0].get("delta", {})
+                            token = delta.get("content", "")
+                            if token:
+                                yield token
+                        except (json.JSONDecodeError, KeyError, IndexError):
+                            pass
+    except Exception as e:
+        print(f"[Streaming 错误] {e}")
+        # Fallback: non-streaming call
+        from agent.nodes import _call_llm
+        fallback = _call_llm(messages, system_prompt, max_tokens)
+        yield fallback
+
+
+def run_agent_stream(session_id, user_message):
+    """Run the agent and stream tokens via SSE.
+
+    Returns a generator of SSE-formatted strings.
+    """
+    config = {"configurable": {"thread_id": session_id}}
+    human_msg = HumanMessage(content=user_message)
+
+    current_state = _graph.get_state(config)
+    existing_count = 0
+    if current_state and current_state.values:
+        existing_count = len(current_state.values.get('messages', []))
+
+    prev_emotion = 'neutral'
+    prev_intensity = 1
+    if existing_count > 0 and current_state and current_state.values:
+        prev_emotion = current_state.values.get('emotion', 'neutral') or 'neutral'
+        prev_intensity = current_state.values.get('emotion_intensity', 1) or 1
+
+    input_data = {
+        "messages": [human_msg],
+        "session_id": session_id,
+        "retry_count": 0,
+        "emotion": prev_emotion,
+        "emotion_intensity": prev_intensity,
+    }
+
+    # Manually orchestrate: identify_intent -> generate_reply (streamed)
+    from agent.nodes import identify_intent, _trim_messages
+    from agent.rag import build_context as _rag_build
+    from agent.nodes import SYSTEM_PROMPT, RAG_SYSTEM_PROMPT_TEMPLATE
+    from agent.memory import build_memory_context as _build_mem_ctx
+    from agent.sentiment import get_tone_adjustment as _tone_adj
+
+    # Step 1: Identify intent (non-streaming)
+    state = dict(input_data)
+    intent_result = identify_intent(state)
+    state.update(intent_result)
+
+    intent = state.get('intent', 'consult')
+    emotion = state.get('emotion', 'neutral')
+    intensity = state.get('emotion_intensity', 1)
+
+    # Step 2: Build context for reply (same as generate_reply but we stream)
+    messages = state.get('messages', [])
+    trimmed = _trim_messages(messages, keep_last=6)
+    context_messages = []
+    for msg in trimmed:
+        if isinstance(msg, HumanMessage):
+            context_messages.append({"role": "user", "content": msg.content})
+        elif isinstance(msg, AIMessage):
+            context_messages.append({"role": "assistant", "content": msg.content})
+
+    # RAG context
+    rag_context = ""
+    if intent == 'consult':
+        rag_context = _rag_build(user_message)
+
+    sys_prompt = RAG_SYSTEM_PROMPT_TEMPLATE.format(rag_context=rag_context) if rag_context else SYSTEM_PROMPT
+
+    # Memory context
+    if session_id:
+        memory_ctx = _build_mem_ctx(session_id)
+        if memory_ctx:
+            sys_prompt = sys_prompt + memory_ctx
+
+    # Tone adjustment
+    tone_adj = _tone_adj(emotion, intensity)
+    sys_prompt = sys_prompt + tone_adj
+
+    # Stream tokens
+    full_reply = ""
+    for token in stream_llm_reply(context_messages, sys_prompt, max_tokens=512):
+        full_reply += token
+        token_json = json.dumps({"token": token}, ensure_ascii=False)
+        yield "data: " + token_json + "\n\n"
+
+    # Save to memory
+    if session_id:
+        from agent.memory import save_conversation as _save_conv
+        _save_conv(
+            session_id=session_id,
+            user_message=user_message,
+            bot_reply=full_reply,
+            intent=intent,
+            emotion=emotion,
+            emotion_intensity=intensity,
+        )
+
+    # Add to graph state (write directly)
+    ai_message = AIMessage(content=full_reply)
+    _graph.update_state(config, {'messages': [ai_message], 'bot_reply': full_reply})
+
+    # Final metadata event
+    meta = {
+        "done": True,
+        "intent": intent,
+        "emotion": emotion,
+        "emotion_intensity": intensity,
+        "reply_type": _classify_message(full_reply),
+        "session_id": session_id
+    }
+    yield "data: " + json.dumps(meta, ensure_ascii=False) + "\n\n"
+
+
 def run_agent(session_id, user_message):
     """Run the agent for a user message."""
     config = {"configurable": {"thread_id": session_id}}
@@ -519,40 +679,47 @@ async function sendMessage(text) {
       document.getElementById('infoSession').textContent = session.slice(0, 8) + '...';
     }
 
+    // Try SSE streaming first; fall back to standard JSON
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, session_id: session })
+      body: JSON.stringify({ message, session_id: session, stream: true })
     });
 
-    const data = await response.json();
     removeTyping();
 
-    if (data.error) {
-      addMessage('bot', 'Error: ' + data.error, '', false);
+    if (response.headers.get('content-type') && response.headers.get('content-type').includes('text/event-stream')) {
+      // SSE streaming mode
+      await handleStreamResponse(response);
     } else {
-      let lastReplyType = '';
-      for (const reply of data.replies) {
-        const typeMap = { satisfaction: 'satisfaction', closing: 'closing' };
-        lastReplyType = typeMap[reply.type] || 'reply';
-        addMessage('bot', reply.content, lastReplyType, true);
-      }
+      // Fallback to standard JSON
+      const data = await response.json();
+      if (data.error) {
+        addMessage('bot', 'Error: ' + data.error, '', false);
+      } else {
+        let lastReplyType = '';
+        for (const reply of data.replies) {
+          const typeMap = { satisfaction: 'satisfaction', closing: 'closing' };
+          lastReplyType = typeMap[reply.type] || 'reply';
+          addMessage('bot', reply.content, lastReplyType, true);
+        }
 
-      // Show contextual quick replies after bot responds
-      const suggestions = getContextualQuickReplies(lastReplyType);
-      if (suggestions && suggestions.length > 0) {
-        setTimeout(() => showQuickReplies(suggestions), 800);
-      }
+        // Show contextual quick replies after bot responds
+        const suggestions = getContextualQuickReplies(lastReplyType);
+        if (suggestions && suggestions.length > 0) {
+          setTimeout(() => showQuickReplies(suggestions), 800);
+        }
 
-      if (data.intent) document.getElementById('infoIntent').textContent = data.intent;
-      if (data.retry_count !== undefined) document.getElementById('infoRetries').textContent = data.retry_count;
-      if (data.emotion) {
-        const emojiMap = { neutral: '😐', angry: '😠', sad: '😢', anxious: '😰', happy: '😊' };
-        const emoji = emojiMap[data.emotion] || '😐';
-        document.getElementById('infoEmotion').textContent = emoji + ' ' + data.emotion + (data.emotion_intensity ? '(' + data.emotion_intensity + '/5)' : '');
-        updateEmotionBar(data.emotion, data.emotion_intensity);
+        if (data.intent) document.getElementById('infoIntent').textContent = data.intent;
+        if (data.retry_count !== undefined) document.getElementById('infoRetries').textContent = data.retry_count;
+        if (data.emotion) {
+          const emojiMap = { neutral: '😐', angry: '😠', sad: '😢', anxious: '😰', happy: '😊' };
+          const emoji = emojiMap[data.emotion] || '😐';
+          document.getElementById('infoEmotion').textContent = emoji + ' ' + data.emotion + (data.emotion_intensity ? '(' + data.emotion_intensity + '/5)' : '');
+          updateEmotionBar(data.emotion, data.emotion_intensity);
+        }
+        document.getElementById('infoStatus').textContent = data.interrupted ? 'Escalated' : 'Active';
       }
-      document.getElementById('infoStatus').textContent = data.interrupted ? 'Escalated' : 'Active';
     }
   } catch (err) {
     removeTyping();
@@ -562,6 +729,76 @@ async function sendMessage(text) {
   isProcessing = false;
   sendBtn.disabled = false;
   messageInput.focus();
+}
+
+// SSE streaming handler
+async function handleStreamResponse(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+  let fullReply = '';
+  let lastReplyType = 'reply';
+  let metadata = null;
+
+  // Create a streaming bubble
+  const streamBubble = addMessage('bot', '', 'reply', false);
+  const bubbleEl = streamBubble.querySelector('.bubble');
+  bubbleEl.classList.add('typing-cursor');
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process complete SSE lines
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const dataStr = line.slice(6);
+        try {
+          const data = JSON.parse(dataStr);
+          if (data.done) {
+            // Final metadata event
+            metadata = data;
+            bubbleEl.classList.remove('typing-cursor');
+            break;
+          } else if (data.token !== undefined) {
+            fullReply += data.token;
+            bubbleEl.textContent = fullReply;
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+          }
+        } catch (e) {
+          // Skip malformed JSON
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  // Update metadata from final event
+  if (metadata) {
+    lastReplyType = metadata.reply_type || 'reply';
+    bubbleEl.className = `bubble ${lastReplyType}`;
+
+    if (metadata.intent) document.getElementById('infoIntent').textContent = metadata.intent;
+    if (metadata.emotion) {
+      const emojiMap = { neutral: '😐', angry: '😠', sad: '😢', anxious: '😰', happy: '😊' };
+      const emoji = emojiMap[metadata.emotion] || '😐';
+      document.getElementById('infoEmotion').textContent = emoji + ' ' + metadata.emotion + (metadata.emotion_intensity ? '(' + metadata.emotion_intensity + '/5)' : '');
+      updateEmotionBar(metadata.emotion, metadata.emotion_intensity);
+    }
+
+    // Show quick replies after streaming completes
+    const suggestions = getContextualQuickReplies(lastReplyType);
+    if (suggestions && suggestions.length > 0) {
+      setTimeout(() => showQuickReplies(suggestions), 800);
+    }
+  }
 }
 
 function newSession() {
@@ -753,19 +990,40 @@ class ChatHandler(BaseHTTPRequestHandler):
 
             user_message = data.get('message', '')
             session_id = data.get('session_id', str(uuid4()))
+            stream = data.get('stream', False)
 
-            try:
-                result = run_agent(session_id, user_message)
-                response = json.dumps(result, ensure_ascii=False)
-            except Exception as e:
-                import traceback
-                traceback.print_exc()
-                response = json.dumps({'error': str(e)}, ensure_ascii=False)
+            if stream:
+                # SSE streaming response
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/event-stream; charset=utf-8')
+                self.send_header('Cache-Control', 'no-cache')
+                self.send_header('Connection', 'keep-alive')
+                self.send_header('X-Accel-Buffering', 'no')
+                self.end_headers()
+                try:
+                    for chunk in run_agent_stream(session_id, user_message):
+                        self.wfile.write(chunk.encode('utf-8'))
+                        self.wfile.flush()
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    err = json.dumps({'error': str(e)}, ensure_ascii=False)
+                    self.wfile.write(f"data: {err}\n\n".encode('utf-8'))
+                    self.wfile.flush()
+            else:
+                # Standard JSON response
+                try:
+                    result = run_agent(session_id, user_message)
+                    response = json.dumps(result, ensure_ascii=False)
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    response = json.dumps({'error': str(e)}, ensure_ascii=False)
 
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(response.encode('utf-8'))
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(response.encode('utf-8'))
         else:
             self.send_response(404)
             self.end_headers()
