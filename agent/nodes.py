@@ -11,8 +11,10 @@
 from typing import Dict, Any, List
 from langchain_core.messages import HumanMessage, AIMessage
 
-# RAG integration
+# RAG integration (legacy)
 from .rag import build_context as rag_build_context
+# Agentic RAG — LLM-driven retrieval loop
+from .agentic_rag import agentic_rag
 
 # Sentiment analysis integration
 from .sentiment import analyze as sentiment_analyze, get_tone_adjustment
@@ -49,6 +51,7 @@ SYSTEM_PROMPT = """你是一个专业的智能客服助手，服务于"智联科
 RAG_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT + """
 
 {rag_context}
+以上资料由 Agentic RAG 系统智能检索而来，已针对你的问题进行了多轮优化。
 请基于以上参考资料回答用户问题。如果参考资料中没有相关信息，诚实说明你不确定。"""
 
 
@@ -165,8 +168,9 @@ def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
         elif isinstance(msg, AIMessage):
             context_messages.append({"role": "assistant", "content": msg.content})
 
-    # --- RAG: retrieve relevant knowledge for the latest user message ---
+    # --- Agentic RAG: LLM-driven retrieval with adaptive re-search ---
     rag_context = ""
+    rag_info = None
     if intent == 'consult':
         latest_user = ''
         for msg in reversed(messages):
@@ -174,9 +178,14 @@ def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
                 latest_user = msg.content
                 break
         if latest_user:
-            rag_context = rag_build_context(latest_user)
+            rag_info = agentic_rag(latest_user, max_rounds=2)
+            rag_context = rag_info.get('context', '')
             if rag_context:
-                print(f"[RAG] 找到 {rag_context.count('###')} 条相关知识")
+                sections = rag_context.count('###')
+                print(f"[Agentic RAG] {sections} 条知识, {rag_info['rounds']} 轮检索, "
+                      f"sufficient={rag_info['sufficient']}, queries={rag_info['queries_tried']}")
+            else:
+                print(f"[Agentic RAG] 未找到相关知识")
 
     # Build system prompt with RAG context + memory + sentiment tone adjustment
     if rag_context:
@@ -204,7 +213,8 @@ def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
 
     reply = _call_llm(context_messages, system_prompt + extra, max_tokens=512)
     ai_message = AIMessage(content=reply)
-    print(f"[生成回复] intent={intent}, retry={retry_count}, rag={'yes' if rag_context else 'no'}")
+    rag_label = f"agentic({rag_info['rounds']}轮)" if rag_info and rag_info.get('queries_tried') else ('yes' if rag_context else 'no')
+    print(f"[生成回复] intent={intent}, retry={retry_count}, rag={rag_label}")
 
     # Save to memory
     if session_id:

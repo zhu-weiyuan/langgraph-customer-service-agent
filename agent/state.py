@@ -41,3 +41,9 @@ class CustomerServiceState(TypedDict):
 
     # 情绪强度：1-5
     emotion_intensity: int
+
+    # Agentic RAG: 检索结果缓存
+    rag_results: Optional[List]
+
+    # Agentic RAG: 当前检索轮次
+    rag_round: int
