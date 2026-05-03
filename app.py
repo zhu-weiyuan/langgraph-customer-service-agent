@@ -80,6 +80,11 @@ def stream_llm_reply(messages, system_prompt, max_tokens=384):
     Falls back to non-streaming if streaming fails.
     """
     import urllib.request as _ur
+    from agent.llm_client import get_llm_client
+
+    client = get_llm_client()
+    api_url = client.api_url
+    api_key = client.api_key
 
     payload = {
         "messages": [{"role": "system", "content": system_prompt}] + messages,
@@ -90,9 +95,9 @@ def stream_llm_reply(messages, system_prompt, max_tokens=384):
 
     data = json.dumps(payload).encode("utf-8")
     req = _ur.Request(
-        LLM_API_URL,
+        api_url,
         data=data,
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {LLM_API_KEY}"},
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
         method="POST",
     )
 
@@ -164,6 +169,10 @@ def run_agent_stream(session_id, user_message):
 
     # Step 1: Identify intent (non-streaming)
     state = dict(input_data)
+
+    # Send progress event: analyzing
+    yield 'data: ' + json.dumps({"progress": "analyzing"}, ensure_ascii=False) + '\n\n'
+
     intent_result = identify_intent(state)
     state.update(intent_result)
 
@@ -993,6 +1002,9 @@ async function handleStreamResponse(response) {
             metadata = data;
             bubbleEl.classList.remove('typing-cursor');
             break;
+          } else if (data.progress === 'analyzing') {
+            // Show analyzing indicator in bubble
+            bubbleEl.textContent = '🤔 分析中...';
           } else if (data.token !== undefined) {
             fullReply += data.token;
             bubbleEl.textContent = fullReply;
@@ -1488,6 +1500,10 @@ class ChatHandler(BaseHTTPRequestHandler):
                     err = json.dumps({'error': str(e)}, ensure_ascii=False)
                     self.wfile.write(f"data: {err}\n\n".encode('utf-8'))
                     self.wfile.flush()
+                finally:
+                    # Log streaming response time
+                    elapsed = time.time() - start_time
+                    print(f"[Stream] Response time: {elapsed*1000:.1f}ms")
             else:
                 # Standard JSON response
                 try:

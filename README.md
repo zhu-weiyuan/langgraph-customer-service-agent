@@ -5,6 +5,7 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 ## Core Features
 
 - **SSE Streaming**: Real-time token-by-token response streaming via Server-Sent Events — users see replies appear character by character instead of waiting for the full response
+- **Streaming Progress Events**: SSE includes `progress: analyzing` event before LLM generation starts, so UI can show "🤔 分析中..." indicator
 - **Sentiment Analysis**: Detects user emotion (angry/sad/anxious/happy) and adjusts bot tone accordingly
 - **RAG Knowledge Base**: Local docs/FAQ retrieval with TF-IDF scoring — grounded answers from product manuals
 - **Intent Identification**: Auto-classify user messages (consult / complaint / chat)

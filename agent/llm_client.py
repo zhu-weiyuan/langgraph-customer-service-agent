@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 import urllib.request
 from abc import ABC, abstractmethod
@@ -100,14 +101,17 @@ class LocalLLMClient(LLMClient):
         return {}
 
 
-# Module-level singleton
+# Module-level singleton (thread-safe lazy init)
 _llm_client: LLMClient = None
+_llm_lock = threading.Lock()
 
 
 def get_llm_client() -> LLMClient:
     global _llm_client
     if _llm_client is None:
-        _llm_client = LocalLLMClient()
+        with _llm_lock:
+            if _llm_client is None:
+                _llm_client = LocalLLMClient()
     return _llm_client
 
 

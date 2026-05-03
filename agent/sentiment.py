@@ -28,6 +28,53 @@ SENTIMENT_SYSTEM = """你是一个情感分析器。分析用户消息的情绪�
 强度（1-5）：
 1=非常轻微, 2=轻微, 3=中等, 4=强烈, 5=非常强烈"""
 
+# ── Lightweight keyword-based fallback (avoids LLM call when obvious) ──
+_KEYWORDS = {
+    "angry": [
+        "垃圾", "太差", "操你", "傻逼", "废物", "骗子", "黑心", "坑人",
+        "愤怒", "气死", "恶心", "无语", "受够了", "滚蛋", "去死",
+        "投诉", "举报", "维权", "差评", "退款", "退货",
+    ],
+    "sad": [
+        "失望", "难过", "伤心", "可怜", "无助", "绝望", "心碎",
+        "不好用", "没用", "白买了", "浪费钱", "后悔",
+    ],
+    "anxious": [
+        "着急", "急死", "快点", "紧急", "怎么办", "救命", "来不及",
+        "坏了", "不能用", "开不了机", "连不上", "闪退",
+    ],
+    "happy": [
+        "太好了", "很棒", "喜欢", "满意", "好用", "赞", "给力",
+        "谢谢", "感谢", "不错", "很好", "完美", "开心",
+    ],
+}
+
+
+def _keyword_sentiment(text: str) -> Optional[Dict[str, Any]]:
+    """Fast keyword-based emotion detection. Returns None if inconclusive."""
+    scores = {"angry": 0, "sad": 0, "anxious": 0, "happy": 0}
+    for emotion, words in _KEYWORDS.items():
+        for word in words:
+            if word in text:
+                scores[emotion] += 1
+
+    max_emotion = max(scores, key=scores.get)
+    max_score = scores[max_emotion]
+
+    # Only trust keyword match if at least 2 hits or 1 hit with strong words
+    if max_score >= 2:
+        intensity = min(5, max_score + 1)
+        return {"emotion": max_emotion, "intensity": intensity}
+    elif max_score == 1:
+        # Single hit — only trust for very strong keywords
+        strong_words = {"操你", "傻逼", "去死", "滚蛋", "救命", "紧急", "完美"}
+        for word in _KEYWORDS.get(max_emotion, []):
+            if word in text and word in strong_words:
+                return {"emotion": max_emotion, "intensity": 4}
+
+    return None
+
+
 # Cache for recent sentiment results
 _sentiment_cache = {}
 
@@ -57,6 +104,13 @@ def analyze(text: str, cache_key: Optional[str] = None) -> Dict[str, Any]:
     if ck in _sentiment_cache:
         return _sentiment_cache[ck]
 
+    # Fast path: keyword-based detection (avoids LLM call when obvious)
+    kw_result = _keyword_sentiment(text)
+    if kw_result:
+        _sentiment_cache[ck] = kw_result
+        return kw_result
+
+    # Slow path: LLM-based classification
     result = _call_llm_json(
         [{"role": "user", "content": f"分析这句话的情绪：{text}"}],
         SENTIMENT_SYSTEM
