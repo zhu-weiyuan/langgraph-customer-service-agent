@@ -1498,8 +1498,10 @@ class ChatHandler(BaseHTTPRequestHandler):
                     traceback.print_exc()
                     response = json.dumps({'error': str(e)}, ensure_ascii=False)
 
+                elapsed = time.time() - start_time
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('X-Response-Time', f'{elapsed*1000:.1f}ms')
                 self.end_headers()
                 self.wfile.write(response.encode('utf-8'))
         else:
