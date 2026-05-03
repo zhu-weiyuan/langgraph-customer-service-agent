@@ -162,7 +162,7 @@ def run_agent_stream(session_id, user_message):
 
     # Manually orchestrate: identify_intent -> generate_reply (streamed)
     from agent.nodes import identify_intent, _trim_messages
-    from agent.rag import build_context as _rag_build
+    from agent.agentic_rag import agentic_rag
     from agent.nodes import SYSTEM_PROMPT, RAG_SYSTEM_PROMPT_TEMPLATE
     from agent.memory import build_memory_context as _build_mem_ctx
     from agent.sentiment import get_tone_adjustment as _tone_adj
@@ -190,10 +190,12 @@ def run_agent_stream(session_id, user_message):
         elif isinstance(msg, AIMessage):
             context_messages.append({"role": "assistant", "content": msg.content})
 
-    # RAG context
+    # RAG context — use Agentic RAG (same as non-streaming path)
     rag_context = ""
+    rag_info = None
     if intent == 'consult':
-        rag_context = _rag_build(user_message)
+        rag_info = agentic_rag(user_message, max_rounds=2)
+        rag_context = rag_info.get('context', '')
 
     sys_prompt = RAG_SYSTEM_PROMPT_TEMPLATE.format(rag_context=rag_context) if rag_context else SYSTEM_PROMPT
 
@@ -238,7 +240,9 @@ def run_agent_stream(session_id, user_message):
         "emotion": emotion,
         "emotion_intensity": intensity,
         "reply_type": _classify_message(full_reply),
-        "session_id": session_id
+        "session_id": session_id,
+        "rag_rounds": rag_info.get('rounds', 0) if rag_info else 0,
+        "rag_sufficient": rag_info.get('sufficient', False) if rag_info else False,
     }
     yield "data: " + json.dumps(meta, ensure_ascii=False) + "\n\n"
 
@@ -552,6 +556,7 @@ body{
   <button class="fab" onclick="toggleInfo()">📊 信息</button>
   <button class="fab" onclick="exportSession()">📋 导出</button>
   <button class="fab" onclick="reloadKB()">🔄 知识库</button>
+  <button class="fab" onclick="window.open('/analytics','_blank')">📊 数据面板</button>
   <button class="fab" onclick="resetAll()">🗑 重置</button>
 </div>
 <div class="test-floating">
@@ -666,8 +671,143 @@ window.addEventListener('DOMContentLoaded',()=>{if(!sess)newSess()});
 </body>
 </html>"""
 
+# ============================================================
+# Analytics Dashboard HTML
+# ============================================================
 
-
+ANALYTICS_HTML = r"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客服数据分析面板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',sans-serif;background:#f0f2f5;color:#1a1a2e;padding:24px}
+h1{font-size:22px;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.card h3{font-size:13px;color:#6b7280;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px}
+.card .val{font-size:28px;font-weight:700}
+.card .sub{font-size:12px;color:#9ca3af;margin-top:4px}
+.chart-section{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.chart-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.chart-card h3{font-size:14px;color:#6b7280;margin-bottom:16px}
+.bar-row{display:flex;align-items:center;margin-bottom:8px;gap:8px}
+.bar-label{width:80px;font-size:12px;text-align:right;flex-shrink:0}
+.bar-track{flex:1;height:24px;background:#f3f4f6;border-radius:6px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:11px;color:#fff;font-weight:600;transition:width 0.5s ease}
+.bar-count{font-size:12px;color:#6b7280;width:36px;text-align:right;flex-shrink:0}
+.stars-visual{display:flex;gap:4px;margin-top:8px}
+.stars-visual .star{font-size:20px}
+.timeline-table{width:100%;border-collapse:collapse;font-size:13px}
+.timeline-table th{text-align:left;padding:8px;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600}
+.timeline-table td{padding:8px;border-bottom:1px solid #f3f4f6}
+.timeline-table tr:hover td{background:#f9fafb}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.badge-consult{background:#dbeafe;color:#1d4ed8}
+.badge-complaint{background:#fee2e2;color:#dc2626}
+.badge-chat{background:#d1fae5;color:#059669}
+.badge-ending{background:#fef3c7;color:#d97706}
+.back-link{display:inline-flex;align-items:center;gap:4px;color:#5b5fc7;text-decoration:none;font-size:13px;margin-bottom:16px;padding:6px 12px;border-radius:8px;background:#f5f3ff}
+.back-link:hover{background:#ede9fe}
+.auto-refresh{display:flex;align-items:center;gap:8px;font-size:12px;color:#6b7280;margin-left:auto}
+.auto-refresh input{accent-color:#5b5fc7}
+@media(max-width:768px){.chart-section{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<a href="/" class="back-link">← 返回客服</a>
+<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+  <h1>📊 客服数据分析面板</h1>
+  <div class="auto-refresh"><input type="checkbox" id="autoRefresh" checked><label for="autoRefresh">自动刷新 (30s)</label></div>
+</div>
+<div class="grid" id="kpiGrid"></div>
+<div class="chart-section">
+  <div class="chart-card"><h3>🎯 意图分布</h3><div id="intentChart"></div></div>
+  <div class="chart-card"><h3>😊 情绪分布</h3><div id="emotionChart"></div></div>
+</div>
+<div class="chart-section">
+  <div class="chart-card"><h3>⭐ 评分统计</h3><div id="ratingChart"></div></div>
+  <div class="chart-card"><h3>🎫 工单优先级</h3><div id="ticketChart"></div></div>
+</div>
+<div class="chart-section" style="grid-template-columns:1fr">
+  <div class="chart-card"><h3>📋 最近会话记录</h3><div id="sessionTable"></div></div>
+</div>
+<script>
+const intentColors={consult:'#3b82f6',complaint:'#ef4444',chat:'#10b981',ending:'#f59e0b'};
+const emotionEmojis={neutral:'😐',angry:'😠',sad:'😢',anxious:'😰',happy:'😊'};
+const emotionColors={neutral:'#6b7280',angry:'#ef4444',sad:'#8b5cf6',anxious:'#f97316',happy:'#22c55e'};
+function intentBadge(t){return'<span class="badge badge-'+(t||'consult')+'">'+(t||'-')+'</span>'}
+function renderBars(container,data,colorMap,emojiMap){
+  const entries=Object.entries(data).sort((a,b)=>b[1]-a[1]);
+  if(!entries.length){container.innerHTML='<p style="color:#9ca3af;font-size:13px">暂无数据</p>';return}
+  const max=entries[0][1];
+  container.innerHTML=entries.map(([k,v])=>{
+    const pct=Math.max(8,(v/max*100)).toFixed(0);
+    const color=colorMap[k]||'#6b7280';
+    const emoji=emojiMap?emojiMap[k]||'': '';
+    return'<div class="bar-row"><span class="bar-label">'+emoji+' '+k+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+color+'">'+v+'</div></div><span class="bar-count">'+v+'</span></div>';
+  }).join('');
+}
+function renderRating(ratings){
+  const c=document.getElementById('ratingChart');
+  if(!ratings||!ratings.total){c.innerHTML='<p style="color:#9ca3af;font-size:13px">暂无评分</p>';return}
+  const avg=(ratings.average||0).toFixed(1);
+  let stars='';for(let i=1;i<=5;i++)stars+='<span class="star" style="opacity:'+(i<=Math.round(avg)?'1':'0.2')+'">⭐</span>';
+  c.innerHTML='<div class="val" style="font-size:36px">'+avg+'</div><div class="stars-visual">'+stars+'</div><p class="sub">共 '+ratings.total+' 条评价</p>';
+}
+function renderTickets(tickets){
+  const c=document.getElementById('ticketChart');
+  if(!tickets||!tickets.total){c.innerHTML='<p style="color:#9ca3af;font-size:13px">暂无工单</p>';return}
+  const dist=tickets.by_priority||{};
+  const entries=Object.entries(dist).sort((a,b)=>b[1]-a[1]);
+  const max=entries.length?entries[0][1]:1;
+  const colors={high:'#ef4444',medium:'#f59e0b',low:'#22c55e'};
+  c.innerHTML='<p class="val" style="font-size:24px">'+tickets.total+' 工单</p>'+entries.map(([k,v])=>{
+    const pct=Math.max(8,(v/max*100)).toFixed(0);
+    return'<div class="bar-row"><span class="bar-label">'+k+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+(colors[k]||'#6b7280')+'">'+v+'</div></div></div>';
+  }).join('');
+}
+function renderSessions(sessions){
+  const c=document.getElementById('sessionTable');
+  if(!sessions.length){c.innerHTML='<p style="color:#9ca3af;font-size:13px">暂无会话</p>';return}
+  let html='<table class="timeline-table"><thead><tr><th>会话ID</th><th>消息数</th><th>意图</th><th>最后活动</th><th>预览</th></tr></thead><tbody>';
+  sessions.slice(0,20).forEach(s=>{
+    const sid=s.session_id?s.session_id.slice(0,8)+'...':'-';
+    const ts=s.last_activity?new Date(s.last_activity).toLocaleString('zh-CN'):'-';
+    html+='<tr><td style="font-family:monospace;font-size:12px">'+sid+'</td><td>'+s.message_count+'</td><td>'+(s.intents?s.intents.map(i=>intentBadge(i)).join(' '):'-')+'</td><td>'+ts+'</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(s.preview||'-')+'</td></tr>';
+  });
+  html+='</tbody></table>';
+  c.innerHTML=html;
+}
+async function load(){
+  try{
+    const [analyticsResp,sessionsResp]=await Promise.all([
+      fetch('/api/analytics').then(r=>r.json()),
+      fetch('/api/sessions').then(r=>r.json())
+    ]);
+    const a=analytics;
+    // KPI cards
+    document.getElementById('kpiGrid').innerHTML=[
+      {label:'总对话数',val:a.total_conversations||0,sub:'所有会话的消息总数'},
+      {label:'平均回复长度',val:(a.avg_reply_length||0).toFixed(0),sub:'字符数'},
+      {label:'评分数',val:(a.ratings?a.ratings.total:0),sub:'平均 '+((a.ratings&&a.ratings.average)?a.ratings.average.toFixed(1):'-')+' ⭐'},
+      {label:'工单总数',val:(a.tickets?a.tickets.total:0),sub:'待处理优先级分布'},
+    ].map(k=>'<div class="card"><h3>'+k.label+'</h3><div class="val">'+k.val+'</div><div class="sub">'+k.sub+'</div></div>').join('');
+    renderBars(document.getElementById('intentChart'),a.intents||{},intentColors,null);
+    renderBars(document.getElementById('emotionChart'),a.emotions||{},emotionColors,emotionEmojis);
+    renderRating(a.ratings||{total:0,average:0});
+    renderTickets(a.tickets||{total:0,by_priority:{}});
+    renderSessions((sessionsResp.sessions||[]));
+  }catch(e){console.error('Load error:',e)}
+}
+load();
+let timer=setInterval(()=>{if(document.getElementById('autoRefresh').checked)load()},30000);
+document.getElementById('autoRefresh').addEventListener('change',function(){timer=this.checked?setInterval(()=>load(),30000):clearInterval(timer)});
+</script>
+</body>
+</html>"""
 
 
 class ChatHandler(BaseHTTPRequestHandler):
@@ -896,6 +1036,12 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.end_headers()
             self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
+        elif self.path == '/analytics':
+            # GET /analytics - Analytics Dashboard UI (HTML page with charts)
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(ANALYTICS_HTML.encode('utf-8'))
         else:
             self.send_response(404)
             self.end_headers()

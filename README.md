@@ -33,6 +33,7 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 - **Session Switcher UI**: Dropdown in header + toolbar button to browse and switch between historical sessions. Loads full conversation history from server on switch.
 - **Input Character Counter**: Live character count below input field for long message awareness
 - **Scroll-to-Bottom Button**: Floating button appears when user scrolls up, one-click return to latest messages
+- **Analytics Dashboard UI**: Full analytics page at `/analytics` with KPI cards (total conversations, avg reply length, ratings, tickets), intent/emotion distribution bar charts, rating visualization, ticket priority breakdown, and recent sessions table with auto-refresh every 30s
 
 ## Architecture
 
@@ -131,6 +132,7 @@ python main.py
 | `/api/sessions` | GET | List all sessions from memory DB (message count, preview, intents) |
 | `/api/health` | GET | Health check (LLM connectivity, DB stats, KB status) |
 | `/api/analytics` | GET | Conversation analytics (intent/emotion distribution, ratings, tickets) |
+| `/analytics` | GET | Analytics Dashboard UI — visual charts with KPI cards, bar charts, session table |
 
 ## Extending
 
@@ -208,6 +210,23 @@ graph.add_conditional_edges(
 - SQLite database file `checkpoints.db` is auto-created
 - Each session uses a unique `thread_id` for isolation
 - `interrupt` requires proper exception handling and resume logic
+
+## Docker Deployment
+
+```bash
+# Build and run with docker-compose
+docker-compose up -d
+
+# Access at http://localhost:7860
+```
+
+Environment variables:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `USE_SQLITE` | `0` | Set to `1` for persistent SQLite checkpoints |
+| `CHECKPOINT_DB` | `checkpoints.db` | Path to checkpoint database |
+| `RATE_LIMIT_REQUESTS` | `60` | Max requests per window |
+| `RATE_LIMIT_WINDOW` | `60` | Rate limit window in seconds |
 
 ## License
 
