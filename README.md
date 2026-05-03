@@ -24,6 +24,10 @@ A customer service system built with LangGraph, supporting multi-turn dialogue, 
 - **Typing Animation**: Character-by-character output with adaptive speed (Chinese vs English)
 - **Session History API**: REST endpoints for session state and memory stats
 - **Knowledge Base Hot Reload**: Reload KB without restarting the server via `/api/rag/reload`
+- **Health Check API**: `/api/health` returns LLM connectivity, DB stats, KB status, request counters
+- **Rate Limiting**: Sliding-window per-IP rate limiter (default 60 req/60s), configurable via env vars
+- **Conversation Analytics**: `/api/analytics` provides intent/emotion distribution, rating stats, ticket metrics
+- **Request Timing**: Every API response includes `X-Response-Time` header for latency monitoring
 - **Scroll-to-Bottom Button**: Floating button appears when user scrolls up, one-click return to latest messages
 
 ## Architecture
@@ -120,6 +124,8 @@ python main.py
 | `/api/stats` | GET | Memory database statistics + rating summary |
 | `/api/rating` | POST | `{"session_id": "...", "stars": 5}` → log helpfulness rating |
 | `/api/rag/reload` | GET | Hot reload knowledge base (no restart needed) |
+| `/api/health` | GET | Health check (LLM connectivity, DB stats, KB status) |
+| `/api/analytics` | GET | Conversation analytics (intent/emotion distribution, ratings, tickets) |
 
 ## Extending
 

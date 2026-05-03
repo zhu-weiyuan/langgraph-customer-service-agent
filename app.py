@@ -11,8 +11,11 @@ Visit: http://localhost:7860
 import sys
 import io
 import json
+import time
+import platform
 from uuid import uuid4
 from datetime import datetime
+from collections import defaultdict
 
 if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
@@ -22,6 +25,36 @@ from langchain_core.messages import HumanMessage, AIMessage
 from agent.graph import build_graph
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import os
+
+# ── Rate Limiter (sliding window) ───────────────────────────────
+class RateLimiter:
+    """Simple in-memory sliding-window rate limiter per IP.
+
+    Configurable via env vars:
+      RATE_LIMIT_REQUESTS  — max requests per window (default: 60)
+      RATE_LIMIT_WINDOW    — window size in seconds (default: 60)
+    """
+    def __init__(self, max_requests=60, window_seconds=60):
+        self.max_requests = max_requests
+        self.window = window_seconds
+        self._requests = defaultdict(list)
+
+    def is_allowed(self, key):
+        now = time.time()
+        cutoff = now - self.window
+        self._requests[key] = [t for t in self._requests[key] if t > cutoff]
+        if len(self._requests[key]) >= self.max_requests:
+            return False
+        self._requests[key].append(now)
+        return True
+
+_rate_limiter = RateLimiter(
+    max_requests=int(os.environ.get("RATE_LIMIT_REQUESTS", "60")),
+    window_seconds=int(os.environ.get("RATE_LIMIT_WINDOW", "60")),
+)
+
+# ── Request counters ────────────────────────────────────────────
+_request_counter = {"total": 0, "errors": 0}
 
 PORT = 7860
 
@@ -1120,7 +1153,28 @@ async function runFullFlow() {
 
 
 class ChatHandler(BaseHTTPRequestHandler):
+    def _check_rate_limit(self):
+        """Check rate limit and reject if exceeded. Returns True if allowed."""
+        client_ip = self.client_address[0] if hasattr(self, 'client_address') else 'unknown'
+        if not _rate_limiter.is_allowed(client_ip):
+            self.send_response(429)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            body = json.dumps({"error": "Rate limit exceeded", "retry_after": _rate_limiter.window}, ensure_ascii=False)
+            self.wfile.write(body.encode('utf-8'))
+            return False
+        return True
+
     def do_GET(self):
+        # Health check endpoint (no rate limit)
+        if self.path == '/api/health':
+            self._send_health()
+            return
+
+        # Rate limit all other GET endpoints
+        if not self._check_rate_limit():
+            return
+
         if self.path == '/' or self.path == '/index.html':
             self.send_response(200)
             self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -1153,6 +1207,67 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.end_headers()
             self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
+        elif self.path == '/api/analytics':
+            # GET /api/analytics - conversation analytics dashboard data
+            try:
+                from agent.memory import _get_connection
+                conn = _get_connection()
+
+                # Total conversations
+                total = conn.execute("SELECT COUNT(*) FROM conversations").fetchone()[0]
+
+                # Intent distribution
+                intent_rows = conn.execute(
+                    "SELECT intent, COUNT(*) as cnt FROM conversations GROUP BY intent ORDER BY cnt DESC"
+                ).fetchall()
+                intents = {row[0]: row[1] for row in intent_rows}
+
+                # Emotion distribution
+                emotion_rows = conn.execute(
+                    "SELECT emotion, COUNT(*) as cnt FROM conversations GROUP BY emotion ORDER BY cnt DESC"
+                ).fetchall()
+                emotions = {row[0]: row[1] for row in emotion_rows}
+
+                # Average response length (from bot_reply)
+                avg_len_row = conn.execute(
+                    "SELECT AVG(LENGTH(bot_reply)) FROM conversations WHERE bot_reply IS NOT NULL"
+                ).fetchone()
+                avg_reply_length = round(avg_len_row[0], 1) if avg_len_row and avg_len_row[0] else 0
+
+                # Rating stats
+                rating_row = conn.execute(
+                    "SELECT COUNT(*), COALESCE(AVG(stars), 0) FROM ratings"
+                ).fetchone()
+                total_ratings = rating_row[0]
+                avg_rating = round(rating_row[1], 2) if total_ratings > 0 else 0
+
+                # Ticket stats
+                ticket_count = 0
+                priority_dist = {}
+                try:
+                    ticket_count = conn.execute("SELECT COUNT(*) FROM tickets").fetchone()[0]
+                    priority_rows = conn.execute(
+                        "SELECT priority, COUNT(*) as cnt FROM tickets GROUP BY priority"
+                    ).fetchall()
+                    priority_dist = {row[0]: row[1] for row in priority_rows}
+                except Exception:
+                    pass
+
+                analytics = {
+                    "total_conversations": total,
+                    "intents": intents,
+                    "emotions": emotions,
+                    "avg_reply_length": avg_reply_length,
+                    "ratings": {"total": total_ratings, "average": avg_rating},
+                    "tickets": {"total": ticket_count, "by_priority": priority_dist},
+                }
+            except Exception as e:
+                analytics = {"error": str(e)}
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(analytics, ensure_ascii=False).encode('utf-8'))
         elif self.path.startswith('/api/export/'): 
             # GET /api/export/<session_id> - export session history as JSON
             session_id = self.path.split('/')[-1]
@@ -1223,7 +1338,97 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 
+    def _send_health(self):
+        """Health check endpoint — returns system status, LLM connectivity, DB stats."""
+        try:
+            # LLM connectivity
+            llm_reachable = False
+            try:
+                import urllib.request as ur
+                resp = ur.urlopen("http://127.0.0.1:8080/v1/models", timeout=3)
+                llm_reachable = resp.status == 200
+            except Exception:
+                pass
+
+            # DB stats
+            db_stats = {}
+            try:
+                from agent.memory import _get_connection
+                conn = _get_connection()
+                conversations = conn.execute("SELECT COUNT(*) FROM conversations").fetchone()[0]
+                tickets = conn.execute("SELECT COUNT(*) FROM tickets").fetchone()[0] if conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tickets'").fetchone() else 0
+                ratings = conn.execute("SELECT COUNT(*), COALESCE(AVG(stars),0) FROM ratings").fetchone()
+                db_stats = {
+                    "conversations": conversations,
+                    "tickets": tickets,
+                    "total_ratings": ratings[0],
+                    "avg_rating": round(ratings[1], 2) if ratings[0] > 0 else 0,
+                }
+                conn.close()
+            except Exception as e:
+                db_stats = {"error": str(e)}
+
+            # KB stats
+            kb_stats = {}
+            try:
+                from agent.rag import _load_knowledge_base, _documents
+                docs = _load_knowledge_base()
+                kb_stats = {
+                    "documents": len(docs),
+                    "sections": sum(len(d.get("sections", [])) for d in docs),
+                }
+            except Exception as e:
+                kb_stats = {"error": str(e)}
+
+            health = {
+                "ok": True,
+                "service": "LangGraph Customer Service Agent",
+                "port": PORT,
+                "platform": f"{platform.system()} {platform.release()}",
+                "python": platform.python_version(),
+                "llm": {
+                    "reachable": llm_reachable,
+                    "url": "http://127.0.0.1:8080",
+                },
+                "database": db_stats,
+                "knowledge_base": kb_stats,
+                "requests": {
+                    "total": _request_counter["total"],
+                    "errors": _request_counter["errors"],
+                },
+            }
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(health, ensure_ascii=False).encode('utf-8'))
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False).encode('utf-8'))
+
     def do_POST(self):
+        # Rate limit all POST endpoints except /api/rating (fire-and-forget)
+        if self.path != '/api/rating' and not self._check_rate_limit():
+            return
+
+        _request_counter["total"] += 1
+        start_time = time.time()
+
+        try:
+            self._handle_post(start_time)
+        except Exception as e:
+            _request_counter["errors"] += 1
+            import traceback
+            traceback.print_exc()
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}, ensure_ascii=False).encode('utf-8'))
+
+    def _handle_post(self, start_time):
+        """Handle POST requests with timing header."""
         if self.path == '/api/rating':
             # POST /api/rating - log user satisfaction rating
             content_length = int(self.headers.get('Content-Length', 0))
