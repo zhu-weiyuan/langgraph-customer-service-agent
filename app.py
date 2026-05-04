@@ -588,7 +588,18 @@ body{
 }
 .sess-search:focus{border-color:#5b5fc7;width:180px}
 [data-theme=dark] .sess-search{background:#222240;border-color:#333355;color:#aaa}
-[data-theme=dark] .sess-search:focus{border-color:#7c3aed}
+[data-theme=dark] .scroll-bottom{
+  position:fixed;bottom:120px;right:20px;width:36px;height:36px;
+  border-radius:50%;background:#5b5fc7;color:#fff;border:none;
+  cursor:pointer;font-size:16px;display:none;align-items:center;
+  justify-content:center;box-shadow:0 2px 8px rgba(91,95,199,0.4);
+  transition:opacity 0.2s;z-index:50;
+}
+.scroll-bottom:hover{background:#7c3aed}
+.scroll-bottom.show{display:flex}
+[data-theme=dark] .scroll-bottom{background:#7c3aed;box-shadow:0 2px 8px rgba(124,58,237,0.4)}
+[data-theme=dark] .scroll-bottom:hover{background:#6d28d9}
+.sess-search:focus{border-color:#7c3aed}
 @media(max-width:480px){
   .chat-window{width:100%;height:100%;border-radius:0}
   .test-floating{left:8px;right:8px;bottom:8px}
@@ -602,12 +613,14 @@ body{
   <button class="fab" onclick="toggleInfo()">📊 信息</button>
   <button class="fab" onclick="exportSession()">📋 导出</button>
   <button class="fab" onclick="reloadKB()">🔄 知识库</button>
+  <button class="fab" onclick="copyAllConversation()">📄 复制全部</button>
   <button class="fab" onclick="window.open('/analytics','_blank')">📊 数据面板</button>
   <button class="fab" onclick="resetAll()">🗑 重置</button>
 </div>
 <div class="floating-controls" style="top:auto;bottom:60px">
   <input type="text" class="sess-search" id="sessSearch" placeholder="🔍 搜索会话..." oninput="searchSessions(this.value)" />
 </div>
+<button class="scroll-bottom" id="scrollBottom" onclick="scrollToBottom()">↓</button>
 <div class="test-floating">
   <span class="lbl">测试</span>
   <button class="tc" onclick="qt('产品怎么用？')">产品咨询</button>
@@ -718,12 +731,17 @@ async function exportSession(){if(!sess){addSys('请先开始会话');return}doc
 function closeModal(){document.getElementById('modal').classList.remove('show')}
 function cpExport(){navigator.clipboard.writeText(document.getElementById('mContent').textContent).then(()=>addSys('已复制')).catch(()=>addSys('复制失败'))}
 function dlExport(){if(!window._exp)return;const b=new Blob([JSON.stringify(window._exp,null,2)],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='session-'+(window._exp.session_id||'export')+'.json';a.click();URL.revokeObjectURL(u)}
+// ── Copy All Conversation ────────────────────────────────────────
+function copyAllConversation(){const msgs=chat.querySelectorAll('.msg');if(!msgs.length){addSys('暂无对话可复制');return}let text='=== 智能客服会话记录 ===\n';text+='会话ID: '+(sess?''+sess:'未设置')+'\n';text+='时间: '+new Date().toLocaleString('zh-CN')+'\n';text+='消息数: '+cnt+'\n\n---\n';msgs.forEach(m=>{const role=m.classList.contains('user')?'你':'客服';const bub=m.querySelector('.bub');if(bub){const raw=bub.dataset.raw||bub.textContent;text+=`[${new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}] ${role}: ${raw}\n\n`}});text+='---\n结束';navigator.clipboard.writeText(text).then(()=>{addSys('✅ 全部对话已复制到剪贴板 ('+cnt+'条消息)')}).catch(()=>{addSys('❌ 复制失败，请手动选择复制')}}
 async function reloadKB(){try{const r=await fetch('/api/rag/reload');const d=await r.json();if(d.error)addSys('重载失败: '+d.error);else addSys('✅ 知识库已重载: '+d.documents+' 文档, '+d.sections+' 章节')}catch(e){addSys('网络错误: '+e.message)}}
 // ── Session Search ─────────────────────────────────────────────
 let _searchTimer=null;
 async function searchSessions(q){if(_searchTimer)clearTimeout(_searchTimer);_searchTimer=setTimeout(async()=>{q=q.trim();if(!q){addSys('会话搜索已取消');return}try{const r=await fetch('/api/sessions?search='+encodeURIComponent(q));const d=await r.json();if(d.error){addSys('搜索失败: '+d.error);return}if(!d.sessions.length){addSys('未找到匹配 "'+q+'" 的会话');return}let info='找到 '+d.sessions.length+' 个匹配会话:\n';d.sessions.slice(0,5).forEach(s=>{info+='• ['+s.session_id.slice(0,8)+'] '+s.message_count+'条 · '+s.preview+'\n'});addSys(info)}catch(e){addSys('网络错误: '+e.message)}},300)}
 async function runFull(){clearChat();newSess();await new Promise(r=>setTimeout(r,500));const steps=[{msg:'产品怎么用？',label:'步骤1：咨询'},{msg:'谢谢，没问题了',label:'步骤2：结束'},{msg:'满意',label:'步骤3：反馈'}];for(const s of steps){addSys(s.label);await new Promise(r=>setTimeout(r,500));inp.value=s.msg;await sendMsg(s.msg);while(busy)await new Promise(r=>setTimeout(r,200));await new Promise(r=>setTimeout(r,1500))}addSys('演示完成！')}
-window.addEventListener('DOMContentLoaded',()=>{if(!sess)newSess()});
+// ── Scroll to Bottom Button ───────────────────────────────────────
+function scrollToBottom(){chat.scrollTo({top:chat.scrollHeight,behavior:'smooth'})}
+function checkScrollPosition(){const sb=document.getElementById('scrollBottom');if(!sb)return;const distFromBottom=chat.scrollHeight-chat.scrollTop-chat.clientHeight;if(distFromBottom>200)sb.classList.add('show');else sb.classList.remove('show')}
+window.addEventListener('DOMContentLoaded',()=>{if(!sess)newSess();chat.addEventListener('scroll',checkScrollPosition,{passive:true})});
 </script>
 </body>
 </html>"""
@@ -844,7 +862,7 @@ async function load(){
       fetch('/api/analytics').then(r=>r.json()),
       fetch('/api/sessions').then(r=>r.json())
     ]);
-    const a=analytics;
+    const a=analyticsResp;
     // KPI cards
     document.getElementById('kpiGrid').innerHTML=[
       {label:'总对话数',val:a.total_conversations||0,sub:'所有会话的消息总数'},
