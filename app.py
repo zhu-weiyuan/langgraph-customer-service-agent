@@ -192,11 +192,7 @@ def run_agent_stream(session_id, user_message):
     }
 
     # Manually orchestrate: identify_intent -> generate_reply (streamed)
-    from agent.nodes import identify_intent, _trim_messages
-    from agent.agentic_rag import agentic_rag
-    from agent.nodes import SYSTEM_PROMPT, RAG_SYSTEM_PROMPT_TEMPLATE
-    from agent.memory import build_memory_context as _build_mem_ctx
-    from agent.sentiment import get_tone_adjustment as _tone_adj
+    from agent.nodes import identify_intent, build_reply_context
 
     # Step 1: Identify intent (non-streaming)
     state = dict(input_data)
@@ -211,38 +207,21 @@ def run_agent_stream(session_id, user_message):
     emotion = state.get('emotion', 'neutral')
     intensity = state.get('emotion_intensity', 1)
 
-    # Step 2: Build context for reply (same as generate_reply but we stream)
-    messages = state.get('messages', [])
-    trimmed = _trim_messages(messages, keep_last=6)
-    context_messages = []
-    for msg in trimmed:
-        if isinstance(msg, HumanMessage):
-            context_messages.append({"role": "user", "content": msg.content})
-        elif isinstance(msg, AIMessage):
-            context_messages.append({"role": "assistant", "content": msg.content})
-
-    # RAG context — use Agentic RAG (same as non-streaming path)
-    rag_context = ""
-    rag_info = None
-    if intent == 'consult':
-        rag_info = agentic_rag(user_message, max_rounds=2)
-        rag_context = rag_info.get('context', '')
-
-    sys_prompt = RAG_SYSTEM_PROMPT_TEMPLATE.format(rag_context=rag_context) if rag_context else SYSTEM_PROMPT
-
-    # Memory context
-    if session_id:
-        memory_ctx = _build_mem_ctx(session_id)
-        if memory_ctx:
-            sys_prompt = sys_prompt + memory_ctx
-
-    # Tone adjustment
-    tone_adj = _tone_adj(emotion, intensity)
-    sys_prompt = sys_prompt + tone_adj
+    # Step 2: Build reply context using shared helper (same logic as generate_reply node)
+    ctx = build_reply_context(
+        messages=state.get('messages', []),
+        intent=intent,
+        user_query=user_message,
+        session_id=session_id,
+        emotion=emotion,
+        emotion_intensity=intensity,
+        retry_count=0,
+    )
 
     # Stream tokens
+    rag_info = ctx.get('rag_info')
     full_reply = ""
-    for token in stream_llm_reply(context_messages, sys_prompt, max_tokens=384):
+    for token in stream_llm_reply(ctx['context_messages'], ctx['system_prompt'], max_tokens=384):
         full_reply += token
         token_json = json.dumps({"token": token}, ensure_ascii=False)
         yield "data: " + token_json + "\n\n"

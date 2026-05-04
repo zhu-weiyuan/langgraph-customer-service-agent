@@ -8,8 +8,55 @@
 4. 满意 → 结束语；不满意 → 重试或转人工
 """
 
+import time
 from typing import Dict, Any, List
 from langchain_core.messages import HumanMessage, AIMessage
+
+# ============================================================
+# Node timing middleware (LangGraph best practice: monitor node latency)
+# ============================================================
+
+_node_timings = {}  # node_name -> list of durations in seconds
+
+
+def _time_node(node_name: str):
+    """Context manager that tracks execution time per node.
+
+    Usage:
+        with _time_node('identify_intent'):
+            ...  # node logic
+    """
+    import contextlib
+    @contextlib.contextmanager
+    def timer():
+        t0 = time.time()
+        try:
+            yield
+        finally:
+            elapsed = time.time() - t0
+            _node_timings.setdefault(node_name, []).append(elapsed)
+            count = len(_node_timings[node_name])
+            avg = sum(_node_timings[node_name]) / count
+            print(f"[Timing] {node_name} = {elapsed*1000:.0f}ms (avg={avg*1000:.0f}ms over {count} calls)")
+    return timer()
+
+
+def get_node_timings() -> Dict[str, Dict[str, float]]:
+    """Return aggregated timing stats for all nodes."""
+    stats = {}
+    for name, times in _node_timings.items():
+        stats[name] = {
+            'count': len(times),
+            'avg_ms': sum(times) / len(times) * 1000,
+            'max_ms': max(times) * 1000,
+            'min_ms': min(times) * 1000,
+        }
+    return stats
+
+
+def reset_node_timings() -> None:
+    """Clear all timing data."""
+    _node_timings.clear()
 
 # RAG integration (legacy)
 from .rag import build_context as rag_build_context
@@ -89,6 +136,11 @@ INTENT_SYSTEM = """你是一个意图分类器。分析用户消息，判断其�
 
 def identify_intent(state: Dict[str, Any]) -> Dict[str, Any]:
     """意图识别节点 — 使用本地 LLM 进行意图分类 + 情感分析。"""
+    with _time_node('identify_intent'):
+        return _identify_intent_inner(state)
+
+
+def _identify_intent_inner(state: Dict[str, Any]) -> Dict[str, Any]:
     messages = state.get('messages', [])
 
     user_message = ''
@@ -152,13 +204,27 @@ def _trim_messages(messages: List, keep_last: int = 10) -> List:
     return messages[-keep_last * 2:]
 
 
-def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
-    """生成回复节点 — 使用本地 LLM + RAG 生成自然对话回复。"""
-    intent = state.get('intent', 'consult')
-    retry_count = state.get('retry_count', 0)
+# ============================================================
+# Shared reply context builder (used by both graph nodes and streaming API)
+# ============================================================
 
-    messages = state.get('messages', [])
+def build_reply_context(
+    messages: List,
+    intent: str = 'consult',
+    user_query: str = '',
+    session_id: str = '',
+    emotion: str = 'neutral',
+    emotion_intensity: int = 1,
+    retry_count: int = 0,
+) -> Dict[str, Any]:
+    """Build context for reply generation (shared between graph node and streaming API).
 
+    Returns a dict with:
+      - context_messages: trimmed conversation history as dicts
+      - system_prompt: full system prompt with RAG + memory + tone adjustment
+      - rag_info: Agentic RAG result dict or None
+      - latest_user: last user message text
+    """
     # Trim to recent context for LLM call (avoids context window overflow)
     trimmed = _trim_messages(messages, keep_last=6)  # 12 messages for LLM
     context_messages = []
@@ -168,24 +234,26 @@ def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
         elif isinstance(msg, AIMessage):
             context_messages.append({"role": "assistant", "content": msg.content})
 
-    # --- Agentic RAG: LLM-driven retrieval with adaptive re-search ---
-    rag_context = ""
-    rag_info = None
-    if intent == 'consult':
-        latest_user = ''
+    # Extract latest user message
+    latest_user = user_query
+    if not latest_user:
         for msg in reversed(messages):
             if isinstance(msg, HumanMessage):
                 latest_user = msg.content
                 break
-        if latest_user:
-            rag_info = agentic_rag(latest_user, max_rounds=2)
-            rag_context = rag_info.get('context', '')
-            if rag_context:
-                sections = rag_context.count('###')
-                print(f"[Agentic RAG] {sections} 条知识, {rag_info['rounds']} 轮检索, "
-                      f"sufficient={rag_info['sufficient']}, queries={rag_info['queries_tried']}")
-            else:
-                print(f"[Agentic RAG] 未找到相关知识")
+
+    # --- Agentic RAG: LLM-driven retrieval with adaptive re-search ---
+    rag_context = ""
+    rag_info = None
+    if intent == 'consult' and latest_user:
+        rag_info = agentic_rag(latest_user, max_rounds=2)
+        rag_context = rag_info.get('context', '')
+        if rag_context:
+            sections = rag_context.count('###')
+            print(f"[Agentic RAG] {sections} 条知识, {rag_info['rounds']} 轮检索, "
+                  f"sufficient={rag_info['sufficient']}, queries={rag_info['queries_tried']}")
+        else:
+            print(f"[Agentic RAG] 未找到相关知识")
 
     # Build system prompt with RAG context + memory + sentiment tone adjustment
     if rag_context:
@@ -194,44 +262,66 @@ def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
         system_prompt = SYSTEM_PROMPT
 
     # Multi-turn memory: inject user context
-    session_id = state.get('session_id', '')
     if session_id:
         memory_ctx = build_memory_context(session_id)
         if memory_ctx:
             system_prompt = system_prompt + memory_ctx
 
     # Sentiment-based tone adjustment
-    emotion = state.get('emotion', 'neutral')
-    intensity = state.get('emotion_intensity', 1)
-    tone_adj = get_tone_adjustment(emotion, intensity)
+    tone_adj = get_tone_adjustment(emotion, emotion_intensity)
     system_prompt = system_prompt + tone_adj
 
     if retry_count > 0:
         extra = f"\n\n注意：用户之前表示不满意，请用不同的方式重新回答。这是第 {retry_count} 次重试。"
-    else:
-        extra = ""
+        system_prompt = system_prompt + extra
 
-    reply = _call_llm(context_messages, system_prompt + extra, max_tokens=512)
-    ai_message = AIMessage(content=reply)
     rag_label = f"agentic({rag_info['rounds']}轮)" if rag_info and rag_info.get('queries_tried') else ('yes' if rag_context else 'no')
-    print(f"[生成回复] intent={intent}, retry={retry_count}, rag={rag_label}")
+    print(f"[Reply Context] intent={intent}, retry={retry_count}, rag={rag_label}")
+
+    return {
+        'context_messages': context_messages,
+        'system_prompt': system_prompt,
+        'rag_info': rag_info,
+        'latest_user': latest_user,
+    }
+
+
+def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
+    """生成回复节点 — 使用本地 LLM + RAG 生成自然对话回复。"""
+    with _time_node('generate_reply'):
+        return _generate_reply_inner(state)
+
+
+def _generate_reply_inner(state: Dict[str, Any]) -> Dict[str, Any]:
+    intent = state.get('intent', 'consult')
+    retry_count = state.get('retry_count', 0)
+    messages = state.get('messages', [])
+    session_id = state.get('session_id', '')
+    emotion = state.get('emotion', 'neutral')
+    emotion_intensity = state.get('emotion_intensity', 1)
+
+    ctx = build_reply_context(
+        messages=messages,
+        intent=intent,
+        session_id=session_id,
+        emotion=emotion,
+        emotion_intensity=emotion_intensity,
+        retry_count=retry_count,
+    )
+
+    reply = _call_llm(ctx['context_messages'], ctx['system_prompt'], max_tokens=512)
+    ai_message = AIMessage(content=reply)
 
     # Save to memory
-    if session_id:
-        latest_user = ''
-        for msg in reversed(messages):
-            if isinstance(msg, HumanMessage):
-                latest_user = msg.content
-                break
-        if latest_user:
-            save_conversation(
-                session_id=session_id,
-                user_message=latest_user,
-                bot_reply=reply,
-                intent=intent,
-                emotion=state.get('emotion', 'neutral'),
-                emotion_intensity=state.get('emotion_intensity', 1),
-            )
+    if session_id and ctx['latest_user']:
+        save_conversation(
+            session_id=session_id,
+            user_message=ctx['latest_user'],
+            bot_reply=reply,
+            intent=intent,
+            emotion=emotion,
+            emotion_intensity=emotion_intensity,
+        )
 
     return {'messages': [ai_message], 'bot_reply': reply}
 
