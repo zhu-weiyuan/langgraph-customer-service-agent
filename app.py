@@ -491,6 +491,11 @@ body{
 }
 .c-input input:focus{border-color:#5b5fc7;background:#fff}
 .c-input input::placeholder{color:#9ca3af}
+.char-count{
+  font-size:10px;color:#b0b0b0;white-space:nowrap;padding-right:4px;
+  user-select:none;flex-shrink:0;
+}
+.char-count.warn{color:#ef4444}
 .c-input .send{
   width:36px;height:36px;background:#5b5fc7;border:none;border-radius:10px;
   color:#fff;cursor:pointer;font-size:15px;
@@ -574,6 +579,16 @@ body{
 [data-theme=dark] .modal-box pre{background:#222240;border-color:#333355;color:#e0e0e0}
 [data-theme=dark] .modal-btns button{background:#222240;border-color:#333355;color:#aaa}
 [data-theme=dark] .modal-btns button.pri{background:#7c3aed;border-color:#7c3aed;color:#fff}
+[data-theme=dark] .char-count{color:#666}
+[data-theme=dark] .char-count.warn{color:#f87171}
+.sess-search{
+  padding:6px 12px;border-radius:20px;border:1px solid #e5e7eb;
+  background:#fff;color:#6b7280;font-size:12px;width:160px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.08);outline:none;transition:all 0.15s;
+}
+.sess-search:focus{border-color:#5b5fc7;width:180px}
+[data-theme=dark] .sess-search{background:#222240;border-color:#333355;color:#aaa}
+[data-theme=dark] .sess-search:focus{border-color:#7c3aed}
 @media(max-width:480px){
   .chat-window{width:100%;height:100%;border-radius:0}
   .test-floating{left:8px;right:8px;bottom:8px}
@@ -589,6 +604,9 @@ body{
   <button class="fab" onclick="reloadKB()">🔄 知识库</button>
   <button class="fab" onclick="window.open('/analytics','_blank')">📊 数据面板</button>
   <button class="fab" onclick="resetAll()">🗑 重置</button>
+</div>
+<div class="floating-controls" style="top:auto;bottom:60px">
+  <input type="text" class="sess-search" id="sessSearch" placeholder="🔍 搜索会话..." oninput="searchSessions(this.value)" />
 </div>
 <div class="test-floating">
   <span class="lbl">测试</span>
@@ -621,7 +639,8 @@ body{
     <div class="iv"><span class="ik">消息</span> <span class="v" id="iMsg">0</span></div>
   </div>
   <div class="c-input">
-    <input type="text" id="inp" placeholder="输入您的问题..." autocomplete="off" />
+    <input type="text" id="inp" placeholder="按 Enter 发送 · Ctrl+Enter 换行" autocomplete="off" maxlength="4000" />
+    <span class="char-count" id="charCount">0/4000</span>
     <button class="send" id="sbtn" onclick="sendMsg()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
     </button>
@@ -645,7 +664,11 @@ function toggleTheme(){const h=document.documentElement,b=document.getElementByI
 if(localStorage.getItem('th')==='dark'){document.documentElement.setAttribute('data-theme','dark');setTimeout(()=>{const b=document.getElementById('themeBtn');if(b)b.textContent='☀️ 亮色'},0)}
 function toggleInfo(){showI=!showI;document.getElementById('infoBar').style.display=showI?'flex':'none'}
 const chat=document.getElementById('chat'),inp=document.getElementById('inp'),sbtn=document.getElementById('sbtn');
-inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!busy)sendMsg()});
+inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.ctrlKey&&!busy)sendMsg();else if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();inp.value+='
+';updateCharCount()}});
+// ── Character Counter ───────────────────────────────────────
+function updateCharCount(){const c=document.getElementById('charCount');if(!c)return;const n=inp.value.length;c.textContent=n+'/4000';c.classList.toggle('warn',n>3500)}
+inp.addEventListener('input',updateCharCount);
 // ── Lightweight Markdown Renderer ───────────────────────────────
 function md(text){
   if(!text)return text;
@@ -696,6 +719,9 @@ function closeModal(){document.getElementById('modal').classList.remove('show')}
 function cpExport(){navigator.clipboard.writeText(document.getElementById('mContent').textContent).then(()=>addSys('已复制')).catch(()=>addSys('复制失败'))}
 function dlExport(){if(!window._exp)return;const b=new Blob([JSON.stringify(window._exp,null,2)],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='session-'+(window._exp.session_id||'export')+'.json';a.click();URL.revokeObjectURL(u)}
 async function reloadKB(){try{const r=await fetch('/api/rag/reload');const d=await r.json();if(d.error)addSys('重载失败: '+d.error);else addSys('✅ 知识库已重载: '+d.documents+' 文档, '+d.sections+' 章节')}catch(e){addSys('网络错误: '+e.message)}}
+// ── Session Search ─────────────────────────────────────────────
+let _searchTimer=null;
+async function searchSessions(q){if(_searchTimer)clearTimeout(_searchTimer);_searchTimer=setTimeout(async()=>{q=q.trim();if(!q){addSys('会话搜索已取消');return}try{const r=await fetch('/api/sessions?search='+encodeURIComponent(q));const d=await r.json();if(d.error){addSys('搜索失败: '+d.error);return}if(!d.sessions.length){addSys('未找到匹配 "'+q+'" 的会话');return}let info='找到 '+d.sessions.length+' 个匹配会话:\n';d.sessions.slice(0,5).forEach(s=>{info+='• ['+s.session_id.slice(0,8)+'] '+s.message_count+'条 · '+s.preview+'\n'});addSys(info)}catch(e){addSys('网络错误: '+e.message)}},300)}
 async function runFull(){clearChat();newSess();await new Promise(r=>setTimeout(r,500));const steps=[{msg:'产品怎么用？',label:'步骤1：咨询'},{msg:'谢谢，没问题了',label:'步骤2：结束'},{msg:'满意',label:'步骤3：反馈'}];for(const s of steps){addSys(s.label);await new Promise(r=>setTimeout(r,500));inp.value=s.msg;await sendMsg(s.msg);while(busy)await new Promise(r=>setTimeout(r,200));await new Promise(r=>setTimeout(r,1500))}addSys('演示完成！')}
 window.addEventListener('DOMContentLoaded',()=>{if(!sess)newSess()});
 </script>
@@ -1000,22 +1026,44 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.end_headers()
             self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
-        elif self.path == '/api/sessions':
+        elif self.path.startswith('/api/sessions'):
             # GET /api/sessions - list all sessions from memory DB with summary
+            # Supports ?search=<query> for keyword search across messages
             try:
                 from agent.memory import _get_connection
                 conn = _get_connection()
 
-                # Get distinct session IDs with their conversation counts and last activity
-                rows = conn.execute(
-                    """SELECT session_id, COUNT(*) as msg_count,
-                             MAX(timestamp) as last_at,
-                             GROUP_CONCAT(DISTINCT intent) as intents
-                      FROM conversation_history
-                      GROUP BY session_id
-                      ORDER BY last_at DESC
-                      LIMIT 50"""
-                ).fetchall()
+                # Parse query params for search
+                search_query = ''
+                if '?' in self.path:
+                    from urllib.parse import parse_qs, urlparse
+                    params = parse_qs(urlparse(self.path).query)
+                    search_query = params.get('search', [''])[0].strip()
+
+                if search_query:
+                    # Search across user_message and bot_reply fields
+                    like_pattern = f'%{search_query}%'
+                    rows = conn.execute(
+                        """SELECT session_id, COUNT(*) as msg_count,
+                                 MAX(timestamp) as last_at,
+                                 GROUP_CONCAT(DISTINCT intent) as intents
+                          FROM conversation_history
+                          WHERE user_message LIKE ? OR bot_reply LIKE ?
+                          GROUP BY session_id
+                          ORDER BY last_at DESC
+                          LIMIT 50""",
+                        (like_pattern, like_pattern)
+                    ).fetchall()
+                else:
+                    rows = conn.execute(
+                        """SELECT session_id, COUNT(*) as msg_count,
+                                 MAX(timestamp) as last_at,
+                                 GROUP_CONCAT(DISTINCT intent) as intents
+                          FROM conversation_history
+                          GROUP BY session_id
+                          ORDER BY last_at DESC
+                          LIMIT 50"""
+                    ).fetchall()
 
                 sessions = []
                 for row in rows:
@@ -1037,7 +1085,7 @@ class ChatHandler(BaseHTTPRequestHandler):
                         'preview': preview,
                     })
 
-                result = {'sessions': sessions, 'total': len(sessions)}
+                result = {'sessions': sessions, 'total': len(sessions), 'search': search_query}
             except Exception as e:
                 result = {'error': str(e), 'sessions': []}
             self.send_response(200)
