@@ -458,6 +458,16 @@ body{
 .msg .meta .cp{background:none;border:none;cursor:pointer;color:#9ca3af;font-size:11px;padding:0 2px;opacity:0;transition:opacity 0.15s}
 .msg:hover .meta .cp{opacity:1}
 .msg .meta .cp:hover{color:#5b5fc7}
+.msg .reactions{display:flex;gap:2px;margin-top:4px;padding-left:4px}
+.msg .reactions button{
+  background:none;border:none;font-size:13px;padding:2px 6px;
+  cursor:pointer;border-radius:6px;opacity:0;transition:all 0.15s;
+}
+.msg:hover .reactions button{opacity:0.7}
+.msg .reactions button:hover{opacity:1;background:#f3f4f6}
+[data-theme=dark] .msg .reactions button:hover{background:#2a2a4a}
+.msg .reactions button.active{opacity:1}
+.msg .reactions button.active::after{content:'';display:inline-block;margin-left:2px;font-size:9px;color:#5b5fc7}
 .sys{align-self:center;font-size:11px;color:#9ca3af;padding:3px 10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
 .qr{display:flex;gap:5px;flex-wrap:wrap;align-self:flex-start;max-width:85%}
 .qr button{
@@ -710,7 +720,10 @@ function md(text){
   s=s.replace(/\n\n/g,'<br><br>');
   return s;
 }
-function addMsg(role,text,type,anim){cnt++;if(showI)document.getElementById('iMsg').textContent=cnt;const row=document.createElement('div');row.className='msg '+role;const av=document.createElement('div');av.className='av';av.textContent=role==='user'?'你':'🤖';const body=document.createElement('div');body.className='body';const bub=document.createElement('div');bub.className='bub '+(type||'');const meta=document.createElement('div');meta.className='meta';const ts=document.createElement('span');ts.textContent=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});meta.appendChild(ts);if(role==='bot'&&text){const rt=document.createElement('span');rt.textContent=/[\u4e00-\u9fff]/.test(text)?Math.ceil(text.length/5)+'秒':Math.ceil(text.split(/\s+/).filter(w=>w).length/2.7)+'s';meta.appendChild(rt);const cp=document.createElement('button');cp.className='cp';cp.textContent='复制';cp.onclick=()=>{navigator.clipboard.writeText(bub.dataset.raw||bub.textContent).then(()=>{cp.textContent='✓';setTimeout(()=>cp.textContent='复制',1500)})};meta.appendChild(cp)}body.appendChild(bub);body.appendChild(meta);row.appendChild(av);row.appendChild(body);chat.appendChild(row);chat.scrollTop=chat.scrollHeight;rmQR();if(anim&&role==='bot'){const spd=/[\u4e00-\u9fff]/.test(text)?35:20;bub.classList.add('cur');bub.dataset.raw=text;let i=0;(function t(){if(i<text.length){bub.innerHTML=md(text.substring(0,i+1));i++;chat.scrollTop=chat.scrollHeight;setTimeout(t,spd)}else bub.classList.remove('cur')})()}else{if(role==='bot'){bub.dataset.raw=text;bub.innerHTML=md(text)}else bub.textContent=text}if(role==='bot'&&type!=='satisfaction'&&type!=='closing'){bidx++;addStars(body,bidx)}return row}
+let msgUid=0;
+function addMsg(role,text,type,anim){cnt++;msgUid++;if(showI)document.getElementById('iMsg').textContent=cnt;const row=document.createElement('div');row.className='msg '+role;if(role==='bot')row.id='bot-'+msgUid;const av=document.createElement('div');av.className='av';av.textContent=role==='user'?'你':'🤖';const body=document.createElement('div');body.className='body';const bub=document.createElement('div');bub.className='bub '+(type||'');const meta=document.createElement('div');meta.className='meta';const ts=document.createElement('span');ts.textContent=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});meta.appendChild(ts);if(role==='bot'&&text){const rt=document.createElement('span');rt.textContent=/[\u4e00-\u9fff]/.test(text)?Math.ceil(text.length/5)+'秒':Math.ceil(text.split(/\s+/).filter(w=>w).length/2.7)+'s';meta.appendChild(rt);const cp=document.createElement('button');cp.className='cp';cp.textContent='复制';cp.onclick=()=>{navigator.clipboard.writeText(bub.dataset.raw||bub.textContent).then(()=>{cp.textContent='✓';setTimeout(()=>cp.textContent='复制',1500)})};meta.appendChild(cp)}body.appendChild(bub);body.appendChild(meta);row.appendChild(av);row.appendChild(body);chat.appendChild(row);chat.scrollTop=chat.scrollHeight;rmQR();if(anim&&role==='bot'){const spd=/[\u4e00-\u9fff]/.test(text)?35:20;bub.classList.add('cur');bub.dataset.raw=text;let i=0;(function t(){if(i<text.length){bub.innerHTML=md(text.substring(0,i+1));i++;chat.scrollTop=chat.scrollHeight;setTimeout(t,spd)}else bub.classList.remove('cur')})()}else{if(role==='bot'){bub.dataset.raw=text;bub.innerHTML=md(text)}else bub.textContent=text}if(role==='bot'&&type!=='satisfaction'&&type!=='closing'){bidx++;addStars(body,bidx);addReactions(body,'bot-'+msgUid)}return row}
+// ── Emoji Reactions on Bot Messages ───────────────────────────────
+function addReactions(parent,msgId){const d=document.createElement('div');d.className='reactions';const emojis=['👍','👎','💡'];emojis.forEach(e=>{const b=document.createElement('button');b.textContent=e;b.title=e==='👍'?'有帮助':e==='👎'?'没帮助':'有启发';b.onclick=()=>{b.classList.toggle('active');fetch('/api/reaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sess,message_id:msgId,emoji:e,active:b.classList.contains('active')})}).catch(()=>{})};d.appendChild(b)});parent.appendChild(d)}
 function addSys(t){const d=document.createElement('div');d.className='sys';d.textContent=t;chat.appendChild(d);chat.scrollTop=chat.scrollHeight}
 function addTyping(){const row=document.createElement('div');row.className='msg bot';row.id='typing';row.innerHTML='<div class="av">🤖</div><div class="body"><div class="bub"><div class="typing"><span></span><span></span><span></span></div></div></div>';chat.appendChild(row);chat.scrollTop=chat.scrollHeight}
 function rmTyping(){const e=document.getElementById('typing');if(e)e.remove()}
@@ -1214,8 +1227,8 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False).encode('utf-8'))
 
     def do_POST(self):
-        # Rate limit all POST endpoints except /api/rating (fire-and-forget)
-        if self.path != '/api/rating' and not self._check_rate_limit():
+        # Rate limit all POST endpoints except /api/rating, /api/reaction (fire-and-forget)
+        if self.path not in ('/api/rating', '/api/reaction') and not self._check_rate_limit():
             return
 
         _request_counter["total"] += 1
@@ -1262,6 +1275,39 @@ class ChatHandler(BaseHTTPRequestHandler):
                 conn.close()
             except Exception as e:
                 print(f"[Rating DB Error] {e}")
+
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps({"ok": True}).encode('utf-8'))
+        elif self.path == '/api/reaction':
+            # POST /api/reaction - log emoji reaction on bot message
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            session_id = data.get('session_id', '')
+            msg_id = data.get('message_id', '')
+            emoji = data.get('emoji', '👍')
+            active = data.get('active', True)
+            print(f"[Reaction] session={session_id}, msg={msg_id}, emoji={emoji}, active={active}")
+
+            # Store reaction in memory DB
+            try:
+                from agent.memory import _get_connection
+                conn = _get_connection()
+                conn.execute(
+                    "CREATE TABLE IF NOT EXISTS reactions (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "session_id TEXT, message_id TEXT, emoji TEXT, active INTEGER, reacted_at TEXT)"
+                )
+                conn.execute(
+                    "INSERT INTO reactions (session_id, message_id, emoji, active, reacted_at) VALUES (?, ?, ?, ?, ?)",
+                    (session_id, msg_id, emoji, 1 if active else 0, datetime.now().isoformat())
+                )
+                conn.commit()
+                conn.close()
+            except Exception as e:
+                print(f"[Reaction DB Error] {e}")
 
             self.send_response(200)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
