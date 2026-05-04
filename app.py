@@ -61,6 +61,29 @@ PORT = 7860
 _graph = None
 
 
+def _check_llm_connectivity() -> bool:
+    """Check if the LLM API is reachable.
+
+    Returns True if a successful HTTP response is received from the LLM endpoint.
+    """
+    import urllib.request as ur
+    from agent.llm_client import get_llm_client
+
+    client = get_llm_client()
+    # Use /v1/models as a lightweight connectivity probe
+    models_url = client.api_url.replace("/chat/completions", "") + "/models"
+    try:
+        req = ur.Request(
+            models_url,
+            headers={"Authorization": f"Bearer {client.api_key}"},
+            method="GET",
+        )
+        with ur.urlopen(req, timeout=5) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
+
+
 def init():
     """Initialize the agent graph.
 
@@ -71,6 +94,14 @@ def init():
     db_path = os.environ.get('CHECKPOINT_DB', 'checkpoints.db')
     _graph = build_graph(use_sqlite=use_sqlite, db_path=db_path)
     print(f"[Server] Agent initialized (Real LLM via llama.cpp, sqlite={use_sqlite})")
+
+    # LLM connectivity check (non-blocking warning)
+    llm_ok = _check_llm_connectivity()
+    if llm_ok:
+        print("[Server] ✅ LLM API reachable")
+    else:
+        print("[Server] ⚠️  LLM API unreachable — agent will run in degraded mode")
+        print("[Server]    Ensure llama.cpp is running on port 8080")
 
 
 def stream_llm_reply(messages, system_prompt, max_tokens=384):
@@ -1173,11 +1204,34 @@ class ChatHandler(BaseHTTPRequestHandler):
         elif self.path == '/api/chat':
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length)
-            data = json.loads(body.decode('utf-8'))
+            try:
+                data = json.loads(body.decode('utf-8'))
+            except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                print(f"[Chat] Invalid JSON: {e}")
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Invalid request body"}, ensure_ascii=False).encode('utf-8'))
+                return
 
             user_message = data.get('message', '')
             session_id = data.get('session_id', str(uuid4()))
             stream = data.get('stream', False)
+
+            # Input validation (LangGraph best practice: validate before entering graph)
+            if not user_message or not user_message.strip():
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Message cannot be empty"}, ensure_ascii=False).encode('utf-8'))
+                return
+            if len(user_message) > 4000:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Message too long (max 4000 chars)"}, ensure_ascii=False).encode('utf-8'))
+                return
+            user_message = user_message.strip()
 
             if stream:
                 # SSE streaming response
