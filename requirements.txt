@@ -12,3 +12,10 @@ langgraph-checkpoint-sqlite>=3.0.0
 # langchain-openai>=0.2.0
 # anthropic>=0.30.0
 # langchain-anthropic>=0.3.0
+
+# 向量检索（RAG 语义搜索）
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+
+# 中文分词（BM25 关键词检索）
+jieba>=0.42.0

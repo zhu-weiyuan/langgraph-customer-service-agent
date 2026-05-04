@@ -244,60 +244,135 @@ def _get_section(doc_id: int) -> dict:
     return None
 
 
-def retrieve(query: str, top_k: int = 3) -> List[dict]:
-    """Retrieve most relevant sections using hybrid BM25 + TF-IDF."""
+def retrieve(query: str, top_k: int = 3, use_vector: bool = True) -> List[dict]:
+    """Retrieve most relevant sections using hybrid BM25 + TF-IDF + Vector (RRF fusion).
+
+    Args:
+        query: Search query string
+        top_k: Number of results to return
+        use_vector: If True, combine BM25+TF-IDF with vector retrieval via RRF fusion.
+                   Falls back to BM25+TF-IDF only if vector retrieval fails.
+
+    Returns:
+        List of {"title", "text", "score", "source"} dicts sorted by fused relevance.
+    """
     docs = _load_knowledge_base()
     if not docs:
         return []
 
     jieba_tokens = _tokenize_jieba(query)
     ngram_tokens = _tokenize_ngram(query)
-    
-    # Score each section with both methods
+
+    # --- BM25 + TF-IDF scoring (keyword retrieval) ---
     scored_sections = []
     for doc_id, doc in enumerate(docs):
         section_offset = sum(len(d["sections"]) for d in docs[:doc_id])
-        
+
         for i, section in enumerate(doc["sections"]):
             global_id = section_offset + i
-            
-            # BM25 score (jieba tokens)
+
             bm25 = _bm25_score(jieba_tokens, global_id) if jieba_tokens else 0
-            
-            # TF-IDF score (n-gram tokens)
             tfidf = _tfidf_score(ngram_tokens, global_id) if ngram_tokens else 0
-            
-            # Normalize and combine
+
             combined = BM25_WEIGHT * bm25 + TFIDF_WEIGHT * tfidf
-            
-            # Title boost
+
             title_jieba = _tokenize_jieba(section["title"])
             title_bm25 = _bm25_score(jieba_tokens, global_id) if title_jieba else 0
             if title_bm25 > 0:
                 combined += TITLE_BOOST * title_bm25 * 0.1
-            
+
             if combined > 0:
                 scored_sections.append({
                     "title": section["title"],
                     "text": section["text"],
                     "score": round(combined, 4),
-                    "source": doc["title"]
+                    "source": doc["title"],
+                    "_rank_bm25": len(scored_sections) + 1,  # for RRF
                 })
 
-    # Sort by score
     scored_sections.sort(key=lambda x: x["score"], reverse=True)
-    
-    # Source diversity
+
+    # --- Vector retrieval (semantic search) ---
+    vector_results = []
+    if use_vector:
+        try:
+            from .vector_rag import vector_retrieve as _vector_retrieve
+            vector_results = _vector_retrieve(query, top_k=10)
+            print(f"[RAG Hybrid] Vector retrieval: {len(vector_results)} results")
+        except Exception as e:
+            print(f"[RAG Hybrid] Vector retrieval skipped: {e}")
+
+    # --- RRF (Reciprocal Rank Fusion) fusion ---
+    if vector_results:
+        fused = _rrf_fusion(scored_sections, vector_results, top_k=top_k * 3)
+        return _apply_diversity(fused, top_k=top_k)
+    else:
+        # Fallback: BM25+TF-IDF only
+        for s in scored_sections:
+            s.pop("_rank_bm25", None)
+        return _apply_diversity(scored_sections, top_k=top_k)
+
+
+def _rrf_fusion(bm25_results: List[dict], vector_results: List[dict],
+                top_k: int = 10, k_constant: int = 61) -> List[dict]:
+    """Reciprocal Rank Fusion (RRF) for combining keyword and vector retrieval.
+
+    RRF score = 1 / (k + rank_bm25) + 1 / (k + rank_vector)
+
+    Args:
+        bm25_results: Results from BM25+TF-IDF ranking
+        vector_results: Results from vector similarity search
+        top_k: Number of results to return after fusion
+        k_constant: RRF constant (default 61 per Cormack et al.)
+
+    Returns:
+        Fused and ranked result list.
+    """
+    # Build rank maps
+    rrf_scores = {}  # key=(title, source) -> fused score
+
+    for rank, result in enumerate(bm25_results):
+        key = (result["title"], result["source"])
+        score = 1.0 / (k_constant + rank + 1)  # rank is 0-indexed
+        if key not in rrf_scores:
+            rrf_scores[key] = {"_rrf": score, **result}
+        else:
+            rrf_scores[key]["_rrf"] += score
+
+    for rank, result in enumerate(vector_results):
+        key = (result["title"], result["source"])
+        score = 1.0 / (k_constant + rank + 1)
+        if key not in rrf_scores:
+            rrf_scores[key] = {"_rrf": score, **result}
+        else:
+            rrf_scores[key]["_rrf"] += score
+            # Use vector result's text if it has higher similarity score
+            if result.get("score", 0) > rrf_scores[key].get("score", 0):
+                rrf_scores[key]["score"] = result["score"]
+
+    # Sort by RRF score descending
+    fused = sorted(rrf_scores.values(), key=lambda x: x["_rrf"], reverse=True)
+
+    # Clean up internal fields
+    for f in fused:
+        f.pop("_rrf", None)
+        f.pop("_rank_bm25", None)
+        f["score"] = round(f.get("score", 0), 4)
+
+    return fused[:top_k]
+
+
+def _apply_diversity(results: List[dict], top_k: int = 3) -> List[dict]:
+    """Apply source diversity filtering to results."""
     diverse_results = []
     source_counts = {}
-    for result in scored_sections:
+    for result in results:
         source = result["source"]
         if source_counts.get(source, 0) < 2:
             diverse_results.append(result)
             source_counts[source] = source_counts.get(source, 0) + 1
         if len(diverse_results) >= top_k:
             break
-    
     return diverse_results
 
 
