@@ -656,6 +656,9 @@ body{
   <div class="c-input">
     <input type="text" id="inp" placeholder="按 Enter 发送 · Ctrl+Enter 换行" autocomplete="off" maxlength="4000" />
     <span class="char-count" id="charCount">0/4000</span>
+    <button class="send" id="vbtn" onclick="toggleVoice()" title="语音输入" style="width:36px;height:36px;background:#6b7280;border:none;border-radius:10px;color:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:4px;transition:background 0.15s">
+      🎤
+    </button>
     <button class="send" id="sbtn" onclick="sendMsg()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
     </button>
@@ -720,7 +723,7 @@ function md(text){
   return s;
 }
 let msgUid=0;
-function addMsg(role,text,type,anim){cnt++;msgUid++;if(showI)document.getElementById('iMsg').textContent=cnt;const row=document.createElement('div');row.className='msg '+role;if(role==='bot')row.id='bot-'+msgUid;const av=document.createElement('div');av.className='av';av.textContent=role==='user'?'你':'🤖';const body=document.createElement('div');body.className='body';const bub=document.createElement('div');bub.className='bub '+(type||'');const meta=document.createElement('div');meta.className='meta';const ts=document.createElement('span');ts.textContent=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});meta.appendChild(ts);if(role==='bot'&&text){const rt=document.createElement('span');rt.textContent=/[\u4e00-\u9fff]/.test(text)?Math.ceil(text.length/5)+'秒':Math.ceil(text.split(/\s+/).filter(w=>w).length/2.7)+'s';meta.appendChild(rt);const cp=document.createElement('button');cp.className='cp';cp.textContent='复制';cp.onclick=()=>{navigator.clipboard.writeText(bub.dataset.raw||bub.textContent).then(()=>{cp.textContent='✓';setTimeout(()=>cp.textContent='复制',1500)})};meta.appendChild(cp)}body.appendChild(bub);body.appendChild(meta);row.appendChild(av);row.appendChild(body);chat.appendChild(row);chat.scrollTop=chat.scrollHeight;rmQR();if(anim&&role==='bot'){const spd=/[\u4e00-\u9fff]/.test(text)?35:20;bub.classList.add('cur');bub.dataset.raw=text;let i=0;(function t(){if(i<text.length){bub.innerHTML=md(text.substring(0,i+1));i++;chat.scrollTop=chat.scrollHeight;setTimeout(t,spd)}else bub.classList.remove('cur')})()}else{if(role==='bot'){bub.dataset.raw=text;bub.innerHTML=md(text)}else bub.textContent=text}if(role==='bot'&&type!=='satisfaction'&&type!=='closing'){bidx++;addStars(body,bidx);addReactions(body,'bot-'+msgUid)}return row}
+function addMsg(role,text,type,anim){cnt++;msgUid++;if(showI)document.getElementById('iMsg').textContent=cnt;const row=document.createElement('div');row.className='msg '+role;if(role==='bot')row.id='bot-'+msgUid;const av=document.createElement('div');av.className='av';av.textContent=role==='user'?'你':'🤖';const body=document.createElement('div');body.className='body';const bub=document.createElement('div');bub.className='bub '+(type||'');const meta=document.createElement('div');meta.className='meta';const ts=document.createElement('span');ts.textContent=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});meta.appendChild(ts);if(role==='bot'&&text){const rt=document.createElement('span');rt.textContent=/[\u4e00-\u9fff]/.test(text)?Math.ceil(text.length/5)+'秒':Math.ceil(text.split(/\s+/).filter(w=>w).length/2.7)+'s';meta.appendChild(rt);const cp=document.createElement('button');cp.className='cp';cp.textContent='复制';cp.onclick=()=>{navigator.clipboard.writeText(bub.dataset.raw||bub.textContent).then(()=>{cp.textContent='✓';setTimeout(()=>cp.textContent='复制',1500)})};meta.appendChild(cp)}body.appendChild(bub);body.appendChild(meta);row.appendChild(av);row.appendChild(body);chat.appendChild(row);chat.scrollTop=chat.scrollHeight;rmQR();if(anim&&role==='bot'){const spd=/[\u4e00-\u9fff]/.test(text)?35:20;bub.classList.add('cur');bub.dataset.raw=text;let i=0;(function t(){if(i<text.length){bub.innerHTML=md(text.substring(0,i+1));i++;chat.scrollTop=chat.scrollHeight;setTimeout(t,spd)}else bub.classList.remove('cur')})()}else{if(role==='bot'){bub.dataset.raw=text;bub.innerHTML=md(text)}else bub.textContent=text}if(role==='bot'&&type!=='satisfaction'&&type!=='closing'){bidx++;addStars(body,bidx);addReactions(body,'bot-'+msgUid);if(text)addSpeakBtn(body,text)}return row}
 // ── Emoji Reactions on Bot Messages ───────────────────────────────
 function addReactions(parent,msgId){const d=document.createElement('div');d.className='reactions';const emojis=['👍','👎','💡'];emojis.forEach(e=>{const b=document.createElement('button');b.textContent=e;b.title=e==='👍'?'有帮助':e==='👎'?'没帮助':'有启发';b.onclick=()=>{b.classList.toggle('active');fetch('/api/reaction',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sess,message_id:msgId,emoji:e,active:b.classList.contains('active')})}).catch(()=>{})};d.appendChild(b)});parent.appendChild(d)}
 function addSys(t){const d=document.createElement('div');d.className='sys';d.textContent=t;chat.appendChild(d);chat.scrollTop=chat.scrollHeight}
@@ -729,7 +732,8 @@ function rmTyping(){const e=document.getElementById('typing');if(e)e.remove()}
 function showQR(replies){rmQR();const c=document.createElement('div');c.className='qr';c.id='qr';for(const t of replies){const b=document.createElement('button');b.textContent=t;b.onclick=()=>qt(t);c.appendChild(b)}chat.appendChild(c);chat.scrollTop=chat.scrollHeight}
 function rmQR(){const e=document.getElementById('qr');if(e)e.remove()}
 function ctxQR(lt){if(lt==='satisfaction')return QR.sat;if(lt==='closing')return[];if(lt==='reply')return QR.reply;return QR.def}
-function addStars(parent,idx){const d=document.createElement('div');d.className='stars';const l=document.createElement('span');l.className='lbl';l.textContent='有帮助？';d.appendChild(l);for(let i=1;i<=5;i++){const b=document.createElement('button');b.textContent='⭐';b.title=i+'星';b.onclick=()=>rate(idx,i,d);b.onmouseenter=()=>d.querySelectorAll('button').forEach((x,j)=>{if(x.classList.contains('thx'))return;x.style.filter=j<i?'grayscale(0) opacity(1)':'grayscale(1) opacity(0.25)'});b.onmouseleave=()=>{if(!d.querySelector('.on'))d.querySelectorAll('button').forEach(x=>{if(x.classList.contains('thx'))return;x.style.filter='grayscale(1) opacity(0.25)'})};d.appendChild(b)}parent.appendChild(d)}
+function addStars(parent,idx){const d=document.createElement('div');d.className='stars';const l=document.createElement('span');l.className='lbl';l.textContent=currentLang==='cn'?'有帮助？':'Helpful?';d.appendChild(l);for(let i=1;i<=5;i++){const b=document.createElement('button');b.textContent='⭐';b.title=i+'星';b.onclick=()=>rate(idx,i,d);b.onmouseenter=()=>d.querySelectorAll('button').forEach((x,j)=>{if(x.classList.contains('thx'))return;x.style.filter=j<i?'grayscale(0) opacity(1)':'grayscale(1) opacity(0.25)'});b.onmouseleave=()=>{if(!d.querySelector('.on'))d.querySelectorAll('button').forEach(x=>{if(x.classList.contains('thx'))return;x.style.filter='grayscale(1) opacity(0.25)'})};d.appendChild(b)}parent.appendChild(d)}
+function addSpeakBtn(parent,text){const b=document.createElement('button');b.textContent='🔊';b.title=currentLang==='cn'?'朗读':'Read aloud';b.style.cssText='background:none;border:none;cursor:pointer;font-size:12px;padding:2px 4px;opacity:0.5;transition:opacity 0.15s';b.onmouseenter=()=>b.opacity=1;b.onmouseleave=()=>b.opacity=0.5;b.onclick=()=>speakText(text);parent.appendChild(b)}
 function rate(idx,stars,d){d.querySelectorAll('button').forEach((b,j)=>{if(j<stars&&!b.classList.contains('thx'))b.classList.add('on');b.onclick=null;b.style.cursor='default'});const l=d.querySelector('.lbl');if(l)l.remove();const th=document.createElement('div');th.className='thx';th.textContent='感谢评价！'+stars+'⭐';d.replaceWith(th);if(sess)fetch('/api/rating',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session_id:sess,message_index:idx,stars})}).catch(()=>{})}
 async function sendMsg(text){if(busy)return;const msg=text||inp.value.trim();if(!msg)return;inp.value='';addMsg('user',msg);busy=true;sbtn.disabled=true;addTyping();try{const s=sess||crypto.randomUUID();if(!sess){sess=s;if(showI)document.getElementById('iSess').textContent=s.slice(0,8)+'...'}const resp=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,session_id:s,stream:true})});rmTyping();if(resp.headers.get('content-type')?.includes('text/event-stream')){await handleStream(resp)}else{const data=await resp.json();if(data.error){addMsg('bot',(currentLang==='cn'?'错误: ':'Error: ')+data.error,'',false)}else{let lt='';for(const r of data.replies){const m={satisfaction:'satisfaction',closing:'closing'};lt=m[r.type]||'reply';addMsg('bot',r.content,lt,true)}const s2=ctxQR(lt);if(s2.length)setTimeout(()=>showQR(s2),800);updInfo(data)}}}catch(e){rmTyping();addMsg('bot',(currentLang==='cn'?'连接错误: ':'Connection error: ')+e.message,'')}busy=false;sbtn.disabled=false;inp.focus()}
 async function handleStream(resp){const reader=resp.body.getReader(),dec=new TextDecoder();let buf='',full='',lt='reply',meta=null;const div=addMsg('bot','', 'reply',false);const bub=div.querySelector('.bub');bub.classList.add('cur');const deadline=Date.now()+180000;let finished=false;try{while(Date.now()<deadline&&!finished){const{done,value}=await reader.read();if(done){finished;break}buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()||'';for(const ln of lines){if(!ln.startsWith('data: '))continue;try{const d=JSON.parse(ln.slice(6));if(d.done){meta=d;bub.classList.remove('cur');finished=true;break}else if(d.progress==='analyzing')bub.textContent='🤔 分析中...';else if(d.token!==undefined){full+=d.token;bub.dataset.raw=full;bub.innerHTML=md(full);chat.scrollTop=chat.scrollHeight}}catch(e){}}}if(!meta){bub.classList.remove('cur');lt='reply';updInfo({})}reader.cancel().catch(()=>{})}catch(e){bub.classList.remove('cur')}if(meta){lt=meta.reply_type||'reply';bub.className='bub '+lt;updInfo(meta);const s=ctxQR(lt);if(s.length)setTimeout(()=>showQR(s),800)}}
@@ -753,7 +757,53 @@ async function runFull(){clearChat();newSess();await new Promise(r=>setTimeout(r
 // ── Scroll to Bottom Button ───────────────────────────────────────
 function scrollToBottom(){chat.scrollTo({top:chat.scrollHeight,behavior:'smooth'})}
 function checkScrollPosition(){const sb=document.getElementById('scrollBottom');if(!sb)return;const distFromBottom=chat.scrollHeight-chat.scrollTop-chat.clientHeight;if(distFromBottom>200)sb.classList.add('show');else sb.classList.remove('show')}
-window.addEventListener('DOMContentLoaded',()=>{if(!sess)newSess();chat.addEventListener('scroll',checkScrollPosition,{passive:true})});
+// ── Voice I/O (Web Speech API) ──────────────────────────────────────
+let recognition=null;let isListening=false;
+function initSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){console.warn('Speech Recognition not supported');return}
+  recognition=new SR();recognition.continuous=false;recognition.interimResults=true;
+  recognition.lang='zh-CN';
+  recognition.onstart=()=>{isListening=true;document.getElementById('vbtn').style.background='#ef4444';document.getElementById('vbtn').title='点击停止录音'};
+  recognition.onresult=(e)=>{
+    let transcript='';let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal)transcript+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+    if(transcript)inp.value=transcript;else if(interim)inp.value=interim;
+    updateCharCount();
+  };
+  recognition.onerror=(e)=>{console.error('Speech error:',e.error);stopVoice()};
+  recognition.onend=()=>{isListening=false;document.getElementById('vbtn').style.background='#6b7280';document.getElementById('vbtn').title='点击语音输入'};
+}
+function toggleVoice(){
+  if(!recognition)initSpeech();
+  if(isListening){stopVoice()}else{startVoice()}
+}
+function startVoice(){
+  if(!recognition)return;
+  try{recognition.lang=currentLang==='cn'?'zh-CN':'en-US';recognition.start();document.getElementById('vbtn').title='录音中...'}catch(e){console.error(e)}
+}
+function stopVoice(){
+  if(!recognition||!isListening)return;
+  try{recognition.stop()}catch(e){console.error(e)}
+}
+function speakText(text){
+  if(!('speechSynthesis' in window)){console.warn('Speech Synthesis not supported');return}
+  window.speechSynthesis.cancel();
+  const utter=new SpeechUtterance(text);
+  utter.lang=currentLang==='cn'?'zh-CN':'en-US';
+  utter.rate=1;utter.pitch=1;
+  const voices=speechSynthesis.getVoices();
+  const lang=utter.lang.substring(0,2);
+  const voice=voices.find(v=>v.lang.startsWith(lang))||voices[0];
+  if(voice)utter.voice=voice;
+  window.speechSynthesis.speak(utter);
+}
+// Load voices
+if('speechSynthesis' in window){speechSynthesis.onvoiceschanged=()=>{}}
+window.addEventListener('DOMContentLoaded',()=>{if(!sess)newSess();chat.addEventListener('scroll',checkScrollPosition,{passive:true});initSpeech()});
 </script>
 </body>
 </html>"""
