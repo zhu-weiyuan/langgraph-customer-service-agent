@@ -78,7 +78,11 @@ from .summary import generate_summary, format_ticket
 
 from .llm_client import get_llm_client
 
-SYSTEM_PROMPT = """你是一个专业的智能客服助手，服务于"智联科技"公司。
+# Security: prompt injection defense
+from .security.prompt_guard import reinforce_system_prompt
+
+# Base system prompt (without security layer)
+_BASE_SYSTEM_PROMPT = """你是一个专业的智能客服助手，服务于"智联科技"公司。
 公司产品：智能音箱、智能家居套装、云服务。
 
 你的职责：
@@ -94,7 +98,10 @@ SYSTEM_PROMPT = """你是一个专业的智能客服助手，服务于"智联科
 - 如果不确定，诚实说不知道，不要编造信息
 - 优先使用下方参考资料中的信息回答产品相关问题"""
 
-# RAG-enhanced system prompt template
+# Security-hardened system prompt with anti-injection instructions
+SYSTEM_PROMPT = reinforce_system_prompt(_BASE_SYSTEM_PROMPT)
+
+# RAG-enhanced system prompt template (uses hardened base)
 RAG_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT + """
 
 {rag_context}

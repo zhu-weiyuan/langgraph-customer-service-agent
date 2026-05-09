@@ -23,6 +23,8 @@ if sys.platform == 'win32':
 
 from langchain_core.messages import HumanMessage, AIMessage
 from agent.graph import build_graph
+from agent.security.pii_redactor import redact as pii_redact, scan_and_log as pii_scan
+from agent.security.prompt_guard import scan_input as prompt_scan, reinforce_system_prompt
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import os
 
@@ -169,6 +171,16 @@ def run_agent_stream(session_id, user_message):
 
     Returns a generator of SSE-formatted strings.
     """
+    # Security: scan for prompt injection (same check as non-streaming path)
+    from agent.security.prompt_guard import scan_input as _prompt_scan
+    from agent.security.pii_redactor import scan_and_log as _pii_scan
+    _prompt_result = _prompt_scan(user_message)
+    if not _prompt_result.is_safe:
+        print(f"[Security] Stream: Prompt injection blocked: threats={_prompt_result.threats}")
+        yield 'data: ' + json.dumps({"error": "输入包含不安全内容，已被拦截", "blocked_threats": _prompt_result.threats}, ensure_ascii=False) + '\n\n'
+        return
+    _pii_scan(user_message)
+
     config = {"configurable": {"thread_id": session_id}}
     human_msg = HumanMessage(content=user_message)
 
@@ -1308,6 +1320,23 @@ class ChatHandler(BaseHTTPRequestHandler):
             user_message = data.get('message', '')
             session_id = data.get('session_id', str(uuid4()))
             stream = data.get('stream', False)
+
+            # Security: scan for prompt injection attempts (LangGraph best practice)
+            prompt_result = prompt_scan(user_message)
+            if not prompt_result.is_safe:
+                print(f"[Security] Prompt injection blocked from {self.client_address[0]}: "
+                      f"threats={prompt_result.threats}")
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": "输入包含不安全内容，已被拦截",
+                    "blocked_threats": prompt_result.threats,
+                }, ensure_ascii=False).encode('utf-8'))
+                return
+
+            # Security: scan and log PII (non-blocking — still process the request)
+            pii_detected = pii_scan(user_message)
 
             # Input validation (LangGraph best practice: validate before entering graph)
             if not user_message or not user_message.strip():
