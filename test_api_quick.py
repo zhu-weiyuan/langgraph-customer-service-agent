@@ -10,9 +10,13 @@ import urllib.request
 import json
 
 # Ensure UTF-8 output on Windows (prevents UnicodeEncodeError with emoji)
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+# Skip when running under pytest — its CaptureFixture doesn't have .buffer
+if sys.platform == 'win32' and '__pytest' not in sys.modules:
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    except (AttributeError, ValueError):
+        pass
 
 # Test 1: Health check
 print("[Test 1] Health check...")

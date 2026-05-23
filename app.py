@@ -11,15 +11,20 @@ Visit: http://localhost:7860
 import sys
 import io
 import json
+import os
 import time
 import platform
 from uuid import uuid4
 from datetime import datetime
 from collections import defaultdict
 
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+# Windows UTF-8 — skip under pytest (CaptureFixture has no .buffer)
+if sys.platform == 'win32' and '__pytest' not in sys.modules:
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    except (AttributeError, ValueError):
+        pass
 
 from langchain_core.messages import HumanMessage, AIMessage
 from agent.graph import build_graph

@@ -18,20 +18,25 @@ import os
 import io
 from uuid import uuid4
 
-# Windows UTF-8 compatibility
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-
 # Add project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Windows UTF-8 compatibility — only when running directly (not under pytest)
+# pytest replaces sys.stdout with its own CaptureFixture; overwriting it here
+# causes "I/O operation on closed file" during pytest shutdown cleanup.
+if sys.platform == 'win32' and not sys.stdin.isatty() is False and '__pytest' not in sys.modules:
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    except (AttributeError, ValueError):
+        pass
 
 from langchain_core.messages import HumanMessage, AIMessage
 from agent.graph import _build_core_graph
 from langgraph.checkpoint.memory import MemorySaver
 
 
-class TestResult:
+class _TestResult:
     """Test result recorder"""
 
     def __init__(self):
@@ -72,7 +77,7 @@ def test_intent_identification():
     print("\n[Test Group 1: Intent Identification]")
     print("-" * 40)
 
-    results = TestResult()
+    results = _TestResult()
 
     # --- Consult intent ---
     graph, _ = _make_graph()
@@ -148,7 +153,7 @@ def test_reply_generation():
     print("\n[Test Group 2: Reply Generation]")
     print("-" * 40)
 
-    results = TestResult()
+    results = _TestResult()
     graph, _ = _make_graph()
 
     session_id = str(uuid4())
@@ -190,7 +195,7 @@ def test_satisfaction_and_retry():
     print("\n[Test Group 3: Satisfaction & Retry]")
     print("-" * 40)
 
-    results = TestResult()
+    results = _TestResult()
     graph, _ = _make_graph()
 
     session_id = str(uuid4())
@@ -264,7 +269,7 @@ def test_escalation():
     print("\n[Test Group 4: Escalation (interrupt)]")
     print("-" * 40)
 
-    results = TestResult()
+    results = _TestResult()
     graph, _ = _make_graph()
 
     session_id = str(uuid4())
@@ -303,7 +308,7 @@ def test_session_resume():
     print("\n[Test Group 5: Session Resume]")
     print("-" * 40)
 
-    results = TestResult()
+    results = _TestResult()
 
     # Use a single shared checkpointer so two graph instances can share state
     from langgraph.checkpoint.memory import MemorySaver
@@ -361,7 +366,7 @@ def test_edge_cases():
     print("\n[Test Group 6: Edge Cases]")
     print("-" * 40)
 
-    results = TestResult()
+    results = _TestResult()
     graph, _ = _make_graph()
 
     # --- Empty message ---
@@ -414,7 +419,7 @@ def main():
     print("[LangGraph Customer Service Agent - Full Test]")
     print("=" * 60)
 
-    all_results = TestResult()
+    all_results = _TestResult()
 
     for test_fn in [
         test_intent_identification,

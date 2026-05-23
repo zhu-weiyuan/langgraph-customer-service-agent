@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 """Test Agentic RAG retrieval."""
 import sys, io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+if not sys.stdin.isatty() is False and '__pytest' not in sys.modules:
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    except (AttributeError, ValueError):
+        pass
 
 from agent.agentic_rag import agentic_rag
 
