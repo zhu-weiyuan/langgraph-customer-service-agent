@@ -111,7 +111,12 @@ RAG_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT + """
 
 def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT, max_tokens: int = 512) -> str:
     """调用 LLM（通过统一客户端）。"""
-    return get_llm_client().chat(messages, system, max_tokens=max_tokens)
+    client = get_llm_client()
+    full_msgs = []
+    if system:
+        full_msgs.append({"role": "system", "content": system})
+    full_msgs.extend(messages)
+    return client.chat(full_msgs, max_tokens=max_tokens)
 
 
 def _call_llm_json(messages: List[dict], system: str, max_tokens: int = 256) -> dict:
@@ -317,6 +322,8 @@ def _generate_reply_inner(state: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     reply = _call_llm(ctx['context_messages'], ctx['system_prompt'], max_tokens=512)
+    if not reply or not reply.strip():
+        reply = "抱歉，我现在无法生成回复，请稍后再试。"
     ai_message = AIMessage(content=reply)
 
     # Save to memory

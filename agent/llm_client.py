@@ -31,9 +31,9 @@ class LLMClient:
         if env_path.exists():
             self._load_env(env_path)
 
-        self.base_url = base_url or os.getenv("OPENAI_BASE_URL") or "https://token-plan-cn.xiaomimimo.com/v1"
+        self.base_url = base_url or os.getenv("OPENAI_BASE_URL") or "https://api.xiaomimimo.com/v1"
         self.api_url = self.base_url  # Alias for compatibility
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY") or ""
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY") or "sk-cwpiwaell5tvdzmxftep0j2td08xdaqfopg1imipulechm4b"
         self.model = model or os.getenv("OPENAI_MODEL") or "mimo-v2.5"
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -73,7 +73,58 @@ class LLMClient:
         response.raise_for_status()
         data = response.json()
 
-        return data["choices"][0]["message"]["content"]
+        msg = data["choices"][0]["message"]
+        content = msg.get("content") or ""
+        reasoning = msg.get("reasoning_content") or ""
+        return (content + reasoning).strip() or reasoning.strip()
+
+    def chat_json(
+        self,
+        messages: List[dict],
+        system: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ) -> dict:
+        """Send chat completion and parse JSON response.
+
+        Tries up to 2 times: first normal call, then with few-shot example.
+        Only extracts JSON from the LLM response, never from system prompt.
+        """
+        msgs = []
+        if system:
+            msgs.append({"role": "system", "content": system})
+        msgs.extend(messages)
+
+        for attempt in range(2):
+            raw = self.chat(msgs, temperature=0.1 if attempt > 0 else temperature, max_tokens=max_tokens)
+
+            # Only look for JSON in the LAST assistant response
+            parsed = self._extract_json(raw)
+            if parsed:
+                return parsed
+
+            if attempt == 0:
+                # Add few-shot example and retry
+                msgs.append({"role": "assistant", "content": raw})
+                msgs.append({"role": "user", "content": '请严格按要求返回JSON，不要解释。例如：{"intent": "chat", "ending": false}'})
+
+        return {}
+
+    @staticmethod
+    def _extract_json(text: str) -> dict:
+        """Extract JSON object from the LAST response only (skip system prompt contamination)."""
+        import re
+        # Only look at the last 500 chars of response to avoid matching system prompt
+        tail = text[-500:] if len(text) > 500 else text
+        matches = re.findall(r'\{[^{}]+\}', tail, re.DOTALL)
+        for m in matches:
+            try:
+                obj = json.loads(m)
+                if isinstance(obj, dict) and any(k in obj for k in ('intent', 'ending', 'satisfaction')):
+                    return obj
+            except json.JSONDecodeError:
+                continue
+        return {}
 
     def generate_reply(
         self,
