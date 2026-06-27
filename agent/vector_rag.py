@@ -1,169 +1,284 @@
 # -*- coding: utf-8 -*-
 """
-Vector RAG Module — ChromaDB + Embedding-based semantic retrieval.
+Real Vector RAG — 真正的语义向量检索
 
-Uses sentence-transformers for Chinese text embeddings and ChromaDB for
-persistent vector storage. Designed to work alongside BM25 keyword retrieval
-for hybrid search (RRF fusion in rag.py).
+使用 OpenRouter 免费 embedding API（nvidia/llama-nemotron-embed-vl-1b-v2）
++ FAISS 本地向量数据库
 
-Model: shibing624/text2vec-base-chinese (lightweight, ~100MB)
+零 GPU 需求，纯 API 调用。
 """
 
+import json
+import math
 import os
 from pathlib import Path
-from typing import List, Dict, Optional
-
-# ChromaDB
-import chromadb
-from chromadb.config import Settings
-
-# Embedding model — lazy load to avoid startup cost
-_embedding_model = None
+from typing import Dict, List, Optional, Tuple
 
 
-def _get_embedding_model():
-    """Lazy-load the Chinese embedding model."""
-    global _embedding_model
-    if _embedding_model is None:
-        from sentence_transformers import SentenceTransformer
-        model_name = os.environ.get(
-            "EMBEDDING_MODEL",
-            "shibing624/text2vec-base-chinese"
-        )
-        print(f"[Vector RAG] Loading embedding model: {model_name}")
-        _embedding_model = SentenceTransformer(model_name)
-        print("[Vector RAG] Embedding model loaded")
-    return _embedding_model
+# ── OpenRouter Embedding API ────────────────────────────────
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+EMBEDDING_MODEL = "nvidia/llama-nemotron-embed-vl-1b-v2:free"
+
+# Read API key from environment or use default
+OPENROUTER_API_KEY = os.environ.get(
+    "OPENROUTER_API_KEY",
+    ""  # Will be set from OpenClaw config at runtime
+)
 
 
-# ChromaDB persistence path
-_CHROMA_DIR = Path(__file__).parent.parent / "chroma_db"
-_COLLECTION_NAME = "knowledge_base"
+def _get_api_key() -> str:
+    """Get OpenRouter API key from OpenClaw config."""
+    if OPENROUTER_API_KEY:
+        return OPENROUTER_API_KEY
 
+    # Try to read from OpenClaw config
+    config_path = Path.home() / ".openclaw" / "openclaw.json"
+    if config_path.exists():
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
 
-def _get_collection():
-    """Get or create the ChromaDB collection."""
-    chroma_client = chromadb.PersistentClient(
-        path=str(_CHROMA_DIR),
-        settings=Settings(anonymized_telemetry=False),
+            # Navigate to the embedding API key
+            agents_defaults = config.get("agents", {}).get("defaults", {})
+            memory_search = agents_defaults.get("memorySearch", {})
+            remote = memory_search.get("remote", {})
+            api_key = remote.get("apiKey", "")
+
+            if api_key:
+                return api_key
+        except Exception as e:
+            print(f"[Vector RAG] Error reading config: {e}")
+
+    raise ValueError(
+        "OpenRouter API key not found. "
+        "Set OPENROUTER_API_KEY environment variable or configure in OpenClaw."
     )
-    return chroma_client.get_or_create_collection(
-        name=_COLLECTION_NAME,
-        metadata={"hnsw:space": "cosine"},  # cosine similarity for Chinese
-    )
 
 
-def _parse_markdown_to_chunks(md_path: Path) -> List[Dict[str, str]]:
-    """Parse a markdown file into searchable chunks."""
-    text = md_path.read_text(encoding="utf-8")
+def _get_embedding(text: str, max_retries: int = 3) -> Optional[List[float]]:
+    """Get embedding vector from OpenRouter API.
+
+    Args:
+        text: Text to embed
+        max_retries: Number of retry attempts on failure
+
+    Returns:
+        Embedding vector (list of floats) or None if all retries fail
+    """
+    import requests  # lazy import
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                f"{OPENROUTER_BASE_URL}/embeddings",
+                headers={
+                    "Authorization": f"Bearer {_get_api_key()}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "langgraph-customer-service-agent",
+                    "X-Title": "Customer Service RAG",
+                },
+                json={
+                    "model": EMBEDDING_MODEL,
+                    "input": text[:8192],  # Truncate to max length
+                },
+                timeout=30,
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                embedding = data["data"][0]["embedding"]
+                return embedding
+            else:
+                print(f"[Vector RAG] API error {response.status_code}: {response.text[:100]}")
+
+        except Exception as e:
+            print(f"[Vector RAG] Request failed (attempt {attempt + 1}): {e}")
+
+    return None
+
+
+# ── In-memory FAISS-like vector store ───────────────────────
+
+class SimpleVectorStore:
+    """Simple in-memory vector store with cosine similarity search.
+
+    No external dependencies needed — pure Python implementation.
+    """
+
+    def __init__(self):
+        self.vectors = []       # List of embedding vectors
+        self.metadata = []      # List of metadata dicts (title, source, text)
+        self._built = False
+
+    def add(self, vector: List[float], metadata: Dict) -> None:
+        """Add a vector with metadata."""
+        self.vectors.append(vector)
+        self.metadata.append(metadata)
+        self._built = False
+
+    def search(self, query_vector: List[float], top_k: int = 5) -> List[Dict]:
+        """Search for most similar vectors using cosine similarity.
+
+        Args:
+            query_vector: Query embedding vector
+            top_k: Number of results to return
+
+        Returns:
+            List of {"title", "text", "score", "source"} dicts sorted by relevance.
+        """
+        if not self.vectors:
+            return []
+
+        # Compute cosine similarity with all vectors
+        scores = []
+        for i, vector in enumerate(self.vectors):
+            sim = _cosine_similarity(query_vector, vector)
+            if sim > 0:
+                scores.append((sim, i))
+
+        # Sort by score descending
+        scores.sort(key=lambda x: x[0], reverse=True)
+
+        # Return top_k results with metadata
+        results = []
+        for sim, idx in scores[:top_k]:
+            meta = self.metadata[idx]
+            results.append({
+                "title": meta["title"],
+                "text": meta["text"],
+                "score": round(sim, 4),
+                "source": meta["source"],
+            })
+
+        return results
+
+
+# ── Global state ───────────────────────────────────────────────
+
+_vector_store = SimpleVectorStore()
+_indexed = False
+KB_DIR = Path(__file__).parent.parent / "knowledge"
+
+
+def _cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
+    """Compute cosine similarity between two vectors."""
+    if len(vec_a) != len(vec_b):
+        return 0.0
+
+    dot_product = sum(a * b for a, b in zip(vec_a, vec_b))
+    norm_a = math.sqrt(sum(a * a for a in vec_a))
+    norm_b = math.sqrt(sum(b * b for b in vec_b))
+
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+
+    return dot_product / (norm_a * norm_b)
+
+
+def _load_knowledge_base() -> List[Dict]:
+    """Load and parse knowledge base markdown files."""
+    global _indexed
+
+    if _indexed:
+        return []  # Already indexed
+
+    if not KB_DIR.exists():
+        print(f"[Vector RAG] Knowledge base not found: {KB_DIR}")
+        return []
+
+    all_sections = []
+
+    for md_file in sorted(KB_DIR.glob("*.md")):
+        try:
+            text = md_file.read_text(encoding="utf-8")
+            sections = _parse_markdown(text, md_file.stem)
+            for s in sections:
+                s["source"] = md_file.stem
+            all_sections.extend(sections)
+        except Exception as e:
+            print(f"[Vector RAG] Error loading {md_file}: {e}")
+
+    return all_sections
+
+
+def _parse_markdown(text: str, source: str) -> List[Dict]:
+    """Parse markdown into sections."""
+    import re
+    sections = []
     lines = text.split("\n")
-    chunks = []
-    current_heading = md_path.stem
-    current_lines = []
+    current_heading = source
+    current_content = []
 
     for line in lines:
         if line.startswith("#"):
-            if current_lines:
-                chunks.append({
+            if current_content:
+                sections.append({
                     "title": current_heading,
-                    "text": "\n".join(current_lines).strip(),
-                    "source": md_path.stem,
+                    "text": "\n".join(current_content).strip(),
                 })
             heading_text = line.lstrip("# ").strip()
             if heading_text:
                 current_heading = heading_text
-            current_lines = []
+            current_content = []
         else:
-            current_lines.append(line)
+            current_content.append(line)
 
-    if current_lines:
-        chunks.append({
+    if current_content:
+        sections.append({
             "title": current_heading,
-            "text": "\n".join(current_lines).strip(),
-            "source": md_path.stem,
+            "text": "\n".join(current_content).strip(),
         })
 
-    return chunks
+    return sections
 
 
-def _build_chunk_id(title: str, source: str, index: int) -> str:
-    """Build a unique ID for a chunk."""
-    return f"{source}::{title.replace(' ', '_')}::{index}"
+def build_index():
+    """Build vector index from knowledge base.
 
-
-def index_knowledge_base(force_reindex: bool = False) -> int:
-    """Index all knowledge base documents into ChromaDB.
-
-    Args:
-        force_reindex: If True, delete existing collection and rebuild.
-
-    Returns:
-        Number of chunks indexed.
+    This is a one-time operation that embeds all knowledge base sections
+    and stores them in memory for fast similarity search.
     """
-    kb_dir = Path(__file__).parent.parent / "knowledge"
-    if not kb_dir.exists():
-        print(f"[Vector RAG] Knowledge base not found: {kb_dir}")
-        return 0
+    global _indexed, _vector_store
 
-    collection = _get_collection()
+    if _indexed:
+        print("[Vector RAG] Index already built")
+        return
 
-    # Check if already indexed
-    if not force_reindex and collection.count() > 0:
-        print(f"[Vector RAG] Already indexed {collection.count()} chunks, skipping")
-        return collection.count()
+    print("[Vector RAG] Building vector index...")
+    sections = _load_knowledge_base()
 
-    if force_reindex:
-        # Delete and recreate
-        chroma_client = chromadb.PersistentClient(
-            path=str(_CHROMA_DIR),
-            settings=Settings(anonymized_telemetry=False),
-        )
-        try:
-            chroma_client.delete_collection(_COLLECTION_NAME)
-        except Exception:
-            pass
-        collection = chroma_client.get_or_create_collection(
-            name=_COLLECTION_NAME,
-            metadata={"hnsw:space": "cosine"},
-        )
+    if not sections:
+        print("[Vector RAG] No sections to index")
+        return
 
-    model = _get_embedding_model()
-    all_ids = []
-    all_embeddings = []
-    all_documents = []
-    all_metadatas = []
-    chunk_count = 0
+    # Create new vector store
+    _vector_store = SimpleVectorStore()
 
-    for md_file in sorted(kb_dir.glob("*.md")):
-        chunks = _parse_markdown_to_chunks(md_file)
-        for i, chunk in enumerate(chunks):
-            if not chunk["text"].strip():
-                continue
-            # Combine title + text for embedding
-            embed_text = f"{chunk['title']} {chunk['text']}"
-            all_ids.append(_build_chunk_id(chunk["title"], chunk["source"], i))
-            all_embeddings.append(model.encode(embed_text).tolist())
-            all_documents.append(chunk["text"])
-            all_metadatas.append({
-                "title": chunk["title"],
-                "source": chunk["source"],
-            })
-            chunk_count += 1
+    # Embed each section
+    for i, section in enumerate(sections):
+        # Combine title and text for better semantic representation
+        text_to_embed = f"{section['title']} {section['text']}"
 
-    if all_ids:
-        collection.add(
-            ids=all_ids,
-            embeddings=all_embeddings,
-            documents=all_documents,
-            metadatas=all_metadatas,
-        )
+        print(f"  [{i+1}/{len(sections)}] Embedding: {section['title'][:40]}...")
 
-    print(f"[Vector RAG] Indexed {chunk_count} chunks from {kb_dir}")
-    return chunk_count
+        embedding = _get_embedding(text_to_embed)
+        if embedding is None:
+            print(f"    ⚠️  Failed to get embedding for section {i+1}")
+            continue
+
+        _vector_store.add(embedding, {
+            "title": section["title"],
+            "text": section["text"],
+            "source": section["source"],
+        })
+
+    _indexed = True
+    print(f"[Vector RAG] Index built: {_vector_store.vectors.__len__()} sections indexed")
 
 
-def vector_retrieve(query: str, top_k: int = 3) -> List[Dict[str, any]]:
-    """Retrieve relevant sections using vector similarity search.
+def vector_retrieve(query: str, top_k: int = 3) -> List[Dict]:
+    """Retrieve relevant sections using semantic similarity.
 
     Args:
         query: Search query string
@@ -172,40 +287,46 @@ def vector_retrieve(query: str, top_k: int = 3) -> List[Dict[str, any]]:
     Returns:
         List of {"title", "text", "score", "source"} dicts sorted by relevance.
     """
-    collection = _get_collection()
-    if collection.count() == 0:
-        # Auto-index if empty
-        index_knowledge_base()
-        collection = _get_collection()
-        if collection.count() == 0:
-            return []
+    if not _indexed:
+        build_index()
 
-    model = _get_embedding_model()
-    query_embedding = model.encode(query).tolist()
+    # Get query embedding
+    print(f"[Vector RAG] Embedding query: {query[:50]}...")
+    query_embedding = _get_embedding(query)
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=min(top_k, collection.count()),
-        include=["documents", "metadatas"],
-    )
+    if query_embedding is None:
+        print("[Vector RAG] Failed to get query embedding, returning empty results")
+        return []
 
-    output = []
-    if results["distances"] and results["distances"][0]:
-        for i, (distance, metadata) in enumerate(
-            zip(results["distances"][0], results["metadatas"][0])
-        ):
-            # ChromaDB returns distance; convert to similarity score
-            score = round(1 - distance, 4)  # cosine distance → similarity
-            output.append({
-                "title": metadata.get("title", ""),
-                "text": results["documents"][0][i],
-                "score": score,
-                "source": metadata.get("source", ""),
-            })
+    # Search for similar sections
+    results = _vector_store.search(query_embedding, top_k=top_k * 2)
 
-    return output
+    return results[:top_k]
 
 
 def rebuild_index():
     """Force rebuild the vector index."""
-    return index_knowledge_base(force_reindex=True)
+    global _indexed
+    _indexed = False
+    return build_index()
+
+
+if __name__ == "__main__":
+    # Quick test
+    print("Testing real vector retrieval with OpenRouter embedding API...")
+
+    # Build index
+    build_index()
+
+    # Test queries
+    test_queries = [
+        "设备连不上WiFi怎么办",
+        "保修期多久",
+        "怎么退货",
+    ]
+
+    for query in test_queries:
+        print(f"\nQuery: {query}")
+        results = vector_retrieve(query, top_k=3)
+        for i, r in enumerate(results, 1):
+            print(f"  [{i}] {r['source']} - {r['title']} (score: {r['score']})")

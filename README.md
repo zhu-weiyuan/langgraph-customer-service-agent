@@ -1,44 +1,70 @@
 # LangGraph Customer Service Agent
 
-A customer service system built with LangGraph, supporting multi-turn dialogue, intent identification, satisfaction checking, and human escalation.
+A customer service system built with LangGraph, featuring SSE streaming, sentiment analysis, RAG knowledge base, and a polished web UI.
 
-## Core Features
+## Features
 
-- **SSE Streaming**: Real-time token-by-token response streaming via Server-Sent Events — users see replies appear character by character instead of waiting for the full response
-- **Streaming Progress Events**: SSE includes `progress: analyzing` event before LLM generation starts, so UI can show "🤔 分析中..." indicator
-- **Sentiment Analysis**: Detects user emotion (angry/sad/anxious/happy) and adjusts bot tone accordingly
-- **RAG Knowledge Base**: Local docs/FAQ retrieval with TF-IDF scoring — grounded answers from product manuals
+### Core Chat Engine
+- **SSE Streaming**: Real-time token-by-token response streaming via Server-Sent Events
+- **Streaming Progress Events**: SSE includes `progress: analyzing` event before LLM generation starts
 - **Intent Identification**: Auto-classify user messages (consult / complaint / chat)
-- **Multi-turn Dialogue**: Context-aware continuous conversation
-- **Multi-turn Memory**: Cross-session user preferences, product interests, and history (SQLite)
-- **Dialogue Summary**: Auto-generate service ticket summaries at session end
-- **Satisfaction Check**: Retry on dissatisfaction, max 3 attempts
-- **Human Escalation**: Use `interrupt` to suspend session for human handling
-- **Session Persistence**: SQLite-based state checkpointing and recovery
-- **Welcome Message**: Auto-greeting with suggested topics on new session start
-- **Message Timestamps**: Each message shows send time for conversation tracking
-- **Read Time Estimation**: Bot messages show estimated reading time (Chinese: 5 chars/sec, English: 2.7 words/sec)
-- **Inline Star Rating**: ⭐ 1-5 star helpfulness rating after each bot reply — logged to SQLite
-- **Copy Button**: One-click copy button on bot message metadata for easy content sharing
-- **Dark Mode UI**: Toggle between light/dark themes with localStorage persistence
-- **Quick Reply Buttons**: Context-aware suggestion buttons after bot responses
-- **Typing Animation**: Character-by-character output with adaptive speed (Chinese vs English)
-- **Session History API**: REST endpoints for session state and memory stats
-- **Knowledge Base Hot Reload**: Reload KB without restarting the server via `/api/rag/reload`
-- **Health Check API**: `/api/health` returns LLM connectivity, DB stats, KB status, request counters
+- **Sentiment Analysis**: Detects user emotion (angry/sad/anxious/happy) and adjusts bot tone
+- **Multi-turn Dialogue**: Context-aware continuous conversation with memory
+- **Satisfaction Check**: Retry on dissatisfaction, max 3 attempts before human escalation
+- **Human Escalation**: Uses LangGraph `interrupt` to suspend session for human handling
+
+### RAG Knowledge Base
+- **TF-IDF Retrieval**: Local docs/FAQ retrieval with scoring — grounded answers from product manuals
+- **Hot Reload**: Reload KB without restarting the server via `/api/rag/reload`
+- **Knowledge Documents**: Auto-loaded from `knowledge/` directory (product manuals, FAQ, troubleshooting)
+
+### Security
+- **Prompt Injection Guard**: Scans input for injection attempts before processing
+- **PII Redaction**: Detects and logs personally identifiable information
 - **Rate Limiting**: Sliding-window per-IP rate limiter (default 60 req/60s), configurable via env vars
-- **Conversation Analytics**: `/api/analytics` provides intent/emotion distribution, rating stats, ticket metrics
-- **Request Timing**: Every API response includes `X-Response-Time` header for latency monitoring
-- **Session History API**: `GET /api/sessions` lists all sessions from memory DB with message counts, last activity time, intent tags, and preview text — enables session management dashboards
-- **Session Switcher UI**: Dropdown in header + toolbar button to browse and switch between historical sessions. Loads full conversation history from server on switch.
-- **Input Character Counter**: Live character count below input field for long message awareness
-- **Scroll-to-Bottom Button**: Floating button appears when user scrolls up, one-click return to latest messages
-- **Analytics Dashboard UI**: Full analytics page at `/analytics` with KPI cards (total conversations, avg reply length, ratings, tickets), intent/emotion distribution bar charts, rating visualization, ticket priority breakdown, and recent sessions table with auto-refresh every 30s
+
+### Web UI
+- **Modern Design**: Purple/blue gradient palette with glassmorphism effects
+- **Dark Mode**: Toggle between light/dark themes with localStorage persistence
+- **Bilingual**: Chinese / English toggle with full i18n support
+- **Voice I/O**: Web Speech API for voice input and text-to-speech output
+- **Emoji Reactions**: 👍👎💡 reactions on bot messages
+- **Star Ratings**: ⭐ 1-5 star helpfulness rating after each bot reply
+- **Quick Replies**: Context-aware suggestion buttons
+- **Session Search**: Search across all sessions from the UI
+- **Session Export**: Export full session history as JSON
+- **Copy Conversation**: One-click copy of entire conversation
+- **Scroll-to-Bottom**: Floating button appears when scrolled up
+- **Character Counter**: Live character count with warning threshold
+
+### Analytics Dashboard
+- **KPI Cards**: Total conversations, average reply length, ratings, ticket counts
+- **Intent/Emotion Distribution**: Visual bar charts
+- **Rating Visualization**: Star rating display with averages
+- **Session Table**: Recent sessions with message counts and previews
+- **Auto-Refresh**: 30-second auto-refresh with toggle
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Chat UI |
+| `/analytics` | GET | Analytics Dashboard |
+| `/api/chat` | POST | `{"message": "...", "session_id": "..."}` → bot response (JSON or SSE stream) |
+| `/api/session/<id>` | GET | Get session state (messages, intent, emotion) |
+| `/api/export/<id>` | GET | Export full session history as JSON |
+| `/api/stats` | GET | Memory database statistics + rating summary |
+| `/api/rating` | POST | `{"session_id": "...", "stars": 5}` → log helpfulness rating |
+| `/api/reaction` | POST | `{"session_id": "...", "emoji": "👍"}` → log emoji reaction |
+| `/api/rag/reload` | GET | Hot reload knowledge base |
+| `/api/sessions` | GET | List all sessions (supports `?search=` query) |
+| `/api/health` | GET | Health check (LLM connectivity, DB stats, KB status) |
+| `/api/analytics` | GET | Conversation analytics data |
 
 ## Architecture
 
 ```
-START -> identify_intent -> generate_reply (+RAG) -> check_satisfaction
+START → identify_intent → generate_reply (+RAG) → check_satisfaction
                                                       |
                                                  process_satisfaction
                                                       |
@@ -68,15 +94,27 @@ langgraph-customer-service-agent/
 │   ├── nodes.py          # Node function implementations (+RAG + Sentiment)
 │   ├── rag.py            # RAG retrieval (TF-IDF, no external deps)
 │   ├── sentiment.py      # Emotion detection + tone adjustment
+│   ├── memory.py         # SQLite conversation memory
+│   ├── llm_client.py     # LLM API client (llama.cpp)
+│   ├── summary.py        # Dialogue summary generation
 │   └── graph.py          # Graph construction and compilation
 ├── knowledge/            # Knowledge base (auto-loaded)
-│   ├── product-manual.md # Product specs, features, pricing
-│   ├── troubleshooting.md # Troubleshooting guides
-│   └── faq.md            # Common Q&A
-├── app.py                # Web UI (port 7860)
+│   ├── product-manual.md
+│   ├── troubleshooting.md
+│   ├── faq.md
+│   └── ...
+├── templates/            # HTML templates
+│   ├── index.html        # Chat UI
+│   └── analytics.html    # Analytics dashboard
+├── app.py                # Web server (port 7860)
 ├── main.py               # Entry point (interactive / test / resume modes)
-├── test_agent.py         # Automated test suite
+├── test_agent.py         # Core agent tests
+├── test_rag.py           # RAG retrieval tests
+├── test_sentiment.py     # Sentiment analysis tests
+├── test_eval.py          # Evaluation tests
 ├── requirements.txt      # Dependencies
+├── Dockerfile            # Docker build
+├── docker-compose.yml    # Docker Compose config
 └── README.md             # This file
 ```
 
@@ -88,51 +126,32 @@ langgraph-customer-service-agent/
 pip install -r requirements.txt
 ```
 
-### 2. Run tests
+### 2. Start llama.cpp (required for LLM)
+
+Ensure llama.cpp is running on port 8080 with your preferred model.
+
+### 3. Run the server
 
 ```bash
-# Full automated test (demonstrates complete flow)
-python main.py --test
+python app.py
+```
 
-# Session resume demo
-python main.py --resume
+Visit http://localhost:7860
 
-# Independent test suite
+### 4. Run tests
+
+```bash
 python test_agent.py
 ```
 
-### 3. Interactive mode
+## Environment Variables
 
-```bash
-python main.py
-```
-
-## Key LangGraph Concepts
-
-| Concept | Description |
-|---------|-------------|
-| **State** | TypedDict defining the graph's data schema; all nodes read/write via state |
-| **Nodes** | Functions that receive state and return state updates |
-| **Edges** | `add_edge()` for fixed transitions; `add_conditional_edges()` for dynamic routing |
-| **Checkpointer** | `SqliteSaver` for persistence; `MemorySaver` for testing |
-| **Interrupt** | Pause graph execution for human-in-the-loop workflows |
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Web UI |
-| `/api/chat` | POST | `{"message": "...", "session_id": "..."}` → bot response (JSON) |
-| `/api/chat` | POST | `{"message": "...", "stream": true}` → SSE streaming tokens (real-time token-by-token output) |
-| `/api/session/<id>` | GET | Get session state (messages, intent, emotion) |
-| `/api/export/<id>` | GET | Export full session history as JSON (downloadable) |
-| `/api/stats` | GET | Memory database statistics + rating summary |
-| `/api/rating` | POST | `{"session_id": "...", "stars": 5}` → log helpfulness rating |
-| `/api/rag/reload` | GET | Hot reload knowledge base (no restart needed) |
-| `/api/sessions` | GET | List all sessions from memory DB (message count, preview, intents) |
-| `/api/health` | GET | Health check (LLM connectivity, DB stats, KB status) |
-| `/api/analytics` | GET | Conversation analytics (intent/emotion distribution, ratings, tickets) |
-| `/analytics` | GET | Analytics Dashboard UI — visual charts with KPI cards, bar charts, session table |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `USE_SQLITE` | `0` | Set to `1` for persistent SQLite checkpoints |
+| `CHECKPOINT_DB` | `checkpoints.db` | Path to checkpoint database |
+| `RATE_LIMIT_REQUESTS` | `60` | Max requests per window |
+| `RATE_LIMIT_WINDOW` | `60` | Rate limit window in seconds |
 
 ## Extending
 
@@ -153,22 +172,7 @@ A: ...
 
 The RAG module parses headings into sections and scores them against user queries.
 
-### Connect a real LLM
-
-Replace mock logic in `nodes.py`:
-
-```python
-from langchain_openai import ChatOpenAI
-
-llm = ChatOpenAI(model="gpt-4")
-
-def identify_intent(state: dict) -> dict:
-    response = llm.invoke(f"Classify intent: {user_message}")
-    intent = parse_intent(response)
-    return {'intent': intent}
-```
-
-### Add a new node
+### Add a New Node
 
 ```python
 # 1. Define in nodes.py
@@ -180,53 +184,13 @@ graph.add_node('new_node', new_node)
 graph.add_edge('existing_node', 'new_node')
 ```
 
-### Custom conditional routing
-
-```python
-def custom_router(state: dict) -> str:
-    if state.get('some_condition'):
-        return 'path_a'
-    else:
-        return 'path_b'
-
-graph.add_conditional_edges(
-    'source_node',
-    custom_router,
-    {'path_a': 'node_a', 'path_b': 'node_b'}
-)
-```
-
-## Test Scenarios
-
-1. **New session** - User asks about product usage
-2. **Satisfaction check** - Bot asks for feedback after reply
-3. **Retry mechanism** - User dissatisfied, bot regenerates reply
-4. **Human escalation** - After 3 unsatisfied retries, escalate via interrupt
-5. **Session resume** - Restore suspended session and continue
-
-## Notes
-
-- Mock data is for testing only; connect real LLMs in production
-- SQLite database file `checkpoints.db` is auto-created
-- Each session uses a unique `thread_id` for isolation
-- `interrupt` requires proper exception handling and resume logic
-
 ## Docker Deployment
 
 ```bash
-# Build and run with docker-compose
 docker-compose up -d
 
 # Access at http://localhost:7860
 ```
-
-Environment variables:
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `USE_SQLITE` | `0` | Set to `1` for persistent SQLite checkpoints |
-| `CHECKPOINT_DB` | `checkpoints.db` | Path to checkpoint database |
-| `RATE_LIMIT_REQUESTS` | `60` | Max requests per window |
-| `RATE_LIMIT_WINDOW` | `60` | Rate limit window in seconds |
 
 ## License
 

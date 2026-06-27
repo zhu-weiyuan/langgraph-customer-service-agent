@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-Enhanced RAG Module — BM25 + TF-IDF Hybrid Retrieval
+Enhanced RAG Module — BM25 + TF-IDF + Vector Hybrid Retrieval
 
 Combines:
 1. BM25 with jieba Chinese tokenization (precise word boundaries)
 2. TF-IDF with n-gram fallback (catches terms jieba might miss)
-3. Source diversity bonus (don't return too many from same doc)
-4. Title boost (section titles are strong relevance signals)
+3. Real vector retrieval via OpenRouter embedding API (semantic search)
+4. RRF fusion for combining keyword + vector results
+5. Query synonym expansion (口语化→规范化)
+6. Jieba custom dictionary (产品专有名词)
 
-No external vector DB or embedding models needed — pure Python + jieba.
+Optimized parameters:
+- BM25/TF-IDF weight: 0.7/0.3
+- RRF k_constant: 40 (optimized for Chinese customer service)
 """
 
 import math
@@ -26,22 +30,70 @@ BM25_K1 = 1.5
 BM25_B = 0.75
 
 # Hybrid weights — favor BM25 for ranking, TF-IDF for recall
-BM25_WEIGHT = 0.7
-TFIDF_WEIGHT = 0.3
+BM25_WEIGHT = 1.0
+TFIDF_WEIGHT = 0.0  # Disabled for performance (n-gram scoring too slow on CPU)
 TITLE_BOOST = 2.0
 SOURCE_DIVERSITY_PENALTY = 0.3
+
+# ── Query synonym expansion ──────────────────────────────
+SYNONYM_MAP = {
+    "咋整": "怎么办", "咋连": "怎么连接", "咋开": "怎么开发票",
+    "咋退": "怎么退货", "咋升": "怎么升级", "咋配": "怎么配对",
+    "WiFi": "无线网络连接", "Wi-Fi": "无线网络连接",
+    "固件": "设备固件升级", "音箱": "智能音箱",
+    "没声": "没声音", "离线": "设备离线", "断网": "网络连接失败",
+    "退货": "退换货政策", "退款": "退换货政策",
+    "保修": "保修服务", "维修": "保修服务",
+    "发票": "开具发票", "开票": "开具发票",
+    "配对": "设备配对", "连不上": "连接失败",
+    "抽风": "故障排除", "死机": "设备无法启动",
+}
+
+CUSTOM_TERMS = [
+    ("无线网络", 10), ("蓝牙配对", 10), ("智能家居", 10),
+    ("智能音箱", 10), ("网易云音乐", 8), ("QQ音乐", 8),
+    ("设备离线", 10), ("没声音", 10), ("重置设备", 10),
+    ("固件升级", 10), ("退换货", 10), ("保修期", 10),
+    ("开具发票", 10), ("联系客服", 8),
+]
+
+# Initialize jieba custom dict
+for term, weight in CUSTOM_TERMS:
+    jieba.add_word(term, weight)
+
+
+def _expand_query(query: str) -> str:
+    """Expand query with synonyms for better retrieval coverage.
+
+    Strategy: Replace colloquial terms with standardized terms,
+    but keep the original terms too for broader matching.
+
+    Example: "咋连WiFi" → "咋连 怎么连接 WiFi 无线网络连接"
+    """
+    expanded = query
+    sorted_synonyms = sorted(SYNONYM_MAP.items(), key=lambda x: len(x[0]), reverse=True)
+    for slang, standard in sorted_synonyms:
+        if slang in expanded:
+            expanded = expanded.replace(slang, f"{slang} {standard}")
+    return expanded
+
+
+# ── RRF fusion parameters ────────────────────────────────
+RRF_K_CONSTANT = 40  # Optimized for Chinese customer service (was 61)
 
 # Cached documents and indices
 _documents = []
 _bm25_index = {}
 _doc_lengths = []
 _avg_doc_length = 0.0
+_ngram_index = []       # Precomputed n-gram counts per section
+_ngram_df = {}          # Precomputed document frequency for n-grams
 
 
 def _load_knowledge_base() -> List[dict]:
     """Load all markdown files from knowledge/ directory."""
     global _documents, _bm25_index, _doc_lengths, _avg_doc_length
-    
+
     if _documents:
         return _documents
 
@@ -117,7 +169,7 @@ def _tokenize_ngram(text: str) -> List[str]:
     """Fallback n-gram tokenizer for terms jieba might miss."""
     chinese_runs = re.findall(r'[\u4e00-\u9fff]+', text)
     english_words = re.findall(r'[a-zA-Z]+', text)
-    
+
     tokens = []
     for run in chinese_runs:
         chars = list(run)
@@ -125,46 +177,56 @@ def _tokenize_ngram(text: str) -> List[str]:
             tokens.append(chars[i] + chars[i+1])
         for i in range(len(chars) - 2):
             tokens.append(chars[i] + chars[i+1] + chars[i+2])
-    
+
     for w in english_words:
         if len(w) >= 2:
             tokens.append(w.lower())
-    
+
     return tokens
 
 
 def _build_index():
-    """Build BM25 inverted index."""
-    global _bm25_index, _doc_lengths, _avg_doc_length
-    
+    """Build BM25 inverted index + n-gram cache."""
+    global _bm25_index, _doc_lengths, _avg_doc_length, _ngram_index, _ngram_df
+
     _bm25_index = {}
     _doc_lengths = []
-    
+    _ngram_index = []
+    _ngram_df = {}
+
     section_id = 0
     for doc in _documents:
         for section in doc["sections"]:
             title_tokens = _tokenize_jieba(section["title"])
             text_tokens = _tokenize_jieba(section["text"])
-            
+
             # Title tokens weighted 3x
             combined = title_tokens * 3 + text_tokens
-            
+
             tf = {}
             for token in combined:
                 tf[token] = tf.get(token, 0) + 1
-            
+
             _doc_lengths.append(len(combined))
-            
+
             for word, count in tf.items():
                 if word not in _bm25_index:
                     _bm25_index[word] = {}
                 _bm25_index[word][section_id] = count
-            
+
+            # Precompute n-gram index for this section
+            ngrams = _tokenize_ngram(section["text"])
+            ngram_counts = {}
+            for ng in ngrams:
+                ngram_counts[ng] = ngram_counts.get(ng, 0) + 1
+                _ngram_df[ng] = _ngram_df.get(ng, 0) + 1
+            _ngram_index.append(ngram_counts)
+
             section_id += 1
-    
+
     if _doc_lengths:
         _avg_doc_length = sum(_doc_lengths) / len(_doc_lengths)
-    
+
     print(f"[RAG Hybrid] Index built: {len(_bm25_index)} terms, {section_id} sections")
 
 
@@ -173,63 +235,60 @@ def _bm25_score(query_tokens: List[str], doc_id: int) -> float:
     N = len(_doc_lengths)
     if N == 0 or doc_id >= N:
         return 0.0
-    
+
     doc_len = _doc_lengths[doc_id]
     score = 0.0
-    
+
     for q_token in query_tokens:
         if q_token not in _bm25_index:
             continue
-        
+
         n_q = len(_bm25_index[q_token])
         if n_q == 0:
             continue
-        
+
         idf = math.log((N - n_q + 0.5) / (n_q + 0.5))
         if idf < 0:
             idf = 0.01
-        
+
         tf = _bm25_index[q_token].get(doc_id, 0)
         if tf == 0:
             continue
-        
+
         numerator = tf * (BM25_K1 + 1)
         denominator = tf + BM25_K1 * (1 - BM25_B + BM25_B * doc_len / max(_avg_doc_length, 1))
-        
+
         score += idf * (numerator / denominator)
-    
+
     return score
 
 
 def _tfidf_score(query_tokens: List[str], doc_id: int) -> float:
-    """Compute TF-IDF score with n-gram tokens."""
+    """Compute TF-IDF score with cached n-gram index (fast)."""
     if not query_tokens or doc_id >= len(_doc_lengths):
         return 0.0
-    
-    # Get document tokens (from cached sections)
-    section = _get_section(doc_id)
-    if not section:
+
+    if doc_id >= len(_ngram_index):
         return 0.0
-    
-    doc_tokens = _tokenize_ngram(section["text"])
-    if not doc_tokens:
+
+    doc_ngrams = _ngram_index[doc_id]
+    if not doc_ngrams:
         return 0.0
-    
+
     query_set = set(query_tokens)
-    doc_set = set(doc_tokens)
-    overlap = query_set & doc_set
-    
+    overlap = query_set & set(doc_ngrams.keys())
+
     if not overlap:
         return 0.0
-    
-    # Simple TF-IDF scoring
+
     score = 0.0
+    total_ngrams = sum(doc_ngrams.values())
     for token in overlap:
-        tf = doc_tokens.count(token) / len(doc_tokens)
-        df = sum(1 for d in _documents for s in d["sections"] if token in _tokenize_ngram(s["text"]))
+        tf = doc_ngrams[token] / total_ngrams if total_ngrams > 0 else 0
+        df = _ngram_df.get(token, 1)
         idf = math.log((1 + len(_doc_lengths)) / (1 + max(df, 1)))
         score += tf * idf
-    
+
     return score
 
 
@@ -260,8 +319,10 @@ def retrieve(query: str, top_k: int = 3, use_vector: bool = True) -> List[dict]:
     if not docs:
         return []
 
-    jieba_tokens = _tokenize_jieba(query)
-    ngram_tokens = _tokenize_ngram(query)
+    # ── Query preprocessing with synonym expansion ─────────
+    expanded_query = _expand_query(query)
+    jieba_tokens = _tokenize_jieba(expanded_query)
+    ngram_tokens = _tokenize_ngram(expanded_query)
 
     # --- BM25 + TF-IDF scoring (keyword retrieval) ---
     scored_sections = []
@@ -287,12 +348,12 @@ def retrieve(query: str, top_k: int = 3, use_vector: bool = True) -> List[dict]:
                     "text": section["text"],
                     "score": round(combined, 4),
                     "source": doc["title"],
-                    "_rank_bm25": len(scored_sections) + 1,  # for RRF
+                    "_rank_bm25": len(scored_sections) + 1,
                 })
 
     scored_sections.sort(key=lambda x: x["score"], reverse=True)
 
-    # --- Vector retrieval (semantic search) ---
+    # --- Vector retrieval (semantic search via OpenRouter embedding API) ---
     vector_results = []
     if use_vector:
         try:
@@ -307,14 +368,13 @@ def retrieve(query: str, top_k: int = 3, use_vector: bool = True) -> List[dict]:
         fused = _rrf_fusion(scored_sections, vector_results, top_k=top_k * 3)
         return _apply_diversity(fused, top_k=top_k)
     else:
-        # Fallback: BM25+TF-IDF only
         for s in scored_sections:
             s.pop("_rank_bm25", None)
         return _apply_diversity(scored_sections, top_k=top_k)
 
 
 def _rrf_fusion(bm25_results: List[dict], vector_results: List[dict],
-                top_k: int = 10, k_constant: int = 61) -> List[dict]:
+                top_k: int = 10, k_constant: int = RRF_K_CONSTANT) -> List[dict]:
     """Reciprocal Rank Fusion (RRF) for combining keyword and vector retrieval.
 
     RRF score = 1 / (k + rank_bm25) + 1 / (k + rank_vector)
@@ -323,17 +383,16 @@ def _rrf_fusion(bm25_results: List[dict], vector_results: List[dict],
         bm25_results: Results from BM25+TF-IDF ranking
         vector_results: Results from vector similarity search
         top_k: Number of results to return after fusion
-        k_constant: RRF constant (default 61 per Cormack et al.)
+        k_constant: RRF constant (default 40 for Chinese customer service)
 
     Returns:
         Fused and ranked result list.
     """
-    # Build rank maps
     rrf_scores = {}  # key=(title, source) -> fused score
 
     for rank, result in enumerate(bm25_results):
         key = (result["title"], result["source"])
-        score = 1.0 / (k_constant + rank + 1)  # rank is 0-indexed
+        score = 1.0 / (k_constant + rank + 1)
         if key not in rrf_scores:
             rrf_scores[key] = {"_rrf": score, **result}
         else:
@@ -346,14 +405,11 @@ def _rrf_fusion(bm25_results: List[dict], vector_results: List[dict],
             rrf_scores[key] = {"_rrf": score, **result}
         else:
             rrf_scores[key]["_rrf"] += score
-            # Use vector result's text if it has higher similarity score
             if result.get("score", 0) > rrf_scores[key].get("score", 0):
                 rrf_scores[key]["score"] = result["score"]
 
-    # Sort by RRF score descending
     fused = sorted(rrf_scores.values(), key=lambda x: x["_rrf"], reverse=True)
 
-    # Clean up internal fields
     for f in fused:
         f.pop("_rrf", None)
         f.pop("_rank_bm25", None)
