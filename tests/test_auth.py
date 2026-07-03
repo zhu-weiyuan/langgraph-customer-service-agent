@@ -27,8 +27,16 @@ def test_is_public_endpoint_static():
 
 
 def test_is_private_endpoint_chat():
-    """Chat endpoint should require auth."""
-    assert AuthMiddleware.is_public_endpoint("/api/chat") == False
+    """Chat endpoint should require auth when API_KEYS is configured."""
+    with patch.dict(os.environ, {"API_KEYS": "some-key"}):
+        assert AuthMiddleware.is_public_endpoint("/api/chat") == False
+
+
+def test_all_public_when_no_api_keys():
+    """When API_KEYS is empty, all endpoints are public (local dev mode)."""
+    with patch.dict(os.environ, {"API_KEYS": ""}, clear=True):
+        assert AuthMiddleware.is_public_endpoint("/api/chat") == True
+        assert AuthMiddleware.is_public_endpoint("/api/internal") == True
 
 
 def test_check_api_key_valid_header():
