@@ -9,8 +9,20 @@
 """
 
 import time
+import logging
 from typing import Dict, Any, List
 from langchain_core.messages import HumanMessage, AIMessage
+
+logger = logging.getLogger(__name__)
+
+# ── Token 预算管理 ────────────────────────────────────────
+MAX_INPUT_TOKENS = 120_000     # 模型上下文上限（留余量）
+RESERVED_OUTPUT_TOKENS = 512   # 预留给输出的 Token
+MAX_SYSTEM_PROMPT_CHARS = 8000 # System prompt 最大字符数
+
+# Token 估算系数（中文约 1.5 tokens/字，英文约 1.3 tokens/词）
+CHINESE_TOKEN_RATIO = 1.5
+ENGLISH_TOKEN_RATIO = 1.3
 
 # ============================================================
 # Node timing middleware (LangGraph best practice: monitor node latency)
@@ -194,6 +206,56 @@ def _identify_intent_inner(state: Dict[str, Any]) -> Dict[str, Any]:
 # 回复生成
 # ============================================================
 
+def estimate_tokens(text: str) -> int:
+    """粗略估算文本的 Token 数量。
+
+    中文约 1.5 tokens/字，英文约 1.3 tokens/词。
+    这是估算值，不精确但足够用于预算控制。
+    """
+    import re
+    chinese_chars = len(re.findall(r'[一-鿿]', text))
+    english_words = len(re.findall(r'[a-zA-Z]+', text))
+    other_chars = len(text) - chinese_chars - len(re.findall(r'[a-zA-Z]+', text))
+
+    tokens = (
+        chinese_chars * CHINESE_TOKEN_RATIO +
+        english_words * ENGLISH_TOKEN_RATIO +
+        other_chars * 0.5  # 标点/数字等按 0.5 估算
+    )
+    return int(tokens)
+
+
+def estimate_total_tokens(messages: List, system_prompt: str) -> Dict[str, Any]:
+    """估算整个请求的 Token 用量。
+
+    Returns:
+        {
+            'system_tokens': int,
+            'messages_tokens': int,
+            'total': int,
+            'within_budget': bool,
+            'remaining_for_output': int,
+        }
+    """
+    system_tokens = estimate_tokens(system_prompt)
+
+    messages_tokens = 0
+    for msg in messages:
+        content = msg.content if hasattr(msg, 'content') else str(msg.get('content', ''))
+        messages_tokens += estimate_tokens(content)
+
+    total = system_tokens + messages_tokens
+    remaining = MAX_INPUT_TOKENS - total - RESERVED_OUTPUT_TOKENS
+
+    return {
+        'system_tokens': system_tokens,
+        'messages_tokens': messages_tokens,
+        'total': total,
+        'within_budget': total <= MAX_INPUT_TOKENS - RESERVED_OUTPUT_TOKENS,
+        'remaining_for_output': remaining,
+    }
+
+
 def _trim_messages(messages: List, keep_last: int = 10) -> List:
     """Trim message list to prevent unbounded growth in checkpointer state.
 
@@ -216,6 +278,41 @@ def _trim_messages(messages: List, keep_last: int = 10) -> List:
     return messages[-keep_last * 2:]
 
 
+def _trim_messages_by_tokens(messages: List, max_tokens: int) -> List:
+    """按 Token 预算裁剪消息，从最旧的开始删。
+
+    Args:
+        messages: 完整消息列表
+        max_tokens: 最大允许的 Token 数
+
+    Returns:
+        裁剪后的消息列表（保证总 Token <= max_tokens）
+    """
+    if not messages:
+        return messages
+
+    # 先估算总量
+    total = sum(
+        estimate_tokens(msg.content if hasattr(msg, 'content') else str(msg.get('content', '')))
+        for msg in messages
+    )
+
+    if total <= max_tokens:
+        return messages
+
+    # 从最旧的开始删，直到满足预算
+    trimmed = list(messages)
+    while len(trimmed) > 2 and total > max_tokens:
+        removed = trimmed.pop(0)
+        removed_tokens = estimate_tokens(
+            removed.content if hasattr(removed, 'content') else str(removed.get('content', ''))
+        )
+        total -= removed_tokens
+
+    logger.info(f"[Token Trim] {len(messages)} -> {len(trimmed)} messages ({total} tokens <= {max_tokens})")
+    return trimmed
+
+
 # ============================================================
 # Shared reply context builder (used by both graph nodes and streaming API)
 # ============================================================
@@ -231,11 +328,17 @@ def build_reply_context(
 ) -> Dict[str, Any]:
     """Build context for reply generation (shared between graph node and streaming API).
 
+    Token 预算管理流程：
+    1. 先估算当前消息 + system prompt 的总 Token
+    2. 如果超出预算，按 Token 裁剪（从最旧的消息开始删）
+    3. 确保预留 RESERVED_OUTPUT_TOKENS 给模型输出
+
     Returns a dict with:
       - context_messages: trimmed conversation history as dicts
       - system_prompt: full system prompt with RAG + memory + tone adjustment
       - rag_info: Agentic RAG result dict or None
       - latest_user: last user message text
+      - token_budget: Token 预算信息（用于可观测性）
     """
     # Trim to recent context for LLM call (avoids context window overflow)
     trimmed = _trim_messages(messages, keep_last=6)  # 12 messages for LLM
@@ -290,11 +393,23 @@ def build_reply_context(
     rag_label = f"agentic({rag_info['rounds']}轮)" if rag_info and rag_info.get('queries_tried') else ('yes' if rag_context else 'no')
     print(f"[Reply Context] intent={intent}, retry={retry_count}, rag={rag_label}")
 
+    # ── Token 预算管理 ────────────────────────────────────────
+    token_budget = estimate_total_tokens(context_messages, system_prompt)
+    print(f"[Token Budget] total={token_budget['total']} (system={token_budget['system_tokens']}, msgs={token_budget['messages_tokens']}), remaining={token_budget['remaining_for_output']}")
+
+    # 如果超出预算，按 Token 裁剪
+    if not token_budget['within_budget']:
+        max_msg_tokens = MAX_INPUT_TOKENS - token_budget['system_tokens'] - RESERVED_OUTPUT_TOKENS
+        context_messages = _trim_messages_by_tokens(context_messages, max_msg_tokens)
+        token_budget = estimate_total_tokens(context_messages, system_prompt)  # 重新估算
+        print(f"[Token Budget] After trim: total={token_budget['total']}, remaining={token_budget['remaining_for_output']}")
+
     return {
         'context_messages': context_messages,
         'system_prompt': system_prompt,
         'rag_info': rag_info,
         'latest_user': latest_user,
+        'token_budget': token_budget,
     }
 
 

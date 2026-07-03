@@ -165,49 +165,6 @@ def save_conversation(session_id: str, user_message: str, bot_reply: str,
         conn.close()
 
 
-def _update_product_interests(session_id: str, message: str):
-    """Auto-detect product interests from user messages."""
-    product_keywords = {
-        '智能音箱': ['音箱', 'speaker', '音响', '播放音乐'],
-        '智能家居套装': ['智能家居', '网关', '灯泡', '插座', '传感器', 'zigbee'],
-        '云服务': ['云', '存储', '订阅', '会员', '备份'],
-    }
-
-    detected = []
-    for product, keywords in product_keywords.items():
-        if any(kw in message for kw in keywords):
-            detected.append(product)
-
-    if not detected:
-        return
-
-    conn = _get_connection()
-    try:
-        # Merge with existing interests
-        existing = conn.execute(
-            "SELECT product_interests FROM user_preferences WHERE session_id = ?", (session_id,)
-        ).fetchone()
-
-        if existing and existing['product_interests']:
-            interests = json.loads(existing['product_interests'])
-        else:
-            interests = []
-
-        for p in detected:
-            if p not in interests:
-                interests.append(p)
-
-        if interests:
-            conn.execute(
-                """INSERT INTO user_preferences (session_id, product_interests)
-                   VALUES (?, ?)
-                   ON CONFLICT(session_id, product_interests) DO UPDATE SET
-                     update_count = user_preferences.update_count + 1""",
-                (session_id, json.dumps(interests, ensure_ascii=False))
-            )
-            conn.commit()
-    finally:
-        conn.close()
 
 
 def get_user_context(session_id: str) -> Dict[str, Any]:
@@ -272,7 +229,7 @@ def build_memory_context(session_id: str) -> str:
     if context['preferred_name']:
         parts.append(f"- 希望被称呼为：{context['preferred_name']}")
     if context['product_interests']:
-        products = '、'.join(context['product_interests'])
+        products = '\u3001'.join(context['product_interests'])
         parts.append(f"- 关注产品：{products}")
     if context['total_conversations'] > 0:
         parts.append(f"- 历史对话次数：{context['total_conversations']}")
@@ -317,7 +274,6 @@ def save_ticket(ticket: Dict[str, Any]):
     finally:
         conn.close()
 
-
 def get_stats() -> Dict[str, Any]:
     """Get memory database statistics."""
     conn = _get_connection()
@@ -333,3 +289,60 @@ def get_stats() -> Dict[str, Any]:
         "unresolved_issues": unresolved,
         "db_path": str(MEMORY_DB_PATH),
     }
+
+
+def _update_product_interests(session_id: str, message: str):
+    """Auto-detect product interests from user messages (enhanced with LLM-based extraction)."""
+    # 原有关键词匹配（快速路径）
+    product_keywords = {
+        '智能音箱': ['音箱', 'speaker', '音响', '播放音乐'],
+        '智能家居套装': ['智能家居', '网关', '灯泡', '插座', '传感器', 'zigbee'],
+        '云服务': ['云', '存储', '订阅', '会员', '备份'],
+    }
+
+    detected = []
+    for product, keywords in product_keywords.items():
+        if any(kw in message for kw in keywords):
+            detected.append(product)
+
+    # 如果关键词匹配失败，用 LLM 提取（慢速路径）
+    if not detected:
+        from .llm_client import get_llm_client
+        result = get_llm_client().chat_json(
+            [{"role": "user", "content": f"从这句话中提取用户感兴趣的产品或功能：{message}\n返回JSON数组，如果没有则返回空数组。"}],
+            "你是一个产品兴趣提取器。只返回JSON数组，不要其他文字。"
+        )
+        if result and isinstance(result, list):
+            detected = [str(p) for p in result]
+
+    if not detected:
+        return
+
+    conn = _get_connection()
+    try:
+        # 合并现有兴趣
+        existing = conn.execute(
+            "SELECT product_interests FROM user_preferences WHERE session_id = ?",
+            (session_id,)
+        ).fetchone()
+
+        if existing and existing['product_interests']:
+            interests = json.loads(existing['product_interests'])
+        else:
+            interests = []
+
+        for p in detected:
+            if p not in interests:
+                interests.append(p)
+
+        if interests:
+            conn.execute(
+                """INSERT INTO user_preferences (session_id, product_interests)
+                   VALUES (?, ?)
+                   ON CONFLICT(session_id, product_interests) DO UPDATE SET
+                     update_count = user_preferences.update_count + 1""",
+                (session_id, json.dumps(interests, ensure_ascii=False))
+            )
+            conn.commit()
+    finally:
+        conn.close()

@@ -47,3 +47,6 @@ class CustomerServiceState(TypedDict):
 
     # Agentic RAG: 当前检索轮次
     rag_round: int
+
+    # Observability: trace session (for recording request lifecycle)
+    trace_session: Optional[object]

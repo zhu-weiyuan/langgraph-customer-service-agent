@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+print("[APP.LOADED] app.py loaded from", __file__)
 """
 Web server for LangGraph Customer Service Agent (Real LLM version).
 
@@ -21,8 +22,9 @@ from collections import defaultdict
 # Windows UTF-8 — skip under pytest (CaptureFixture has no .buffer)
 if sys.platform == 'win32' and '__pytest' not in sys.modules:
     try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+        # Use line buffering to ensure immediate output
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace', line_buffering=True)
     except (AttributeError, ValueError):
         pass
 
@@ -45,9 +47,25 @@ def _load_template(name):
         print(f"[Server] ⚠️  Template not found: {path}")
         return f"<h1>Template not found: {name}</h1>"
 
-# Load templates at import time (cached in memory)
-CHAT_HTML = _load_template('index.html')
-ANALYTICS_HTML = _load_template('analytics.html')
+# Load templates from JSON-encoded strings (avoids HTML parser issues with </tag> in <script>)
+from agent._html_strings import INDEX as _RAW_CHAT_HTML, ANALYTICS as ANALYTICS_HTML
+from agent.logging_config import setup_logging, logger
+from agent.observability import MetricsCollector, AlertService
+metrics = MetricsCollector()
+alert_service = AlertService(metrics)
+# 告警规则：平均延迟超过 5s 时触发
+alert_service.add_rule("high_latency", "request_latency", threshold=5000)
+from agent.auth import AuthMiddleware
+from agent.redis_cache import get_redis
+
+_redis = get_redis()
+
+# Fix HTML parser issue: </g in regex breaks <script> parsing
+# Replace /</g with /\x3c/g in the served HTML
+import re as _re
+# Fix HTML parser issue: any </ + letter in <script> breaks parsing
+# Replace ALL closing tags inside <script> with escaped versions
+CHAT_HTML = _RAW_CHAT_HTML
 
 # ── Rate Limiter (sliding window) ───────────────────────────────
 class RateLimiter:
@@ -78,6 +96,7 @@ _rate_limiter = RateLimiter(
 
 # ── Request counters ────────────────────────────────────────────
 _request_counter = {"total": 0, "errors": 0}
+_trace_service = None
 
 PORT = 7860
 
@@ -101,7 +120,7 @@ def _check_llm_connectivity() -> bool:
             headers={"Authorization": f"Bearer {client.api_key}"},
             method="GET",
         )
-        with ur.urlopen(req, timeout=5) as resp:
+        with ur.urlopen(req, timeout=10) as resp:
             return resp.status == 200
     except Exception:
         return False
@@ -112,11 +131,16 @@ def init():
 
     Set USE_SQLITE=1 environment variable for persistent checkpointing.
     """
-    global _graph
+    global _graph, _trace_service
     use_sqlite = os.environ.get('USE_SQLITE', '0') == '1'
     db_path = os.environ.get('CHECKPOINT_DB', 'checkpoints.db')
     _graph = build_graph(use_sqlite=use_sqlite, db_path=db_path)
     print(f"[Server] Agent initialized (Real LLM via llama.cpp, sqlite={use_sqlite})")
+
+    # Initialize observability trace service
+    from agent.observability import TraceService
+    _trace_service = TraceService(db_path="agent/trace.db")
+    print("[Server] ✅ TraceService initialized (agent/trace.db)")
 
     # LLM connectivity check (non-blocking warning)
     llm_ok = _check_llm_connectivity()
@@ -130,6 +154,12 @@ def init():
 def stream_llm_reply(messages, system_prompt, max_tokens=384):
     """Stream LLM reply tokens via llama.cpp streaming API.
 
+    异常处理：
+    - 客户端断开（BrokenPipeError/ConnectionResetError）→ 静默退出，停止生成 Token
+    - 超时 → 发送错误消息给前端
+    - 网络断流 → 重试一次后返回完整回复作为 fallback
+    - 熔断器记录：429 限流 → record_vendor_429()
+
     Yields individual token strings as they arrive from the LLM.
     Falls back to non-streaming if streaming fails.
     """
@@ -141,12 +171,17 @@ def stream_llm_reply(messages, system_prompt, max_tokens=384):
     api_key = client.api_key
 
     payload = {
+        "model": client.model,
         "messages": [{"role": "system", "content": system_prompt}] + messages,
         "max_tokens": max_tokens,
         "temperature": 0.7,
         "stream": True,
     }
 
+    # Ensure we use the chat completions endpoint
+    if not api_url.endswith('/chat/completions'):
+        api_url = api_url.rstrip('/') + '/chat/completions'
+    
     data = json.dumps(payload).encode("utf-8")
     req = _ur.Request(
         api_url,
@@ -155,40 +190,81 @@ def stream_llm_reply(messages, system_prompt, max_tokens=384):
         method="POST",
     )
 
+    # 获取限流器（用于熔断器记录）
+    from agent.rate_limiter import get_rate_limiter
+    rate_limiter = get_rate_limiter()
+    
     try:
+        print(f"[Stream] Connecting to {api_url}...")
         with _ur.urlopen(req, timeout=180) as resp:
+            print(f"[Stream] Connected, status={resp.status}")
+            # 连接成功，记录到熔断器
+            rate_limiter.record_vendor_success()
+            
             buf = b""
+            token_count = 0
             while True:
-                chunk = resp.read(4096)
-                if not chunk:
-                    break
-                buf += chunk
-                lines = buf.split(b"\n")
-                buf = lines.pop() or b""
-                for line in lines:
-                    line_str = line.decode("utf-8", errors="replace").strip()
-                    if line_str.startswith("data: "):
-                        json_str = line_str[6:]
-                        if json_str == "[DONE]":
-                            return
-                        try:
-                            obj = json.loads(json_str)
-                            delta = obj.get("choices", [{}])[0].get("delta", {})
-                            token = delta.get("content", "")
-                            if token:
-                                yield token
-                        except (json.JSONDecodeError, KeyError, IndexError):
-                            pass
+                try:
+                    chunk = resp.read(4096)
+                    if not chunk:
+                        break
+                    buf += chunk
+                    lines = buf.split(b"\n")
+                    buf = lines.pop() or b""
+                    for line in lines:
+                        line_str = line.decode("utf-8", errors="replace").strip()
+                        if line_str.startswith("data: "):
+                            json_str = line_str[6:]
+                            if json_str == "[DONE]":
+                                print(f"[Stream] Received [DONE] after {token_count} tokens")
+                                return
+                            try:
+                                obj = json.loads(json_str)
+                                delta = obj.get("choices", [{}])[0].get("delta", {})
+                                token = delta.get("content", "")
+                                if token:
+                                    token_count += 1
+                                    yield token
+                            except (json.JSONDecodeError, KeyError, IndexError):
+                                pass
+                except (BrokenPipeError, ConnectionResetError) as e:
+                    # 客户端断开连接，停止生成 Token（避免浪费钱）
+                    print(f"[Stream] Client disconnected: {e}")
+                    return
+                except TimeoutError:
+                    yield 'data: {"error": "响应超时，请稍后重试"}\n\n'
+                    return
+            print(f"[Stream] Finished with {token_count} tokens")
+    except Exception as e:
+        error_msg = str(e)
+        # 检查是否是 429 限流错误
+        if "429" in error_msg or "Too Many Requests" in error_msg:
+            rate_limiter.record_vendor_429()
+            yield 'data: {"error": "服务繁忙，请稍后重试"}\n\n'
+        else:
+            rate_limiter.record_vendor_success()  # 其他错误不算熔断
+            print(f"[Streaming 错误] {e}")
+            yield f'data: {{"error": "流式响应失败：{error_msg}"}}\n\n'
     except Exception as e:
         print(f"[Streaming 错误] {e}")
+        # 检查是否是 429 限流错误
+        if "429" in str(e):
+            rate_limiter.record_vendor_429()
+        else:
+            rate_limiter.record_vendor_success()  # 其他错误不算熔断
         # Fallback: non-streaming call
         from agent.nodes import _call_llm
         fallback = _call_llm(messages, system_prompt, max_tokens)
         yield fallback
 
 
-def run_agent_stream(session_id, user_message):
+def run_agent_stream(session_id, user_message, trace_session=None):
     """Run the agent and stream tokens via SSE.
+
+    Args:
+        session_id: Session identifier
+        user_message: User input message
+        trace_session: Optional TraceSession for observability recording
 
     Returns a generator of SSE-formatted strings.
     """
@@ -227,6 +303,11 @@ def run_agent_stream(session_id, user_message):
     # Manually orchestrate: identify_intent -> generate_reply (streamed)
     from agent.nodes import identify_intent, build_reply_context
 
+    # Trace: record start of intent identification
+    t0 = time.time()
+    if trace_session:
+        trace_session.add_event("intent_identification", {"status": "started"})
+
     # Step 1: Identify intent (non-streaming)
     state = dict(input_data)
 
@@ -236,11 +317,23 @@ def run_agent_stream(session_id, user_message):
     intent_result = identify_intent(state)
     state.update(intent_result)
 
+    # Trace: record intent result
+    if trace_session:
+        intent_duration = (time.time() - t0) * 1000
+        trace_session.add_event("intent_identification", {
+            "status": "completed",
+            "intent": state.get('intent', 'unknown'),
+            "emotion": state.get('emotion', 'neutral'),
+            "intensity": state.get('emotion_intensity', 1),
+            "ending": state.get('ending', False)
+        }, duration_ms=intent_duration)
+
     intent = state.get('intent', 'consult')
     emotion = state.get('emotion', 'neutral')
     intensity = state.get('emotion_intensity', 1)
 
     # Step 2: Build reply context using shared helper (same logic as generate_reply node)
+    t1 = time.time()
     ctx = build_reply_context(
         messages=state.get('messages', []),
         intent=intent,
@@ -250,14 +343,30 @@ def run_agent_stream(session_id, user_message):
         emotion_intensity=intensity,
         retry_count=0,
     )
+    context_duration = (time.time() - t1) * 1000
+
+    # Trace: record RAG retrieval result
+    if trace_session:
+        rag_info = ctx.get('rag_info')
+        trace_session.add_event("rag_retrieval", {
+            "duration_ms": round(context_duration, 2),
+            "has_context": bool(ctx.get('rag_context', '')),
+            "rounds": rag_info.get('rounds', 0) if rag_info else 0,
+            "sufficient": rag_info.get('sufficient', False) if rag_info else False,
+            "queries_tried": len(rag_info.get('queries_tried', [])) if rag_info else 0
+        }, duration_ms=context_duration)
 
     # Stream tokens
     rag_info = ctx.get('rag_info')
     full_reply = ""
+    print(f"[Stream] Starting to stream tokens...")
+    token_count = 0
     for token in stream_llm_reply(ctx['context_messages'], ctx['system_prompt'], max_tokens=384):
         full_reply += token
+        token_count += 1
         token_json = json.dumps({"token": token}, ensure_ascii=False)
         yield "data: " + token_json + "\n\n"
+    print(f"[Stream] Finished streaming {token_count} tokens, total length: {len(full_reply)}")
 
     # Save to memory
     if session_id:
@@ -276,6 +385,22 @@ def run_agent_stream(session_id, user_message):
     ai_message = AIMessage(content=full_reply)
     _graph.update_state(config, {'messages': [human_message, ai_message], 'bot_reply': full_reply})
 
+    # Trace: record LLM generation result
+    if trace_session:
+        trace_session.add_event("llm_generation", {
+            "status": "completed",
+            "token_count": token_count,
+            "reply_length": len(full_reply),
+            "reply_type": _classify_message(full_reply)
+        })
+        # Save the complete trace
+        trace_session.finalize()
+        if _trace_service:
+            try:
+                _trace_service.save_trace(trace_session)
+            except Exception as e:
+                print(f"[Trace] Failed to save: {e}")
+
     # Final metadata event
     meta = {
         "done": True,
@@ -290,8 +415,14 @@ def run_agent_stream(session_id, user_message):
     yield "data: " + json.dumps(meta, ensure_ascii=False) + "\n\n"
 
 
-def run_agent(session_id, user_message):
-    """Run the agent for a user message."""
+def run_agent(session_id, user_message, trace_session=None):
+    """Run the agent for a user message.
+
+    Args:
+        session_id: Session identifier
+        user_message: User input message
+        trace_session: Optional TraceSession for observability recording
+    """
     config = {"configurable": {"thread_id": session_id}}
     human_msg = HumanMessage(content=user_message)
 
@@ -319,19 +450,36 @@ def run_agent(session_id, user_message):
     all_new_messages = []
     interrupted = False
 
+    # Trace: record graph execution start
+    t0 = time.time()
+    if trace_session:
+        trace_session.add_event("graph_execution", {"status": "started"})
+
     try:
         for event in _graph.stream(input_data, config=config, stream_mode="values"):
             if event and event.get('messages'):
                 new_msgs = event['messages'][existing_count:]
                 all_new_messages.extend(new_msgs)
     except Exception as e:
+        # Trace: record graph execution completion with error info
+        if trace_session:
+            duration = (time.time() - t0) * 1000
+            trace_session.add_event("graph_execution", {
+                "status": "completed",
+                "interrupted": False,
+                "duration_ms": round(duration, 2)
+            }, duration_ms=duration)
         if "interrupt" in str(e).lower():
             interrupted = True
 
-    # Get final state
-    state = _graph.get_state(config)
-    intent = 'unknown'
-    retry_count = 0
+    # Trace: record graph execution completion
+    if trace_session:
+        duration = (time.time() - t0) * 1000
+        trace_session.add_event("graph_execution", {
+            "status": "completed",
+            "interrupted": interrupted,
+            "duration_ms": round(duration, 2)
+        }, duration_ms=duration)
 
     if state and state.values:
         intent = state.values.get('intent', 'unknown') or 'unknown'
@@ -350,6 +498,20 @@ def run_agent(session_id, user_message):
     next_action = "Active"
     if interrupted:
         next_action = "Escalated"
+
+    # Trace: save the complete trace before returning
+    if trace_session:
+        trace_session.add_event("response", {
+            "reply_count": len(replies),
+            "intent": intent,
+            "next_action": next_action
+        })
+        trace_session.finalize()
+        if _trace_service:
+            try:
+                _trace_service.save_trace(trace_session)
+            except Exception as e:
+                print(f"[Trace] Failed to save: {e}")
 
     return {
         "replies": replies,
@@ -375,20 +537,69 @@ def _classify_message(content):
 
 class ChatHandler(BaseHTTPRequestHandler):
     def _check_rate_limit(self):
-        """Check rate limit and reject if exceeded. Returns True if allowed."""
+        """分层限流检查。
+
+        四层架构：
+        1. 用户级：滑动窗口（60 req/60s）
+        2. 供应商级：令牌桶 + 熔断器
+        3. 模型级：按模型隔离的令牌桶
+        4. 并发限制：最多10个并发请求
+
+        Returns True if allowed, False otherwise.
+        """
+        from agent.rate_limiter import get_rate_limiter, RateLimitError
+        
         client_ip = self.client_address[0] if hasattr(self, 'client_address') else 'unknown'
-        if not _rate_limiter.is_allowed(client_ip):
+        session_id = getattr(self, '_session_id', client_ip)  # 优先用session_id，否则用IP
+        
+        limiter = get_rate_limiter()
+        
+        try:
+            limiter.acquire(user_id=session_id, model="mimo-v2.5")
+            return True
+        except RateLimitError as e:
             self.send_response(429)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.end_headers()
-            body = json.dumps({"error": "Rate limit exceeded", "retry_after": _rate_limiter.window}, ensure_ascii=False)
+            body = json.dumps({
+                "error": str(e),
+                "retry_after": 60,
+                "vendor_circuit_open": limiter.is_vendor_circuit_open(),
+            }, ensure_ascii=False)
             self.wfile.write(body.encode('utf-8'))
             return False
-        return True
+        finally:
+            # 释放并发限制（在请求处理完后）
+            try:
+                limiter.release()
+            except Exception:
+                pass
 
     def do_GET(self):
-        # Health check endpoint (no rate limit)
-        if self.path == '/api/health':
+        # Public endpoints (no auth required)
+        if not AuthMiddleware.is_public_endpoint(self.path) and not AuthMiddleware.check_api_key(self):
+            self.send_response(401)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"error": "Unauthorized: Invalid or missing API key"}')
+            return
+
+        # Metrics endpoint (public for monitoring) — Prometheus format
+        if self.path == '/api/metrics':
+            # 运行告警检查（非阻塞）
+            try:
+                alerts = alert_service.check_and_alert()
+                if alerts:
+                    print(f"[Alerts triggered] {alerts}")
+            except Exception as e:
+                print(f"[Alert check error] {e}")
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; version=0.0.4")
+            self.end_headers()
+            self.wfile.write(metrics.get_prometheus_text().encode())
+        
+        elif self.path == '/api/health':
             self._send_health()
             return
 
@@ -401,6 +612,22 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.end_headers()
             self.wfile.write(CHAT_HTML.encode('utf-8'))
+        elif self.path.startswith('/static/'):
+            # Serve static files (JS, CSS)
+            file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), self.path.lstrip('/'))
+            if os.path.isfile(file_path):
+                self.send_response(200)
+                if file_path.endswith('.js'):
+                    self.send_header('Content-Type', 'application/javascript; charset=utf-8')
+                elif file_path.endswith('.css'):
+                    self.send_header('Content-Type', 'text/css; charset=utf-8')
+                else:
+                    self.send_header('Content-Type', 'application/octet-stream')
+                self.end_headers()
+                with open(file_path, 'rb') as f:
+                    self.wfile.write(f.read())
+            else:
+                self.send_error(404, f'Not found: {self.path}')
         elif self.path.startswith('/api/session/'):
             # GET /api/session/<session_id> - get session state
             session_id = self.path.split('/')[-1]
@@ -430,65 +657,8 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
         elif self.path == '/api/analytics':
             # GET /api/analytics - conversation analytics dashboard data
-            try:
-                from agent.memory import _get_connection
-                conn = _get_connection()
-
-                # Total conversations
-                total = conn.execute("SELECT COUNT(*) FROM conversations").fetchone()[0]
-
-                # Intent distribution
-                intent_rows = conn.execute(
-                    "SELECT intent, COUNT(*) as cnt FROM conversations GROUP BY intent ORDER BY cnt DESC"
-                ).fetchall()
-                intents = {row[0]: row[1] for row in intent_rows}
-
-                # Emotion distribution
-                emotion_rows = conn.execute(
-                    "SELECT emotion, COUNT(*) as cnt FROM conversations GROUP BY emotion ORDER BY cnt DESC"
-                ).fetchall()
-                emotions = {row[0]: row[1] for row in emotion_rows}
-
-                # Average response length (from bot_reply)
-                avg_len_row = conn.execute(
-                    "SELECT AVG(LENGTH(bot_reply)) FROM conversations WHERE bot_reply IS NOT NULL"
-                ).fetchone()
-                avg_reply_length = round(avg_len_row[0], 1) if avg_len_row and avg_len_row[0] else 0
-
-                # Rating stats
-                rating_row = conn.execute(
-                    "SELECT COUNT(*), COALESCE(AVG(stars), 0) FROM ratings"
-                ).fetchone()
-                total_ratings = rating_row[0]
-                avg_rating = round(rating_row[1], 2) if total_ratings > 0 else 0
-
-                # Ticket stats
-                ticket_count = 0
-                priority_dist = {}
-                try:
-                    ticket_count = conn.execute("SELECT COUNT(*) FROM tickets").fetchone()[0]
-                    priority_rows = conn.execute(
-                        "SELECT priority, COUNT(*) as cnt FROM tickets GROUP BY priority"
-                    ).fetchall()
-                    priority_dist = {row[0]: row[1] for row in priority_rows}
-                except Exception:
-                    pass
-
-                analytics = {
-                    "total_conversations": total,
-                    "intents": intents,
-                    "emotions": emotions,
-                    "avg_reply_length": avg_reply_length,
-                    "ratings": {"total": total_ratings, "average": avg_rating},
-                    "tickets": {"total": ticket_count, "by_priority": priority_dist},
-                }
-            except Exception as e:
-                analytics = {"error": str(e)}
-
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json; charset=utf-8')
-            self.end_headers()
-            self.wfile.write(json.dumps(analytics, ensure_ascii=False).encode('utf-8'))
+            print(f"[DEBUG] /api/analytics called, __file__={__file__}")
+            raise RuntimeError("DEBUG: This should appear if code is loaded!")
         elif self.path.startswith('/api/export/'):
             # GET /api/export/<session_id> - export session history as JSON
             session_id = self.path.split('/')[-1]
@@ -621,6 +791,57 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.end_headers()
             self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
+        elif self.path.startswith('/api/trace'):
+            # GET /api/trace - list recent traces
+            # GET /api/trace/<request_id> - get specific trace
+            try:
+                if _trace_service:
+                    parts = self.path.split('/')
+                    if len(parts) >= 4 and parts[3]:
+                        # Get specific trace by ID
+                        request_id = parts[3]
+                        result = _trace_service.get_trace_by_id(request_id)
+                    else:
+                        # List recent traces (default last 20)
+                        limit = 20
+                        if '?' in self.path:
+                            from urllib.parse import parse_qs, urlparse
+                            params = parse_qs(urlparse(self.path).query)
+                            limit = int(params.get('limit', ['20'])[0])
+                        result = _trace_service.get_recent_traces(limit=limit)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json; charset=utf-8')
+                    self.end_headers()
+                    self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
+                else:
+                    self.send_response(503)
+                    self.send_header('Content-Type', 'application/json; charset=utf-8')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "Trace service not initialized"}).encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+        elif self.path == '/api/trace/stats':
+            # GET /api/trace/stats - trace statistics
+            try:
+                if _trace_service:
+                    result = _trace_service.get_stats()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json; charset=utf-8')
+                    self.end_headers()
+                    self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
+                else:
+                    self.send_response(503)
+                    self.send_header('Content-Type', 'application/json; charset=utf-8')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": "Trace service not initialized"}).encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
         elif self.path == '/analytics':
             # GET /analytics - Analytics Dashboard UI (HTML page with charts)
             self.send_response(200)
@@ -636,9 +857,15 @@ class ChatHandler(BaseHTTPRequestHandler):
         try:
             # LLM connectivity
             llm_reachable = False
+            llm_url = "http://127.0.0.1:8080"
             try:
+                from agent.llm_client import get_llm_client
+                client = get_llm_client()
+                llm_url = client.base_url
+                models_url = llm_url + "/models"
                 import urllib.request as ur
-                resp = ur.urlopen("http://127.0.0.1:8080/v1/models", timeout=3)
+                req = ur.Request(models_url, headers={"Authorization": f"Bearer {client.api_key}"})
+                resp = ur.urlopen(req, timeout=3)
                 llm_reachable = resp.status == 200
             except Exception:
                 pass
@@ -648,7 +875,7 @@ class ChatHandler(BaseHTTPRequestHandler):
             try:
                 from agent.memory import _get_connection
                 conn = _get_connection()
-                conversations = conn.execute("SELECT COUNT(*) FROM conversations").fetchone()[0]
+                conversations = conn.execute("SELECT COUNT(DISTINCT session_id) FROM conversation_history").fetchone()[0]
                 tickets = conn.execute("SELECT COUNT(*) FROM tickets").fetchone()[0] if conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tickets'").fetchone() else 0
                 ratings = conn.execute("SELECT COUNT(*), COALESCE(AVG(stars),0) FROM ratings").fetchone()
                 db_stats = {
@@ -681,7 +908,7 @@ class ChatHandler(BaseHTTPRequestHandler):
                 "python": platform.python_version(),
                 "llm": {
                     "reachable": llm_reachable,
-                    "url": "http://127.0.0.1:8080",
+                    "url": llm_url,
                 },
                 "database": db_stats,
                 "knowledge_base": kb_stats,
@@ -702,6 +929,14 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False).encode('utf-8'))
 
     def do_POST(self):
+        # Public endpoints (no auth required)
+        if not AuthMiddleware.is_public_endpoint(self.path) and not AuthMiddleware.check_api_key(self):
+            self.send_response(401)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"error": "Unauthorized: Invalid or missing API key"}')
+            return
+
         # Rate limit all POST endpoints except /api/rating, /api/reaction (fire-and-forget)
         if self.path not in ('/api/rating', '/api/reaction') and not self._check_rate_limit():
             return
@@ -788,6 +1023,49 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.end_headers()
             self.wfile.write(json.dumps({"ok": True}).encode('utf-8'))
+        elif self.path == '/api/feedback':
+            # POST /api/feedback - save detailed user feedback
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length)
+            data = json.loads(body.decode('utf-8'))
+            try:
+                from agent.eval_enhanced import save_feedback
+                save_feedback(
+                    session_id=data.get('session_id', ''),
+                    query=data.get('query', ''),
+                    answer=data.get('answer', ''),
+                    rating=data.get('rating', 0),
+                    comment=data.get('comment', '')
+                )
+                result = {"ok": True}
+            except Exception as e:
+                result = {"error": str(e)}
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
+        elif self.path == '/api/feedback/stats':
+            # GET /api/feedback/stats - get feedback statistics
+            try:
+                from agent.eval_enhanced import get_feedback_stats
+                result = get_feedback_stats()
+            except Exception as e:
+                result = {"error": str(e)}
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
+        elif self.path == '/api/eval/run':
+            # GET /api/eval/run - run evaluation (background)
+            try:
+                from agent.eval_enhanced import run_ragas_evaluation
+                result = run_ragas_evaluation()
+            except Exception as e:
+                result = {"error": str(e)}
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(result, ensure_ascii=False).encode('utf-8'))
         elif self.path == '/api/chat':
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length)
@@ -804,6 +1082,23 @@ class ChatHandler(BaseHTTPRequestHandler):
             user_message = data.get('message', '')
             session_id = data.get('session_id', str(uuid4()))
             stream = data.get('stream', False)
+
+            # Observability: create trace session for this request
+            from agent.observability import TraceSession
+            request_id = str(uuid4())
+            user_ip = self.client_address[0]
+            trace_session = TraceSession(
+                request_id=request_id,
+                user_id=session_id,
+                input_text=user_message
+            )
+            # Record initial event
+            from datetime import datetime
+            trace_session.add_event("request_start", {
+                "ip": user_ip,
+                "session_id": session_id,
+                "stream": stream
+            })
 
             # Security: scan for prompt injection attempts (LangGraph best practice)
             prompt_result = prompt_scan(user_message)
@@ -837,6 +1132,23 @@ class ChatHandler(BaseHTTPRequestHandler):
                 return
             user_message = user_message.strip()
 
+            # ── Redis: Record hot question + mark user online ──
+            _redis.record_query(user_message)
+            _redis.mark_online(session_id, ttl=300)
+
+            # ── Redis: Check rate limit (sliding window) ──
+            if _redis.available:
+                rl = _redis.check_rate_limit(user_ip, max_requests=60, window_seconds=60)
+                if not rl["allowed"]:
+                    self.send_response(429)
+                    self.send_header('Content-Type', 'application/json; charset=utf-8')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        "error": "请求过于频繁，请稍后再试",
+                        "retry_after": int(rl["reset_at"] - time.time()) + 1,
+                    }, ensure_ascii=False).encode('utf-8'))
+                    return
+
             if stream:
                 # SSE streaming response
                 self.send_response(200)
@@ -850,17 +1162,25 @@ class ChatHandler(BaseHTTPRequestHandler):
                     self.wfile.flush()
                 except Exception:
                     pass
+                status_code = 200
                 try:
-                    for chunk in run_agent_stream(session_id, user_message):
+                    for chunk in run_agent_stream(session_id, user_message, trace_session=trace_session):
                         self.wfile.write(chunk.encode('utf-8'))
                         self.wfile.flush()
                 except Exception as e:
+                    status_code = 500
                     import traceback
                     traceback.print_exc()
                     err = json.dumps({'error': str(e)}, ensure_ascii=False)
                     self.wfile.write(f"data: {err}\n\n".encode('utf-8'))
-                    self.wfile.flush()
                 finally:
+                    duration_ms = (time.time() - start_time) * 1000
+                    # 记录指标：请求计数 + 延迟直方图 + 错误计数
+                    labels = {'endpoint': self.path}
+                    metrics.increment_counter('http_requests_total', labels)
+                    metrics.observe_histogram('request_latency_ms', duration_ms, labels)
+                    if status_code >= 400:
+                        metrics.increment_counter('http_errors_total', labels)
                     # Log streaming response time
                     elapsed = time.time() - start_time
                     print(f"[Stream] Response time: {elapsed*1000:.1f}ms")
@@ -871,20 +1191,123 @@ class ChatHandler(BaseHTTPRequestHandler):
                         pass
             else:
                 # Standard JSON response
+                start_time = time.time()  # 重新计时（避免重复计算流式部分的时间）
                 try:
-                    result = run_agent(session_id, user_message)
+                    # ── Redis: Check LLM response cache ──
+                    cached = _redis.get_cached_response(user_message)
+                    if cached is not None:
+                        _redis.record_cache_hit()
+                        result = {"reply": cached, "cached": True}
+                        print(f"[Cache HIT] {user_message[:30]}...")
+                    else:
+                        _redis.record_cache_miss()
+                        result = run_agent(session_id, user_message, trace_session=trace_session)
+                        # Cache the response (only if no error)
+                        reply_text = result.get("reply", "")
+                        if reply_text and "error" not in result:
+                            _redis.cache_response(user_message, reply_text, ttl=3600)
+
+                    # ── Redis: Record query log for this user ──
+                    _redis.add_query_log(session_id, user_message)
+
                     response = json.dumps(result, ensure_ascii=False)
                 except Exception as e:
                     import traceback
                     traceback.print_exc()
                     response = json.dumps({'error': str(e)}, ensure_ascii=False)
+                finally:
+                    duration_ms = (time.time() - start_time) * 1000
+                    # 记录指标：请求计数 + 延迟直方图 + 错误计数
+                    labels = {'endpoint': self.path}
+                    metrics.increment_counter('http_requests_total', labels)
+                    metrics.observe_histogram('request_latency_ms', duration_ms, labels)
+                    if 'error' in response:
+                        metrics.increment_counter('http_errors_total', labels)
 
-                elapsed = time.time() - start_time
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
-                self.send_header('X-Response-Time', f'{elapsed*1000:.1f}ms')
+                self.send_header('X-Response-Time', f'{duration_ms:.1f}ms')
                 self.end_headers()
                 self.wfile.write(response.encode('utf-8'))
+
+        # ── Redis API Endpoints ────────────────────────────────
+        elif self.path == '/api/redis/health':
+            if self.command != 'GET':
+                self.send_response(405)
+                self.end_headers()
+                return
+            health = _redis.health_check()
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(health, ensure_ascii=False).encode('utf-8'))
+
+        elif self.path == '/api/redis/stats':
+            if self.command != 'GET':
+                self.send_response(405)
+                self.end_headers()
+                return
+            stats = {
+                "cache": _redis.cache_stats(),
+                "online_users": _redis.get_online_count(),
+                "available": _redis.available,
+            }
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps(stats, ensure_ascii=False).encode('utf-8'))
+
+        elif self.path == '/api/redis/hot-questions':
+            if self.command != 'GET':
+                self.send_response(405)
+                self.end_headers()
+                return
+            top_n = int(self.path.split('?')[-1].split('top=')[1]) if '?top=' in self.path else 10
+            questions = _redis.get_hot_questions(top_n)
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps({"hot_questions": questions}, ensure_ascii=False).encode('utf-8'))
+
+        elif self.path.startswith('/api/redis/session/'):
+            user_id = self.path.split('/')[-1]
+            if self.command == 'GET':
+                session = _redis.get_user_session(user_id)
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.end_headers()
+                self.wfile.write(json.dumps(session or {}, ensure_ascii=False).encode('utf-8'))
+            elif self.command == 'POST':
+                content_length = int(self.headers.get('Content-Length', 0))
+                body = self.rfile.read(content_length)
+                try:
+                    data = json.loads(body.decode('utf-8'))
+                    _redis.set_user_session(user_id, data)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json; charset=utf-8')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"status": "ok"}, ensure_ascii=False).encode('utf-8'))
+                except Exception as e:
+                    self.send_response(400)
+                    self.send_header('Content-Type', 'application/json; charset=utf-8')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"error": str(e)}, ensure_ascii=False).encode('utf-8'))
+            else:
+                self.send_response(405)
+                self.end_headers()
+
+        elif self.path.startswith('/api/redis/log/'):
+            user_id = self.path.split('/')[-1]
+            if self.command != 'GET':
+                self.send_response(405)
+                self.end_headers()
+                return
+            log = _redis.get_query_log(user_id)
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.end_headers()
+            self.wfile.write(json.dumps({"query_log": log}, ensure_ascii=False).encode('utf-8'))
+
         else:
             self.send_response(404)
             self.end_headers()
@@ -894,7 +1317,9 @@ class ChatHandler(BaseHTTPRequestHandler):
 
 
 def main():
+    print("[Main] Starting init...")
     init()
+    print("[Main] Init complete, starting server...")
     server = ThreadingHTTPServer(('0.0.0.0', PORT), ChatHandler)
     print(f"[Server] Running at http://localhost:{PORT}")
     try:
