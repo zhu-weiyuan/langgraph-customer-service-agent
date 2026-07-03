@@ -848,9 +848,71 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.send_header('Content-Type', 'text/html; charset=utf-8')
             self.end_headers()
             self.wfile.write(ANALYTICS_HTML.encode('utf-8'))
+        elif self.path == '/api/redis/health':
+            # GET /api/redis/health - Redis connection health check
+            try:
+                result = _redis.health_check()
+                self._json_response(200, result)
+            except Exception as e:
+                self._json_response(500, {"error": str(e)})
+        elif self.path == '/api/redis/stats':
+            # GET /api/redis/stats - Redis cache hit/miss statistics
+            try:
+                stats = _redis.cache_stats()
+                self._json_response(200, stats)
+            except Exception as e:
+                self._json_response(500, {"error": str(e)})
+        elif self.path == '/api/redis/hot-questions':
+            # GET /api/redis/hot-questions - Top N hot questions from sorted set
+            try:
+                n = int(self._get_query_param('n', '10'))
+                questions = _redis.get_hot_questions(n)
+                self._json_response(200, {"hot_questions": questions})
+            except Exception as e:
+                self._json_response(500, {"error": str(e)})
+        elif self.path.startswith('/api/redis/session/'):
+            # GET /api/redis/session/<user_id> - Get user session state
+            user_id = self.path.split('/')[-1]
+            try:
+                session_data = _redis.get_user_session(user_id)
+                if session_data is None:
+                    self._json_response(404, {"error": f"Session not found for user: {user_id}"})
+                else:
+                    self._json_response(200, {"user_id": user_id, "session": session_data})
+            except Exception as e:
+                self._json_response(500, {"error": str(e)})
+        elif self.path.startswith('/api/redis/log/'):
+            # GET /api/redis/log/<user_id> - Get user query history
+            user_id = self.path.split('/')[-1]
+            try:
+                logs = _redis.get_query_log(user_id)
+                self._json_response(200, {"user_id": user_id, "query_log": logs})
+            except Exception as e:
+                self._json_response(500, {"error": str(e)})
+        elif self.path == '/api/redis/online-users':
+            # GET /api/redis/online-users - List online users
+            try:
+                users = _redis.get_online_users()
+                self._json_response(200, {"online_users": list(users), "count": len(users)})
+            except Exception as e:
+                self._json_response(500, {"error": str(e)})
         else:
             self.send_response(404)
             self.end_headers()
+
+    def _json_response(self, status_code: int, data: dict):
+        """Send a JSON response with proper headers."""
+        self.send_response(status_code)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+
+    def _get_query_param(self, name: str, default: str = '') -> str:
+        """Extract a query parameter from the URL."""
+        if '?' in self.path:
+            params = dict(p.split('=', 1) for p in self.path.split('?')[1].split('&') if '=' in p)
+            return params.get(name, default)
+        return default
 
     def _send_health(self):
         """Health check endpoint — returns system status, LLM connectivity, DB stats."""

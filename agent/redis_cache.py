@@ -196,6 +196,15 @@ class RedisClient:
         except Exception:
             return 0
 
+    def get_online_users(self) -> set[str]:
+        """Get the set of currently online user IDs."""
+        if not self._conn:
+            return set()
+        try:
+            return {u.decode() for u in self._conn.smembers(self._key("online"))}
+        except Exception:
+            return set()
+
     # ── 4. Sorted Set: Hot Questions Leaderboard ───────────
 
     def record_query(self, question: str) -> None:
