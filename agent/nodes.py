@@ -90,6 +90,9 @@ from .summary import generate_summary, format_ticket
 
 from .llm_client import get_llm_client
 
+# Context Compaction — 对话历史压缩（替代简单截断）
+from .context_compaction import get_compactor
+
 # Security: prompt injection defense
 from .security.prompt_guard import reinforce_system_prompt
 
@@ -329,19 +332,30 @@ def build_reply_context(
     """Build context for reply generation (shared between graph node and streaming API).
 
     Token 预算管理流程：
-    1. 先估算当前消息 + system prompt 的总 Token
-    2. 如果超出预算，按 Token 裁剪（从最旧的消息开始删）
-    3. 确保预留 RESERVED_OUTPUT_TOKENS 给模型输出
+    1. Context Compaction — 如果对话过长，用 LLM 压缩早期消息为摘要
+    2. 估算当前消息 + system prompt 的总 Token
+    3. 如果超出预算，按 Token 裁剪（从最旧的消息开始删）
+    4. 确保预留 RESERVED_OUTPUT_TOKENS 给模型输出
 
     Returns a dict with:
-      - context_messages: trimmed conversation history as dicts
-      - system_prompt: full system prompt with RAG + memory + tone adjustment
+      - context_messages: compacted conversation history as dicts
+      - system_prompt: full system prompt with RAG + memory + tone adjustment + compaction summary
       - rag_info: Agentic RAG result dict or None
       - latest_user: last user message text
       - token_budget: Token 预算信息（用于可观测性）
+      - compaction: Context Compaction 结果
     """
-    # Trim to recent context for LLM call (avoids context window overflow)
-    trimmed = _trim_messages(messages, keep_last=6)  # 12 messages for LLM
+    # ── Step 1: Context Compaction ──────────────────────────────
+    compactor = get_compactor()
+    compaction = compactor.maybe_compact(messages, session_id=session_id)
+
+    if compaction.compacted:
+        print(f"[Compaction] {compaction.old_count} → {compaction.new_count} messages, "
+              f"saved ~{compaction.tokens_saved} tokens")
+    elif compaction.summary:
+        print(f"[Compaction] Using cached summary ({len(compaction.summary)} chars)")
+
+    trimmed = compaction.messages
     context_messages = []
     for msg in trimmed:
         if isinstance(msg, HumanMessage):
@@ -375,6 +389,10 @@ def build_reply_context(
         system_prompt = RAG_SYSTEM_PROMPT_TEMPLATE.format(rag_context=rag_context)
     else:
         system_prompt = SYSTEM_PROMPT
+
+    # Context Compaction summary: inject into system prompt
+    if compaction.summary:
+        system_prompt = system_prompt + f"\n\n{compaction.summary}"
 
     # Multi-turn memory: inject user context
     if session_id:
@@ -410,6 +428,7 @@ def build_reply_context(
         'rag_info': rag_info,
         'latest_user': latest_user,
         'token_budget': token_budget,
+        'compaction': compaction,
     }
 
 
