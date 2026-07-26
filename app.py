@@ -536,6 +536,25 @@ def _classify_message(content):
 
 
 class ChatHandler(BaseHTTPRequestHandler):
+    protocol_version = 'HTTP/1.1'
+    
+    def log_message(self, format, *args):
+        """Suppress default HTTP logging."""
+        pass
+    
+    def _generate_request_id(self) -> str:
+        """Generate a unique request ID for tracking (Phase A: Request Governance)."""
+        import uuid
+        return str(uuid.uuid4())
+    
+    def _send_response_headers_and_set_trace(self, start_time: float, status_code: int = 200):
+        """Unified response header handling with X-Response-Time (Phase A).
+        
+        Note: X-Request-ID is now sent separately at each call site for better traceability.
+        """
+        duration_ms = (time.time() - start_time) * 1000
+        self.send_response(status_code)
+        self.send_header('X-Response-Time', f'{duration_ms:.1f}ms')
     def _check_rate_limit(self):
         """分层限流检查。
 
@@ -576,10 +595,15 @@ class ChatHandler(BaseHTTPRequestHandler):
                 pass
 
     def do_GET(self):
+        # Phase A: Generate request_id at the very top
+        self._request_id = self._generate_request_id()
+        start_time = time.time()
+        
         # Public endpoints (no auth required)
         if not AuthMiddleware.is_public_endpoint(self.path) and not AuthMiddleware.check_api_key(self):
-            self.send_response(401)
-            self.send_header("Content-Type", "application/json")
+            self._send_response_headers_and_set_trace(start_time, 401)
+            self.send_header('X-Request-ID', self._request_id)  # Phase A: error path
+            self.send_header("Content-Type", "application/json; charset=utf-8")
             self.end_headers()
             self.wfile.write(b'{"error": "Unauthorized: Invalid or missing API key"}')
             return
@@ -991,10 +1015,15 @@ class ChatHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False).encode('utf-8'))
 
     def do_POST(self):
+        # Phase A: Generate request_id at the very top
+        self._request_id = self._generate_request_id()
+        start_time = time.time()
+        
         # Public endpoints (no auth required)
         if not AuthMiddleware.is_public_endpoint(self.path) and not AuthMiddleware.check_api_key(self):
-            self.send_response(401)
-            self.send_header("Content-Type", "application/json")
+            self._send_response_headers_and_set_trace(start_time, 401)
+            self.send_header('X-Request-ID', self._request_id)  # Phase A: error path
+            self.send_header("Content-Type", "application/json; charset=utf-8")
             self.end_headers()
             self.wfile.write(b'{"error": "Unauthorized: Invalid or missing API key"}')
             return
@@ -1013,7 +1042,7 @@ class ChatHandler(BaseHTTPRequestHandler):
             _request_counter["errors"] += 1
             import traceback
             traceback.print_exc()
-            self.send_response(500)
+            self._send_response_headers_and_set_trace(start_time, 500)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e)}, ensure_ascii=False).encode('utf-8'))
@@ -1202,7 +1231,7 @@ class ChatHandler(BaseHTTPRequestHandler):
             if _redis.available:
                 rl = _redis.check_rate_limit(user_ip, max_requests=60, window_seconds=60)
                 if not rl["allowed"]:
-                    self.send_response(429)
+                    self._send_response_headers_and_set_trace(start_time, 429)
                     self.send_header('Content-Type', 'application/json; charset=utf-8')
                     self.end_headers()
                     self.wfile.write(json.dumps({
@@ -1212,8 +1241,9 @@ class ChatHandler(BaseHTTPRequestHandler):
                     return
 
             if stream:
-                # SSE streaming response
-                self.send_response(200)
+                # SSE streaming response (Phase A: add X-Request-ID)
+                self._send_response_headers_and_set_trace(start_time, 200)
+                self.send_header('X-Request-ID', self._request_id)  # Phase A: stream path
                 self.send_header('Content-Type', 'text/event-stream; charset=utf-8')
                 self.send_header('Cache-Control', 'no-cache')
                 self.send_header('Connection', 'close')
@@ -1286,9 +1316,10 @@ class ChatHandler(BaseHTTPRequestHandler):
                     if 'error' in response:
                         metrics.increment_counter('http_errors_total', labels)
 
-                self.send_response(200)
+                # Standard JSON response (Phase A: use unified header helper)
+                self._send_response_headers_and_set_trace(start_time, 200)
+                self.send_header('X-Request-ID', self._request_id)  # Phase A: JSON path
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
-                self.send_header('X-Response-Time', f'{duration_ms:.1f}ms')
                 self.end_headers()
                 self.wfile.write(response.encode('utf-8'))
 

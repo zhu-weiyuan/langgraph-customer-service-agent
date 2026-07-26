@@ -25,10 +25,12 @@ Usage:
 """
 
 import json
+import os
 import time
 import hashlib
 import logging
 import threading
+from collections import defaultdict
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, field
@@ -57,10 +59,56 @@ class ModelProfile:
     enabled: bool = True
 
 
+def validate_model_profile(profile: ModelProfile) -> List[str]:
+    """Validate a single model profile, return list of warnings (Phase A: Config Validation)."""
+    warnings = []
+    
+    if not profile.name.strip():
+        warnings.append(f"Model 'name' cannot be empty")
+    if not profile.provider.strip():
+        warnings.append(f"Model '{profile.name}': 'provider' cannot be empty")
+    if not profile.base_url.strip():
+        warnings.append(f"Model '{profile.name}': 'base_url' cannot be empty")
+    if not profile.model_id.strip():
+        warnings.append(f"Model '{profile.name}': 'model_id' cannot be empty")
+    if profile.context_window <= 0:
+        warnings.append(f"Model '{profile.name}': 'context_window' must be positive")
+    if profile.max_output <= 0:
+        warnings.append(f"Model '{profile.name}': 'max_output' must be positive")
+    valid_tiers = {"nano", "fast", "balanced", "flagship"}
+    if profile.tier not in valid_tiers:
+        warnings.append(f"Model '{profile.name}': invalid tier '{profile.tier}', must be one of {valid_tiers}")
+    if profile.input_cost_per_m < 0 or profile.output_cost_per_m < 0:
+        warnings.append(f"Model '{profile.name}': costs cannot be negative")
+        
+    return warnings
+
+
+def validate_gateway_config(model_profiles: List[ModelProfile]) -> List[str]:
+    """Validate entire gateway configuration, return list of warnings (Phase A)."""
+    warnings = []
+    
+    if not model_profiles:
+        warnings.append("No enabled model profiles configured")
+        return warnings
+        
+    enabled_count = sum(1 for p in model_profiles if p.enabled)
+    if enabled_count == 0:
+        warnings.append("No enabled model found in configuration")
+        
+    for profile in model_profiles:
+        profile_warnings = validate_model_profile(profile)
+        warnings.extend(profile_warnings)
+        
+    return warnings
+
+
 @dataclass
 class GatewayRequest:
-    """网关请求"""
+    """网关请求 (Phase A: Request Governance)"""
     messages: List[dict]
+    trace_id: str = ""          # 全链路追踪 ID
+    user_id: Optional[str] = None  # 用户 ID（用于 per-user rate limiting）
     scene: str = "default"       # 业务场景
     tenant_id: str = ""          # 租户/用户类型
     max_output_tokens: Optional[int] = None
@@ -70,7 +118,7 @@ class GatewayRequest:
 
 @dataclass
 class GatewayResponse:
-    """网关响应"""
+    """网关响应 (Phase A: trace_id for PII-safe observability)"""
     content: str
     model_used: str
     provider: str
@@ -80,6 +128,7 @@ class GatewayResponse:
     latency_ms: float
     fallback_used: bool
     route_reason: str
+    trace_id: str = ""        # Phase A: trace for correlation, NOT message content
     cache_hit: bool = False
 
 
@@ -92,7 +141,7 @@ DEFAULT_MODELS = [
         name="cloud-pro",
         provider="xiaomimimo",
         base_url="https://api.xiaomimimo.com/v1",
-        api_key="sk-ckmnbfew0gajnwb508q42tvbvyvcswtf9k2c6wfqwi991ksj",
+        api_key=os.getenv("LLM_API_KEY", ""),
         model_id="mimo-v2.5",
         context_window=1_000_000,
         max_output=8192,
@@ -287,6 +336,57 @@ class LLMGateway:
         self._call_log: List[Dict[str, Any]] = []  # 最近 N 次调用记录
         self._log_max = 10_000
         self._lock = threading.Lock()
+        # Phase A: per-user/per-tenant rate limiting
+        self._rate_limits: Dict[str, list] = defaultdict(list)  # user_key -> [timestamps]
+        self._rate_limit_window = 60  # seconds
+        self._rate_limit_max_requests = 60  # requests per window
+
+    def _check_rate_limit(self, tenant_id: str, user_id: Optional[str] = None) -> bool:
+        """检查用户/租户是否超出限流配额 (Phase A).
+        
+        Returns True if request is allowed, False if rate limited.
+        """
+        now = time.time()
+        user_key = f"{tenant_id}:{user_id}" if user_id else tenant_id
+        
+        with self._lock:
+            # Clean old entries outside the window
+            self._rate_limits[user_key] = [
+                ts for ts in self._rate_limits[user_key]
+                if now - ts < self._rate_limit_window
+            ]
+            
+            # Check if within quota
+            if len(self._rate_limits[user_key]) >= self._rate_limit_max_requests:
+                return False
+            
+            # Record this request
+            self._rate_limits[user_key].append(now)
+            return True
+
+    def get_rate_limit_info(self, tenant_id: str = None, user_id: str = None) -> dict:
+        """Get rate limit info for a user/tenant (Phase A)."""
+        if tenant_id or user_id:
+            user_key = f"{tenant_id}:{user_id}" if user_id else tenant_id
+            now = time.time()
+            current_count = sum(
+                1 for ts in self._rate_limits.get(user_key, [])
+                if now - ts < self._rate_limit_window
+            )
+            return {
+                "user_key": user_key,
+                "current_requests": current_count,
+                "max_requests": self._rate_limit_max_requests,
+                "window_seconds": self._rate_limit_window,
+                "remaining": max(0, self._rate_limit_max_requests - current_count),
+            }
+        
+        # Return summary of all users
+        return {
+            "total_tracked_users": len(self._rate_limits),
+            "window_seconds": self._rate_limit_window,
+            "max_requests_per_window": self._rate_limit_max_requests,
+        }
 
     def _get_model_by_tier(self, tier: str) -> Optional[ModelProfile]:
         """按 tier 层级获取可用模型。"""
@@ -322,6 +422,12 @@ class LLMGateway:
                      temperature: float, max_tokens: int) -> str:
         """调用单个模型（带重试）。"""
         import requests
+
+        if not model.api_key:
+            raise ValueError(
+                f"API key for model '{model.name}' (provider '{model.provider}') is empty. "
+                "Set the LLM_API_KEY environment variable before calling the gateway."
+            )
 
         url = f"{model.base_url}/chat/completions"
         headers = {

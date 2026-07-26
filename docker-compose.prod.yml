@@ -1,0 +1,198 @@
+version: "3.8"
+
+services:
+  customer-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: langgraph-cs-agent
+    ports:
+      - "7860:7860"
+    environment:
+      # LLM Configuration (no insecure defaults — fail fast if unset)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY must be set}
+      - LLM_API_KEY=${LLM_API_KEY:?LLM_API_KEY must be set}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://host.docker.internal:8080}
+      - OPENAI_MODEL=${OPENAI_MODEL:-qwen3.5}
+
+      # Application Settings
+      - PORT=7860
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-60}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
+      - USE_SQLITE=${USE_SQLITE:-1}
+      - CHECKPOINT_DB=${CHECKPOINT_DB:-checkpoints.db}
+      
+      # Security
+      - API_KEY=${API_KEY:-}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_EXPIRATION_MINUTES=${JWT_EXPIRATION_MINUTES:-60}
+      
+      # LangGraph Configuration
+      - GRAPH_MAX_RETRIES=${GRAPH_MAX_RETRIES:-3}
+      - GRAPH_TIMEOUT_SECONDS=${GRAPH_TIMEOUT_SECONDS:-120}
+      - CONTEXT_MAX_TOKENS=${CONTEXT_MAX_TOKENS:-4000}
+      
+      # RAG Configuration
+      - RAG_MAX_ROUNDS=${RAG_MAX_ROUNDS:-3}
+      - RAG_MIN_CONTEXT_SCORE=${RAG_MIN_CONTEXT_SCORE:-0.5}
+      - KNOWLEDGE_BASE_PATH=${KNOWLEDGE_BASE_PATH:-/app/knowledge}
+      
+      # Observability
+      - METRICS_ENABLED=${METRICS_ENABLED:-true}
+      - TRACING_ENABLED=${TRACING_ENABLED:-true}
+      - CORRELATION_ID_HEADER=${CORRELATION_ID_HEADER:-X-Request-ID}
+      
+      # Circuit Breaker
+      - CIRCUIT_BREAKER_THRESHOLD=${CIRCUIT_BREAKER_THRESHOLD:-5}
+      - CIRCUIT_BREAKER_TIMEOUT=${CIRCUIT_BREAKER_TIMEOUT:-60}
+      
+      # Resource Limits
+      - MAX_CONCURRENT_REQUESTS=${MAX_CONCURRENT_REQUESTS:-10}
+      - REQUEST_TIMEOUT_SECONDS=${REQUEST_TIMEOUT_SECONDS:-120}
+      
+      # Graceful Shutdown
+      - SHUTDOWN_TIMEOUT_SECONDS=${SHUTDOWN_TIMEOUT_SECONDS:-30}
+      
+      # Redis (optional caching)
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_DB=${REDIS_DB:-0}
+    volumes:
+      - ./knowledge:/app/knowledge:ro
+      - checkpoints:/app/checkpoints:rw
+      - ./logs:/app/logs:rw
+      - ./agent/trace.db:/app/agent/trace.db:rw
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    stop_grace_period: 30s
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - langgraph-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: langgraph-redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - langgraph-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Optional: PostgreSQL for production persistence
+  # postgres:
+  #   image: postgres:16
+  #   container_name: langgraph-postgres
+  #   environment:
+  #     - POSTGRES_USER=${POSTGRES_USER:-langgraph}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+  #     - POSTGRES_DB=${POSTGRES_DB:-langgraph}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./migrations:/docker-entrypoint-initdb.d:ro
+  #   ports:
+  #     - "127.0.0.1:5432:5432"
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-langgraph} -d ${POSTGRES_DB:-langgraph}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - langgraph-network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1.0'
+  #         memory: 1G
+
+  # Prometheus for metrics (optional monitoring)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: langgraph-prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - langgraph-network
+    profiles:
+      - monitoring
+
+  # Grafana for visualization (optional monitoring)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: langgraph-grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - langgraph-network
+    profiles:
+      - monitoring
+
+volumes:
+  checkpoints:
+  redis_data:
+  postgres_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  langgraph-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.29.0.0/16

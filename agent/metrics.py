@@ -15,10 +15,16 @@ class MetricsCollector:
         self.request_counts = defaultdict(int)
         self.response_times = defaultdict(list)
         self.error_counts = defaultdict(int)
+        # Phase A enhancements: per-user/tenant tracking
+        self.user_request_counts = defaultdict(lambda: {"total_requests": 0, "error_count": 0, "total_duration_ms": 0})
+        # Scene tracking
+        self.scene_request_counts = defaultdict(lambda: {"count": 0, "errors": 0, "total_duration_ms": 0})
+        # Rate limit tracking
+        self.rate_limit_events = []
         self.start_time = time.time()
     
-    def record_request(self, endpoint: str, status_code: int, duration_ms: float):
-        """Record a request."""
+    def record_request(self, endpoint: str, status_code: int, duration_ms: float, user_key: str = None, tenant_id: str = None):
+        """Record a request (Phase A: supports per-user/tenant tracking)."""
         self.request_counts[endpoint] += 1
         
         if status_code >= 400:
@@ -28,6 +34,14 @@ class MetricsCollector:
         times.append(duration_ms)
         if len(times) > 100:
             self.response_times[endpoint] = times[-100:]
+        
+        # Per-user/tenant tracking
+        if user_key and tenant_id:
+            user_key_full = f"{tenant_id}:{user_key}"
+            self.user_request_counts[user_key_full]["total_requests"] += 1
+            self.user_request_counts[user_key_full]["total_duration_ms"] += duration_ms
+            if status_code >= 400:
+                self.user_request_counts[user_key_full]["error_count"] += 1
     
     def get_metrics(self) -> str:
         """Generate Prometheus-style metrics text."""
@@ -65,6 +79,39 @@ class MetricsCollector:
         lines.append(f'process_uptime_seconds {uptime:.2f}')
         
         return '\n'.join(lines)
+    
+    def get_user_stats(self):
+        """Return per-user/tenant statistics."""
+        return dict(self.user_request_counts)
+    
+    def record_rate_limit(self, user_key: str = None, tenant_id: str = None):
+        """Record a rate limit event."""
+        self.rate_limit_events.append({
+            "timestamp": time.time(),
+            "user_key": user_key,
+            "tenant_id": tenant_id,
+        })
+        # Keep only last 1000 events
+        if len(self.rate_limit_events) > 1000:
+            self.rate_limit_events = self.rate_limit_events[-1000:]
+    
+    def get_rate_limit_stats(self):
+        """Return rate limit statistics."""
+        return {
+            "total_rate_limited": len(self.rate_limit_events),
+            "recent_events_count": len([e for e in self.rate_limit_events if time.time() - e["timestamp"] < 3600]),  # Last hour
+        }
+    
+    def record_scene_request(self, scene: str, status_code: int, duration_ms: float):
+        """Record a request by scene (for JavaGuide-style observability)."""
+        self.scene_request_counts[scene]["count"] += 1
+        self.scene_request_counts[scene]["total_duration_ms"] += duration_ms
+        if status_code >= 400:
+            self.scene_request_counts[scene]["errors"] += 1
+    
+    def get_scene_stats(self):
+        """Return per-scene request counts."""
+        return {scene: data["count"] for scene, data in self.scene_request_counts.items()}
 
 
 metrics = MetricsCollector()

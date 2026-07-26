@@ -14,7 +14,18 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.checkpoint.sqlite import SqliteSaver
 import os
 
-from .state import CustomerServiceState
+from typing import TypedDict, Annotated
+from langchain_core.messages import AnyMessage
+
+class CustomerServiceState(TypedDict):
+    messages: Annotated[list[AnyMessage], lambda x, y: x + [y]]
+    intent: str
+    ending: bool
+    emotion: str
+    emotion_intensity: int
+    satisfaction: bool | None
+    retry_count: int
+    escalate: bool
 from .nodes import (
     identify_intent,
     generate_reply,

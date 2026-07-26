@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'langgraph-agent'
+    static_configs:
+      - targets: ['customer-service:7860']
+    metrics_path: '/api/metrics'
+    scrape_timeout: 10s
+    
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

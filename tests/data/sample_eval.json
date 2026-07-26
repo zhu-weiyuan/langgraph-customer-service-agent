@@ -1,0 +1,14 @@
+﻿[
+ {"id":"order-status","input":{"messages":[]},"expected_intent":"consult","context":{}},
+ {"id":"product-question","input":{"messages":[]},"expected_intent":"consult","context":{}},
+ {"id":"technical-support","input":{"messages":[]},"expected_intent":"consult","context":{}},
+ {"id":"vague-complaint","input":{"messages":[]},"expected_intent":"complaint","context":{}},
+ {"id":"multi-intent","input":{"messages":[]},"expected_intent":"complaint","context":{}},
+ {"id":"injection","input":{"messages":[]},"expected_intent":"consult","context":{}},
+ {"id":"pii-query","input":{"messages":[]},"expected_intent":"consult","context":{}},
+ {"id":"refund","input":{"messages":[]},"expected_intent":"complaint","context":{"severity":"high"}},
+ {"id":"complaint-escalation","input":{"messages":[]},"expected_intent":"complaint","context":{"requires_escalation":true}},
+ {"id":"greeting","input":{"messages":[]},"expected_intent":"chat","context":{}},
+ {"id":"closing","input":{"messages":[]},"expected_intent":"ending","context":{}},
+ {"id":"warranty","input":{"messages":[]},"expected_intent":"consult","context":{}}
+]

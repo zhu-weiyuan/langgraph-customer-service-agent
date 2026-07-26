@@ -25,6 +25,64 @@ CHINESE_TOKEN_RATIO = 1.5
 ENGLISH_TOKEN_RATIO = 1.3
 
 # ============================================================
+# History Recall Query Detection (JavaGuide Context Engineering)
+# ============================================================
+
+def _is_history_recall_query(user_message: str) -> bool:
+    """判断用户是否在询问之前的对话内容（历史回忆类查询）。
+    
+    这类查询应该跳过 RAG，直接从 conversation history 中查找答案。
+    
+    Args:
+        user_message: 用户消息内容
+        
+    Returns:
+        True if the query is asking about previous conversation content
+        
+    Examples:
+        >>> _is_history_recall_query("我刚才问你的订单问题")
+        True
+        >>> _is_history_recall_query("你刚才说了什么？")
+        True
+        >>> _is_history_recall_query("订单物流什么时候到？")
+        False
+    """
+    # Time-reference keywords indicating past conversation
+    time_keywords = [
+        '刚才', '刚刚', '之前', '之前说的', '之前我问的', '上次', '上回',
+        '你说的', '你刚说', '你之前说', '你说过', '我记得', '记得吗',
+        '失忆', '忘了', '忘记了', '不记得', '想不起来',
+    ]
+    
+    # Memory-reference patterns
+    memory_patterns = [
+        ('刚才', True), ('刚刚', True), ('之前', True), ('之前说', True),
+        ('之前问', True), ('上次', True), ('上回', True), ('你说的', True),
+        ('你刚说', True), ('你之前说', True), ('你说过', True), ('我记得', True),
+        ('记得吗', True), ('失忆', True), ('忘了吗', True), ('忘记了', True),
+    ]
+    
+    message_lower = user_message.lower()
+    
+    # Check for explicit time/memory references
+    for keyword in time_keywords:
+        if keyword in message_lower:
+            # Additional check: should be a question or recall request
+            question_indicators = ['什么', '哪', '哪些', '谁', '为什么', '怎么', '吗', '呢', '？', '?']
+            has_question = any(ind in message_lower for ind in question_indicators)
+            
+            # If contains time reference and appears to be asking something, it's likely a history recall
+            if has_question or len(user_message) < 30:  # Short queries are often follow-ups
+                return True
+    
+    # Pattern matching for common recall phrases
+    for pattern, is_recall in memory_patterns:
+        if pattern in message_lower:
+            return is_recall
+    
+    return False
+
+# ============================================================
 # Node timing middleware (LangGraph best practice: monitor node latency)
 # ============================================================
 
@@ -320,6 +378,8 @@ def _trim_messages_by_tokens(messages: List, max_tokens: int) -> List:
 # Shared reply context builder (used by both graph nodes and streaming API)
 # ============================================================
 
+from .context_assembler import ContextAssembler
+
 def build_reply_context(
     messages: List,
     intent: str = 'consult',
@@ -328,6 +388,7 @@ def build_reply_context(
     emotion: str = 'neutral',
     emotion_intensity: int = 1,
     retry_count: int = 0,
+    state: dict = None,
 ) -> Dict[str, Any]:
     """Build context for reply generation (shared between graph node and streaming API).
 
@@ -384,29 +445,29 @@ def build_reply_context(
         else:
             print(f"[Agentic RAG] 未找到相关知识")
 
-    # Build system prompt with RAG context + memory + sentiment tone adjustment
-    if rag_context:
-        system_prompt = RAG_SYSTEM_PROMPT_TEMPLATE.format(rag_context=rag_context)
-    else:
-        system_prompt = SYSTEM_PROMPT
-
-    # Context Compaction summary: inject into system prompt
-    if compaction.summary:
-        system_prompt = system_prompt + f"\n\n{compaction.summary}"
-
-    # Multi-turn memory: inject user context
-    if session_id:
-        memory_ctx = build_memory_context(session_id)
-        if memory_ctx:
-            system_prompt = system_prompt + memory_ctx
-
-    # Sentiment-based tone adjustment
-    tone_adj = get_tone_adjustment(emotion, emotion_intensity)
-    system_prompt = system_prompt + tone_adj
-
-    if retry_count > 0:
-        extra = f"\n\n注意：用户之前表示不满意，请用不同的方式重新回答。这是第 {retry_count} 次重试。"
-        system_prompt = system_prompt + extra
+    # Use ContextAssembler to manage full component integration
+    assembler = ContextAssembler()
+    
+    # Prepare state-like structure for assembler input
+    assembler_state = {
+        "messages": messages,
+        "task_goal": "Provide helpful customer support",  # Could be dynamic
+        "constraints": [],  # e.g. compliance rules
+        "memory_summary": build_memory_context(session_id) if session_id else None,
+        "rag_results": [rag_info] if rag_info and rag_info.get('sufficient') else [],
+        "available_tools": []  # No tools currently used in this agent
+    }
+    
+    # Assemble final context using the progressive assembly pipeline
+    bundle = assembler.assemble(
+        state=assembler_state,
+        user_message=latest_user,
+        session_id=session_id
+    )
+    
+    # Extract structured components from bundle
+    context_messages = bundle.messages[1:]  # Exclude first system message
+    system_prompt = bundle.messages[0]["content"]
 
     rag_label = f"agentic({rag_info['rounds']}轮)" if rag_info and rag_info.get('queries_tried') else ('yes' if rag_context else 'no')
     print(f"[Reply Context] intent={intent}, retry={retry_count}, rag={rag_label}")
