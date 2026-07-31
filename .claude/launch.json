@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "customer-service",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "-f", "docker-compose.prod.yml", "up", "customer-service"],
+      "port": 7860,
+      "autoPort": false
+    },
+    {
+      "name": "customer-service-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--host", "0.0.0.0"],
+      "port": 5173,
+      "cwd": "frontend"
+    }
+  ]
+}

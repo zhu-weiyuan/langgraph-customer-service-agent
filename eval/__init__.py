@@ -1,2 +1,3 @@
 # -*- coding: utf-8 -*-
-"""Evaluation package for RAG pipeline assessment."""
+"""分层评测体系：检索 / 生成 / Agent / 工程 四层统一 harness（stdlib only）。"""
+from . import metrics  # noqa: F401

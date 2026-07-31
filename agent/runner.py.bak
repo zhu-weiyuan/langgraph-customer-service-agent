@@ -1,0 +1,445 @@
+# -*- coding: utf-8 -*-
+"""
+agent/runner.py — async 请求执行器（P2 集成层）。
+
+替代旧 app_original_sync.run_agent / run_agent_stream 对 sync graph 的依赖：
+
+graph + checkpointer 模块级 lazy 单例（asyncio.Lock 保护；lifespan 里
+prewarm()，shutdown() 里关闭 checkpointer async context）。
+
+使用同步 PostgresSaver + graph.invoke()（sync），避免 AsyncPostgresSaver
+的 asyncio.Lock 跨事件循环冲突。graph.invoke() 在 run_in_executor 线程池
+中执行，不涉及 asyncio.Lock 或辅助事件循环。
+
+run()：组装 initial state → graph.invoke（sync，thread pool）→ 解析
+      replies/intent/emotion/ending。
+
+run_stream()：async generator。graph.invoke() 在 thread 中同步执行；
+    _call_llm(stream=True) 通过 queue.Queue 推送实时 token 给主协程。
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+import os
+import time
+from typing import Any, AsyncIterator, Dict, Optional
+
+logger = logging.getLogger("agent.runner")
+
+DEFAULT_GRAPH_TIMEOUT = 120.0
+
+# ── 消息类守卫（langchain_core 缺席时用轻量替身） ────────────────────
+try:  # pragma: no cover - 环境相关
+    from langchain_core.messages import AIMessage, HumanMessage
+except Exception:  # pragma: no cover
+    class HumanMessage:  # type: ignore[no-redef]
+        type = "human"
+
+        def __init__(self, content: str = "", **kwargs: Any):
+            self.content = content
+
+    class AIMessage:  # type: ignore[no-redef]
+        type = "ai"
+
+        def __init__(self, content: str = "", **kwargs: Any):
+            self.content = content
+
+
+def graph_timeout_seconds() -> float:
+    """请求级总超时（env GRAPH_TIMEOUT_SECONDS，默认 120s）。"""
+    try:
+        return float(os.getenv("GRAPH_TIMEOUT_SECONDS", str(DEFAULT_GRAPH_TIMEOUT)))
+    except ValueError:
+        return DEFAULT_GRAPH_TIMEOUT
+
+
+# ════════════════════════════════════════════════════════════════════
+# 纯函数（stdlib-only，单测覆盖）
+
+def build_initial_state(
+    session_id: str,
+    user_message: str,
+    prev_values: Optional[Dict[str, Any]] = None,
+    trace_session: Any = None,
+    idempotency_key: Optional[str] = None,
+    user_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """组装 langgraph 初始 state。
+
+    参数
+    ----------
+    prev_values : dict or None
+        上一条 message 之后的 checkpoint values（不含最后一条 human message）。
+
+    返回
+    -------
+    含有 messages / replies / intent / emotion / ending 的 state dict。
+    """
+    has_history = bool(prev_values and prev_values.get("messages"))
+    existing = {"messages": prev_values.get("messages", [])} if has_history else {}
+    state: Dict[str, Any] = {
+        "messages": [HumanMessage(content=user_message)],
+        "replies": [],
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "ending": False,
+        "human_input": user_message,
+        **existing,
+    }
+    # 注意：不要将 trace_session 对象放入 graph state
+    # checkpointer 序列化时会失败（TraceSession 不可 msgpack 序列化）
+    if idempotency_key is not None:
+        state["_idempotency_key"] = idempotency_key
+    if user_id:
+        state["user_id"] = user_id
+    return state
+
+
+def chunk_text(text: str, size: int = 3) -> list:
+    """将字符串切为固定长度的段。（纯文本守卫：流式 fallback 用）"""
+    if not text:
+        return []
+    return [text[i:i + size] for i in range(0, len(text), size)]
+
+
+def classify_message(text: str) -> str:
+    """简易回复类型分类（stock fallback，不会被真实 graph 调用）。
+    全函数存放在此仅便于单测导入。
+    """
+    if any(w in text for w in ("【", "]", "Ticket", "switch")):
+        return "escalated"
+    return "reply"
+
+
+def parse_result(values: Dict[str, Any], existing_count: int,
+                 session_id: str,
+                 interrupted: Optional[bool] = None) -> Dict[str, Any]:
+    """解析 graph.ainvoke / astream(updates) 的最终 values dict，
+    返回 app/json 层使用的 {}。
+
+    如果 state 里层叠了 pending replies，最后参与的 Message(role="ai")
+    content 作为 reply。
+
+    interrupt detected（__interrupt__ in values）
+      → interrupted=True → reply_type="escalated"。
+    """
+    # 收集 replies
+    replies: list = values.get("replies", []) or []
+    if not replies:
+        messages: list = values.get("messages", []) or []
+        ai_messages: list = [m for m in messages[existing_count:]
+                             if isinstance(m, dict) and m.get("type") == "ai"
+                             or isinstance(m, AIMessage)]
+        if ai_messages:
+            reply_text = "\n".join(
+                (m.get("content") if isinstance(m, dict) else getattr(m, "content", ""))
+                for m in ai_messages
+            ).strip()
+        else:
+            reply_text = ""
+    else:
+        reply_text = "\n".join(r["content"] for r in replies).strip()
+
+    intent = values.get("intent", "chat")
+    if isinstance(intent, list):
+        intent = intent[-1] if intent else "chat"
+    emotion = values.get("emotion", "neutral")
+    if isinstance(emotion, list):
+        emotion = emotion[-1] if emotion else "neutral"
+
+    has_interrupt = interrupted if interrupted is not None else (
+        "__interrupt__" in values if isinstance(values, dict) else False
+    )
+
+    return {
+        "reply": reply_text,
+        "intent": intent,
+        "emotion": emotion,
+        "emotion_intensity": values.get("emotion_intensity", 1),
+        "interrupted": has_interrupt,
+        "ending": values.get("ending", False),
+        "escalate": values.get("escalate", has_interrupt),
+        "reply_type": "escalated" if has_interrupt else classify_message(reply_text),
+    }
+
+
+# ════════════════════════════════════════════════════════════════════
+# 模块级 graph 单例（同步 checkpointer 无事件循环绑定）
+# ════════════════════════════════════════════════════════════════════
+
+_graph: Any = None
+_checkpointer_cm: Any = None  # kept for compat; None with sync checkpointer
+
+
+def _get_graph_sync() -> Any:
+    """同步获取 graph（在 thread pool executor 中也可安全调用）。
+
+    使用 build_graph(use_postgres=True) 创建同步 PostgresSaver，
+    无 asyncio.Lock 绑定，可在任意线程安全调用。
+    """
+    global _graph
+    if _graph is not None:
+        return _graph
+    from .graph import build_graph  # 延迟导入
+    use_pg = os.getenv("USE_POSTGRES") == "1"
+    use_sq = os.getenv("USE_SQLITE") == "1"
+    _graph = build_graph(use_postgres=use_pg, use_sqlite=use_sq)
+    logger.info("agent graph initialized (sync PostgresSaver, lazy singleton)")
+    return _graph
+
+
+async def get_graph() -> Any:
+    """异步包装 _get_graph_sync() 以兼容原有 lifespan 预热接口。"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _get_graph_sync)
+
+
+async def prewarm() -> bool:
+    """lifespan 启动时预热；langgraph 缺席时返回 False。"""
+    try:
+        await get_graph()
+        return True
+    except Exception:
+        logger.warning("graph prewarm failed — chat will error until deps are "
+                       "available", exc_info=True)
+        return False
+
+
+async def shutdown() -> None:
+    """lifespan 关闭：置空 graph 引用。sync PostgresSaver 连接在 GC 时关闭。"""
+    global _graph, _checkpointer_cm
+    _graph = None
+    _checkpointer_cm = None
+
+
+def _existing_message_count_sync(graph: Any, config: Dict[str, Any]) -> Dict[str, Any]:
+    """同步读取 checkpoint state；返回 {'count': int, 'values': dict}。"""
+    try:
+        snapshot = graph.get_state(config)
+    except Exception:
+        return {"count": 0, "values": {}}
+    values = getattr(snapshot, "values", None) or {}
+    return {"count": len(values.get("messages", []) or []), "values": values}
+
+
+# ════════════════════════════════════════════════════════════════════
+# 非流式执行
+# ════════════════════════════════════════════════════════════════════
+
+async def run(session_id: str, user_message: str, *,
+              trace_session: Any = None,
+              idempotency_key: Optional[str] = None,
+              timeout: Optional[float] = None,
+              graph: Any = None,
+              user_id: Optional[str] = None) -> Dict[str, Any]:
+    """执行一轮对话（graph.invoke + 总超时）。
+
+    graph.invoke() 在 thread pool executor 中同步执行，
+    直接在同步 PostgresSaver 上操作，无事件循环依赖。
+
+    Raises:
+        asyncio.TimeoutError: 超过 GRAPH_TIMEOUT_SECONDS。
+    """
+    graph = graph or _get_graph_sync()
+    config = {"configurable": {"thread_id": session_id}}
+    loop = asyncio.get_event_loop()
+
+    # 同步读取 checkpointer（在 executor 中运行）
+    snap = await loop.run_in_executor(
+        None, _existing_message_count_sync, graph, config)
+    state = build_initial_state(session_id, user_message,
+                                prev_values=snap["values"],
+                                trace_session=trace_session,
+                                idempotency_key=idempotency_key,
+                                user_id=user_id)
+
+    t0 = time.time()
+    if trace_session is not None:
+        trace_session.add_event("graph_execution", {"status": "started"})
+
+    effective_timeout = timeout if timeout is not None else graph_timeout_seconds()
+
+    # 同步 graph.invoke (no event loop needed)
+    def _run_sync() -> Dict[str, Any]:
+        return graph.invoke(state, config=config)
+
+    try:
+        result_values = await asyncio.wait_for(
+            loop.run_in_executor(None, _run_sync),
+            timeout=effective_timeout)
+    except asyncio.TimeoutError:
+        raise
+
+    if not isinstance(result_values, dict):
+        result_values = {}
+
+    parsed = parse_result(result_values, snap["count"], session_id)
+    if trace_session is not None:
+        duration = (time.time() - t0) * 1000
+        trace_session.add_event("graph_execution", {
+            "status": "completed",
+            "interrupted": parsed["interrupted"],
+            "duration_ms": round(duration, 2),
+        }, duration_ms=duration)
+    return parsed
+
+
+# ════════════════════════════════════════════════════════════════════
+# 流式执行
+# ════════════════════════════════════════════════════════════════════
+
+async def run_stream(session_id: str, user_message: str, *,
+                     trace_session: Any = None,
+                     idempotency_key: Optional[str] = None,
+                     timeout: Optional[float] = None,
+                     graph: Any = None,
+                     user_id: Optional[str] = None) -> AsyncIterator[Dict[str, Any]]:
+    """真流式执行：yield {"progress"} / {"token"} / {"done": True, ...} 帧。
+
+    架构：
+    1. 在 thread 中使用同步 graph.invoke()（sync PostgresSaver，无事件循环）
+    2. 节点 ``_generate_reply`` 内部 ``_call_llm(stream=True)``
+       使用 ``requests.stream=True`` 从 LLM 获取真 token。
+    3. 每个 token 推送到 ``queue.Queue``。
+    4. 主协程不断轮询队列并 yield 给前端。
+    5. 图执行完毕后解析最终 state 并 yield done 帧。
+
+    总超时通过帧间 deadline 检查实现（超时抛 asyncio.TimeoutError）。
+    """
+    # ═══ 第一件事就 yield progress，让前端立刻有反应 ═══
+    # 后续 get_graph / checkpointer 调用可能耗时 2-10 秒，
+    # 不能等到全部 setup 完才通知前端。
+    yield {"progress": "analyzing"}
+
+    graph = graph or _get_graph_sync()
+    config = {"configurable": {"thread_id": session_id}}
+    loop = asyncio.get_event_loop()
+    snap = await loop.run_in_executor(
+        None, _existing_message_count_sync, graph, config)
+    state = build_initial_state(session_id, user_message,
+                                prev_values=snap["values"],
+                                trace_session=trace_session,
+                                idempotency_key=idempotency_key,
+                                user_id=user_id)
+
+    deadline = time.monotonic() + (timeout if timeout is not None
+                                   else graph_timeout_seconds())
+
+    # ── Thread-safe sync queue: _call_llm(stream=True) pushes tokens here ──
+    import queue as queue_mod
+    sync_q: queue_mod.Queue = queue_mod.Queue()
+    from . import nodes as _nodes
+    _nodes._stream_queue = sync_q
+    sentinel = object()
+
+    if trace_session is not None:
+        trace_session.add_event("graph_execution",
+                                {"status": "started", "stream": True})
+
+    # ── Run graph.invoke() (SYNC) in a thread (no event loop at all) ──
+    exc_info: list = []
+
+    def _run_in_thread() -> Dict[str, Any]:
+        try:
+            return graph.invoke(state, config=config)
+        except BaseException as e:
+            exc_info.append(e)
+            raise
+        finally:
+            sync_q.put(sentinel)
+
+    main_loop = asyncio.get_event_loop()
+    result_future = main_loop.run_in_executor(None, _run_in_thread)
+
+    # ── Poll queue for streaming tokens ──
+    streamed_any = False
+    got_first_token = False
+    last_heartbeat = time.monotonic()
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                result_future.cancel()
+                raise asyncio.TimeoutError()
+
+            # 在获取第一个 token 之前，每 500ms 补一个进度帧防止前端黑屏
+            now = time.monotonic()
+            if not got_first_token and (now - last_heartbeat) >= 0.5:
+                yield {"progress": "analyzing"}
+                last_heartbeat = now
+
+            try:
+                item = sync_q.get(timeout=min(0.05, remaining))
+            except queue_mod.Empty:
+                if result_future.done():
+                    break
+                continue
+
+            if item is sentinel:
+                break
+
+            if not got_first_token:
+                got_first_token = True
+            streamed_any = True
+            yield {"token": i         streamed_any = True\n            yield {\"token\": item}", "oldText": "            if item is sentinel:"]}
+                break
+
+            streamed_any = True
+            yield {"token": item}
+
+        # Final drain: capture any tokens that arrived moments before sentinel
+        await asyncio.sleep(0.03)
+        while True:
+            try:
+                item = sync_q.get_nowait()
+                if item is not sentinel:
+                    streamed_any = True
+                    yield {"token": item}
+            except queue_mod.Empty:
+                break
+    finally:
+        _nodes._stream_queue = None  # cleanup regardless of outcome
+
+    # ── Collect final graph result ──
+    if exc_info:
+        # Re-raise the exception from the thread
+        raise exc_info[0]
+
+    try:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise asyncio.TimeoutError()
+        result_values = await asyncio.wait_for(
+            asyncio.wrap_future(result_future),
+            timeout=remaining)
+    except asyncio.TimeoutError:
+        raise
+
+    if not isinstance(result_values, dict):
+        result_values = {}
+
+    # ── Parse and yield done frame ──
+    parsed = parse_result(result_values, snap["count"], session_id)
+    yield {
+        "done": True,
+        "session_id": session_id,
+        "reply": parsed.get("reply", ""),
+        "intent": parsed["intent"],
+        "emotion": parsed["emotion"],
+        "emotion_intensity": parsed["emotion_intensity"],
+        "reply_type": parsed["reply_type"],
+        "interrupted": parsed["interrupted"],
+        "ending": parsed["ending"],
+        "escalate": parsed.get("escalate", False),
+    }
+
+
+# ── __all__ ────────────────────────────────────────────────────────────
+__all__ = [
+    "build_initial_state", "parse_result", "chunk_text", "classify_message",
+    "get_graph", "prewarm", "shutdown",
+    "run", "run_stream",
+    "graph_timeout_seconds",
+]

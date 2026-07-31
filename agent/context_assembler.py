@@ -1,17 +1,53 @@
-"""Priority-aware context assembly for LangGraph LLM calls.
+"""Priority-aware context assembly for the customer-service LLM calls.
 
-JavaGuide Context Engineering best practice: reserve budget fractions per category,
-prioritize emotional user content over filler in history, ensure RAG grounding snippets survive truncation.
+Design principles (P1-A rewrite)
+--------------------------------
+1. **Single token source** — all estimation goes through
+   :mod:`agent.token_estimator` (never a private formula).
+2. **Physical partition order is sorted by change frequency (ascending)** so
+   stable prefixes maximise provider KV-cache hits:
+
+   ============================  ==========================
+   partition                     change frequency
+   ============================  ==========================
+   static system prompt          nearly never
+   task goal / constraints       rarely
+   tool schemas                  rarely
+   RAG evidence + memory         per turn
+   conversation history          grows per turn (old→new)
+   current user message          every turn — ALWAYS LAST
+   ============================  ==========================
+
+   The final message list is therefore::
+
+       [system(static + task + tools + rag/memory)] +
+       [history old→new as proper role messages] +
+       [current user message]      # the current question is last
+
+3. **rank / fit are decoupled**: :meth:`TokenBudgetAllocator.rank` orders
+   pieces by importance; :meth:`TokenBudgetAllocator.fit` packs the ranked
+   pieces into the budget with a 3-tier degradation ladder
+   (``full`` → ``summary`` → ``reference``). Degraded pieces always keep
+   their ``source_id`` so the evidence chain survives compression.
+4. **Target utilisation 40–60%** of the usable window. Exceeding 60%
+   triggers tier-degradation; the packer never exceeds the 60% ceiling.
+5. **Explicit roles** — every piece carries a ``role`` field. Roles are
+   never recovered by string-splitting on ``":"``.
+6. **RAG field alignment** — nodes.py passes agentic-RAG dicts shaped
+   ``{"sufficient": bool, "context": str, "rounds": int, "queries_tried": [...]}``.
+   The old code read ``r["relevant"]`` / ``r["content"]``, so RAG results
+   never reached the prompt. Both the agentic shape and the legacy
+   ``{"title", "content", "score", "relevant"}`` shape are now supported.
 """
 from __future__ import annotations
-import re
-from collections import Counter
-from dataclasses import dataclass, field
-from typing import Any, Iterable
-from langchain_core.messages import HumanMessage, AIMessage
-from .context_monitor import TokenEstimator
-from .prompt_registry import PromptRegistry, PromptVersion
 
+import re
+from contextlib import suppress
+from dataclasses import dataclass, field, replace
+from typing import Any, Iterable
+
+from .token_estimator import estimate_tokens
+from .prompt_registry import PromptRegistry
 
 _EMOTIONAL_RE = re.compile(
     r'\b(angry|unacceptable|hate|sad|mad|urgent|rude|bad|wrong|'
@@ -19,14 +55,27 @@ _EMOTIONAL_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Tier names for the fit ladder.
+TIER_FULL = "full"
+TIER_SUMMARY = "summary"
+TIER_REFERENCE = "reference"
+
 
 @dataclass
 class ContextPiece:
-    label: str
+    label: str                    # system | task | tools | rag | memory | history | current
     content: str
-    priority: int
+    priority: int                 # higher = more important
+    role: str = "system"          # explicit message role: system | user | assistant
+    source_id: str = ""           # evidence-chain id, survives degradation
+    recency: int = 0              # for history: original index (ascending = older→newer)
     token_estimate: int = 0
-    recency: int = 0
+    tier: str = TIER_FULL
+
+    def estimated(self) -> int:
+        if not self.token_estimate:
+            self.token_estimate = estimate_tokens(self.content)
+        return self.token_estimate
 
 
 @dataclass
@@ -37,190 +86,179 @@ class ContextBundle:
 
 
 class TokenBudgetAllocator:
-    def __init__(self, context_window: int = 128_000, reserved_output: int = 4096):
-        self.context_window, self.reserved_output = context_window, reserved_output
-        self.estimator = TokenEstimator()
+    """Ranks and fits context pieces into a 40–60% utilisation target."""
 
+    TARGET_LOW = 0.40    # below this we are comfortably under budget
+    TARGET_HIGH = 0.60   # crossing this triggers tier degradation
+    # Minimum tokens worth spending on a summary / a reference stub.
+    _MIN_SUMMARY_TOKENS = 24
+    _MIN_REFERENCE_TOKENS = 6
+
+    def __init__(self, context_window: int = 128_000, reserved_output: int = 4096):
+        self.context_window = context_window
+        self.reserved_output = reserved_output
+
+    # ── budget arithmetic ────────────────────────────────────────────
     @property
     def full_budget(self) -> int:
-        return self.context_window - self.reserved_output
+        return max(1, self.context_window - self.reserved_output)
 
-    def _estimate_item_tokens(self, content: str) -> int:
-        """Estimated token count. Consistent with simple-agent calibration.
+    @property
+    def usable_budget(self) -> int:
+        """Hard ceiling: never pack beyond TARGET_HIGH of the full budget."""
+        return max(1, int(self.full_budget * self.TARGET_HIGH))
 
-        Formula: chinese_chars * 1.5 + english_words * 1.3 + other_chars * 0.5
-        where english_words = word COUNT from regex (not char count).
+    # ── token → char sizing (clearly named; direction is explicit) ───
+    @staticmethod
+    def tokens_to_approx_chars(tokens: int) -> int:
+        """Approximate how many characters fit in ``tokens``.
+
+        Inverse of the heuristic's densest coefficient (CJK ≈ 0.7
+        tokens/char → ≈ 1.4 chars/token). Deliberately conservative so a
+        truncated string re-estimates at or below the target.
+        """
+        return max(6, int(tokens * 1.4))
+
+    def _truncate_to_tokens(self, content: str, target_tokens: int,
+                            preserve_head: bool = True) -> str:
+        """Cut ``content`` so its estimate is <= ``target_tokens``.
+
+        preserve_head=True keeps the beginning (protects "Goal:", "doc:"
+        prefixes); False keeps the tail (recent end of a long message).
         """
         if not content:
-            return 0
-        chinese_chars = len(re.findall(r'[一-鿿]', content))
-        english_words = len(re.findall(r'[a-zA-Z]+', content))
-        other_chars = max(0, len(content) - chinese_chars - english_words)
-        tokens = int(chinese_chars * 1.5 + english_words * 1.3 + other_chars * 0.5)
-        return max(tokens, 1) if content.strip() else 0
-
-    def _char_to_approx_tokens(self, char_count: int) -> int:
-        """Rough char-to-token ratio for head-truncation sizing."""
-        return max(1, int(char_count * 0.7))
-
-    def _truncate_head(self, content: str, target_tokens: int) -> str:
-        """Truncate from the head — preserves 'Goal:', 'doc:' prefixes."""
-        if not content:
             return ""
-        target_chars = max(6, self._char_to_approx_tokens(target_tokens))
-        if len(content) <= target_chars:
-            return content
-        return content[:target_chars]
+        chars = self.tokens_to_approx_chars(target_tokens)
+        cut = content[:chars] if preserve_head else content[-chars:]
+        # verify-and-shrink loop: the char approximation may still be over
+        while len(cut) > 6 and estimate_tokens(cut) > target_tokens:
+            keep = max(6, int(len(cut) * 0.85))
+            cut = cut[:keep] if preserve_head else cut[-keep:]
+        return cut
 
-    def _add_piece(self, piece: ContextPiece, available_tokens: int,
-                   preserve_head: bool = True) -> tuple[ContextPiece | None, int]:
-        """Try to add a piece within budget. Returns (piece or None, tokens_used)."""
-        est = piece.token_estimate or self._estimate_item_tokens(piece.content)
+    # ── rank ─────────────────────────────────────────────────────────
+    def rank(self, pieces: Iterable[ContextPiece]) -> list[ContextPiece]:
+        """Order pieces by packing importance (does NOT touch the budget).
 
-        if available_tokens >= est:
-            return ContextPiece(
-                piece.label, piece.content, piece.priority, est, recency=piece.recency
-            ), est
-
-        if available_tokens <= 5:
-            return None, 0
-
-        # Truncate to fit
-        method = self._truncate_head if preserve_head else self._truncate_tail
-        truncated = method(piece.content, available_tokens)
-        t_est = self._estimate_item_tokens(truncated)
-        if t_est > 0:
-            return ContextPiece(
-                piece.label, truncated, piece.priority, t_est, recency=piece.recency
-            ), t_est
-        return None, 0
-
-    def _truncate_tail(self, content: str, target_tokens: int) -> str:
-        """Truncate from the tail to fit within target_tokens."""
-        if not content:
-            return ""
-        target_chars = max(6, self._char_to_approx_tokens(target_tokens))
-        if len(content) <= target_chars:
-            return content
-        return content[len(content) - target_chars:]
-
-    def _is_large_filler(self, piece: ContextPiece) -> bool:
-        """Detect pure filler — high token count dominated by repeated generic words."""
-        est = piece.token_estimate or self._estimate_item_tokens(piece.content)
-        if est < 30:
-            return False
-        text_lower = piece.content.lower()
-        # Not filler if it has emotional keywords
-        if _EMOTIONAL_RE.search(text_lower):
-            return False
-        words = re.findall(r'[a-z]+', text_lower)
-        if len(words) > 5:
-            counter = Counter(words)
-            most_common_word, most_common_count = counter.most_common(1)[0]
-            if most_common_count >= len(words) * 0.3 and len(most_common_word) < 8:
-                return True
-        return False
-
-    def _role_from_piece(self, piece: ContextPiece) -> str | None:
-        """Extract role from 'user:' or 'assistant:' prefix in piece content."""
-        if ":" not in piece.content:
-            return None
-        prefix = piece.content.split(":", 1)[0].strip().lower()
-        if prefix in ("user", "assistant"):
-            return prefix
-        return None
-
-    def allocate_pieces(self, pieces: Iterable[ContextPiece]) -> list[ContextPiece]:
-        """Allocate pieces within budget with category-reserved fractions.
-
-        Strategy (JavaGuide Context Engineering):
-        1. System prompt ~5% reserved
-        2. Task goal — always included, truncated to fit
-        3. RAG — guaranteed slice, preserves prefixes like "doc:"
-        4. Memory summary — limited to avoid starving other categories
-        5. History: emotional user messages first, then recency, skip filler
+        system and the current user message are pinned to the front so they
+        are always packed first. Everything else sorts by priority, then by
+        recency (newer history first for *selection*; the chronological
+        rendering order is restored later from ``recency``).
         """
-        full = self.full_budget
+        pinned, rest = [], []
+        for p in pieces:
+            (pinned if p.label in ("system", "current") else rest).append(p)
+        pinned.sort(key=lambda p: -p.priority)
+        rest.sort(key=lambda p: (-p.priority, -p.recency))
+        return pinned + rest
+
+    # ── fit ──────────────────────────────────────────────────────────
+    def fit(self, ranked: Iterable[ContextPiece]) -> list[ContextPiece]:
+        """Pack ranked pieces into the usable budget with 3-tier degradation.
+
+        Ladder per piece: full text → summary (head-truncated, marked) →
+        reference-only stub. The loop terminates when the *remaining*
+        budget is exhausted (``avail <= 0``) — NOT the old buggy
+        ``used >= avail`` comparison, which aborted packing as soon as
+        usage crossed ~50% of the budget.
+        """
         selected: list[ContextPiece] = []
-        used = 0
-        avail = full
+        avail = self.usable_budget
 
-        all_pieces = list(pieces)
-
-        # Phase 1: System prompt — tiny, guaranteed first slot
-        system_piece = next((p for p in all_pieces if p.label == "system"), None)
-        if system_piece:
-            added, cost = self._add_piece(system_piece, avail)
-            if added:
-                selected.append(added); used += cost; avail -= cost
-
-        # Phase 2: Task goal — always include (truncated to fit budget)
-        task_pool = sorted(
-            [p for p in all_pieces if p.label == "task"],
-            key=lambda p: (-p.priority, -p.recency),
-        )
-        if task_pool and task_pool[0].content.strip():
-            # Reserve up to 25% of full budget for task goal (important for traceability)
-            task_budget = max(20, int(full * 0.25))
-            added, cost = self._add_piece(task_pool[0], task_budget, preserve_head=True)
-            if added:
-                selected.append(added); used += cost; avail -= cost
-
-        # Phase 3: RAG — guarantee at least min of remaining or 40% for grounding
-        rag_pool = sorted(
-            [p for p in all_pieces if p.label == "rag"],
-            key=lambda p: (-p.priority, -p.recency),
-        )
-        if rag_pool and avail > 15:
-            # Guarantee at least 40% of remaining budget (or a minimum) for RAG grounding
-            rag_guarantee = max(30, min(avail // 2, int(full * 0.40)))
-            for rag_piece in rag_pool:
-                if avail <= 10:
-                    break
-                added, cost = self._add_piece(rag_piece, min(avail, rag_guarantee), preserve_head=True)
-                if added:
-                    selected.append(added); used += cost; avail -= cost
-
-        # Phase 4: Memory summary — limited fraction to avoid starving RAG
-        mem_pool = sorted(
-            [p for p in all_pieces if p.label == "memory"],
-            key=lambda p: (-p.priority, -p.recency),
-        )
-        if mem_pool and mem_pool[0].content.strip():
-            # Cap memory to 15% of full budget max (prevents starving RAG)
-            mem_cap = min(avail, max(20, int(full * 0.15)))
-            added, cost = self._add_piece(mem_pool[0], mem_cap)
-            if added:
-                selected.append(added); used += cost; avail -= cost
-
-        # Phase 5: History — emotional user messages first, then recency, skip pure filler
-        history_prio = sorted(
-            [p for p in all_pieces if p.label == "history"],
-            key=lambda p: (-p.recency, -p.priority),
-        )
-        for p in history_prio:
-            if used >= avail or avail <= 5:
-                break
-
-            est_tokens = p.token_estimate or self._estimate_item_tokens(p.content)
-
-            # Skip empty pieces entirely
-            if est_tokens == 0 and not p.content.strip():
+        for piece in ranked:
+            if avail <= 0:
+                break  # budget genuinely exhausted
+            if not piece.content.strip():
                 continue
 
-            # Skip large filler aggressively when budget is tight
-            if self._is_large_filler(p) and avail < full * 0.5:
+            est = piece.estimated()
+
+            if est <= avail:                              # tier 1: full
+                selected.append(replace(piece, token_estimate=est, tier=TIER_FULL))
+                avail -= est
                 continue
 
-            added, cost = self._add_piece(p, avail)
-            if added:
-                selected.append(added); used += cost; avail -= cost
+            # Never degrade the pinned essentials to a stub: shrink instead.
+            if piece.label in ("system", "current"):
+                cut = self._truncate_to_tokens(piece.content, avail,
+                                               preserve_head=piece.label == "system")
+                if cut.strip():
+                    est = estimate_tokens(cut)
+                    selected.append(replace(piece, content=cut,
+                                            token_estimate=est, tier=TIER_SUMMARY))
+                    avail -= est
+                continue
+
+            if avail >= self._MIN_SUMMARY_TOKENS:         # tier 2: summary
+                degraded = self._to_summary(piece, avail)
+                if degraded is not None:
+                    selected.append(degraded)
+                    avail -= degraded.token_estimate
+                continue
+
+            if avail >= self._MIN_REFERENCE_TOKENS:       # tier 3: reference
+                stub = self._to_reference(piece)
+                est = estimate_tokens(stub.content)
+                if est <= avail:
+                    stub.token_estimate = est
+                    selected.append(stub)
+                    avail -= est
+            # else: this piece is skipped; keep scanning — smaller pieces
+            # later in the ranking may still fit the remaining budget.
 
         return selected
 
+    def _to_summary(self, piece: ContextPiece, budget: int) -> ContextPiece | None:
+        """Tier 2: head-truncate and mark; keeps source_id for evidence chain."""
+        marker = f" …[truncated; source={piece.source_id or piece.label}]"
+        body_budget = max(8, budget - estimate_tokens(marker))
+        cut = self._truncate_to_tokens(piece.content, body_budget, preserve_head=True)
+        if not cut.strip():
+            return None
+        content = cut + marker
+        est = estimate_tokens(content)
+        if est > budget:
+            return None
+        return replace(piece, content=content, token_estimate=est, tier=TIER_SUMMARY)
+
+    @staticmethod
+    def _to_reference(piece: ContextPiece) -> ContextPiece:
+        """Tier 3: citation-only stub; the source_id IS the payload."""
+        ref = f"[ref:{piece.source_id or piece.label}]"
+        return replace(piece, content=ref, token_estimate=0, tier=TIER_REFERENCE)
+
+    # ── convenience: rank + fit in one call ──────────────────────────
+    def allocate_pieces(self, pieces: Iterable[ContextPiece]) -> list[ContextPiece]:
+        return self.fit(self.rank(pieces))
+
+    def utilization(self, selected: Iterable[ContextPiece]) -> float:
+        used = sum(p.token_estimate for p in selected)
+        return used / self.full_budget
+
+
+def _message_role(item: Any) -> str:
+    """Duck-typed role detection — no string splitting, no hard langchain dep."""
+    if isinstance(item, dict):
+        role = str(item.get("role", "user")).lower()
+        return "assistant" if role in ("assistant", "ai") else "user"
+    msg_type = getattr(item, "type", None)
+    if msg_type in ("ai", "AIMessageChunk"):
+        return "assistant"
+    if msg_type == "human":
+        return "user"
+    cls = type(item).__name__
+    return "assistant" if cls.startswith("AI") else "user"
+
+
+def _message_content(item: Any) -> str:
+    if isinstance(item, dict):
+        return str(item.get("content", ""))
+    content = getattr(item, "content", None)
+    return str(content) if content is not None else str(item)
+
 
 class ContextAssembler:
-    """Progressively disclose memory/RAG metadata, then compact to the context budget."""
+    """Assemble the final LLM message list under budget with cache-friendly layout."""
 
     def __init__(self, registry: PromptRegistry | None = None,
                  allocator: TokenBudgetAllocator | None = None):
@@ -229,144 +267,186 @@ class ContextAssembler:
         if not self.registry._versions.get("system"):
             self.registry.register("system", "You are a helpful customer service assistant.")
 
-    def assemble(self, state: dict, user_message: str, session_id: str = "") -> ContextBundle:
-        prompt = self.registry.get("system")
+    # ── piece builders ───────────────────────────────────────────────
+    @staticmethod
+    def _rag_pieces(rag_results: Any) -> list[ContextPiece]:
+        """Build RAG pieces — aligned with the REAL field shapes.
 
-        # Build pieces in strict priority order
-        pieces: list[ContextPiece] = [ContextPiece("system", prompt.content, 100)]
+        Agentic shape (what nodes.py actually passes)::
 
-        # Task goal — always include 'task_goal:' literal prefix for traceability/metadata
-        goal = state.get("task_goal")
-        constraints = state.get("constraints") or []
-        if goal or (constraints and constraints != []):
-            parts = ["Goal: " + str(goal or "")]
-            if constraints and constraints != []:
-                constraint_str = "; ".join(map(str, constraints))
-                if constraint_str:
-                    parts.append("Constraints: " + constraint_str)
-            pieces.append(ContextPiece("task", "\n".join(parts), 90))
+            {"sufficient": bool, "context": str, "rounds": int, "queries_tried": [...]}
 
-        # Memory summary
-        memory = state.get("memory_summary") or state.get("memory")
-        if memory and str(memory).strip():
-            pieces.append(ContextPiece("memory", str(memory), 60))
+        Legacy shape (still accepted)::
 
-        # RAG results — sort by relevance score desc, then title length asc for precision
-        rag_results = state.get("rag_results") or []
+            {"title": str, "content": str, "score": float, "relevant": bool}
+        """
+        if not rag_results:
+            return []
         if isinstance(rag_results, dict):
             rag_results = [rag_results]
 
-        relevant_rag = [r for r in rag_results if r.get("relevant", False)]
-        relevant_rag.sort(key=lambda x: (-x.get("score", 0.5), len(x.get("title", ""))))
+        pieces: list[ContextPiece] = []
+        for idx, r in enumerate(rag_results):
+            if not isinstance(r, dict):
+                text = str(r)
+                if text.strip():
+                    pieces.append(ContextPiece("rag", text, 70,
+                                               source_id=f"rag:{idx}"))
+                continue
 
-        # Build RAG pieces with score-based priority (limit to top relevant items)
-        for idx, item in enumerate(relevant_rag[:4]):
-            if isinstance(item, dict):
-                title = item.get("title", "evidence")
-                content_val = item.get("content", "") or title
-                priority_score = 70 + int(item.get("score", 0.5) * 10)
-                pieces.append(ContextPiece(
-                    "rag",
-                    f"{title}: {content_val}",
-                    priority_score,
-                    recency=4 - idx,
-                ))
-            else:
-                pieces.append(ContextPiece("rag", str(item), 70, recency=4 - idx))
-
-        # History messages — compute combined score for sorting/selection
-        history = state.get("messages", [])
-        max_index = len(history) * 10 + 500
-
-        for index, item in enumerate(history):
-            content_val = getattr(item, "content", "") if hasattr(item, "content") else None
-            if content_val is None:
-                content_val = item.get("content", "") if isinstance(item, dict) else str(item)
-
-            role = "assistant" if isinstance(item, AIMessage) else "user"
-            prefix = f"{role}: {content_val}"
-
-            # Boost emotional user messages with high priority and recency
-            is_emotional_user = (bool(_EMOTIONAL_RE.search(content_val))
-                               and role == "user")
-
-            priority = 50 if is_emotional_user else 40
-            combined_recency = (max_index - index * 10) + (1000 if is_emotional_user else 0)
-
-            pieces.append(ContextPiece(
-                "history", prefix, priority, recency=combined_recency
-            ))
-
-        # Allocate across budget using JavaGuide strategy
-        selected = self.allocator.allocate_pieces(pieces)
-
-        # Build system prompt from non-history pieces with strict priority ordering
-        system_parts = [prompt.content]
-
-        for piece in selected:
-            if piece.label == "task":
-                raw_content = piece.content
-                if "Goal: " in raw_content or "task_goal:" in raw_content:
-                    # Preserve 'task_goal:' label so trace_id/metadata references work,
-                    # then include the goal text for LLM parsing.
-                    system_parts.append(f"task_goal:{raw_content.strip()}")
-
-        for piece in selected:
-            if piece.label == "memory" and piece.content.strip():
-                system_parts.append(f"Memory Context: {piece.content}")
-
-        for piece in selected:
-            if piece.label == "rag" and piece.content.strip():
-                system_parts.append(piece.content)
-
-        # Surface recent emotional user messages into system prompt
-        # (JavaGuide: urgent content must be visible to LLM, not buried in history)
-        emotional_msgs = []
-        for piece in selected:
-            if piece.label == "history":
-                role = self.allocator._role_from_piece(piece)
-                if role == "user" and _EMOTIONAL_RE.search(piece.content):
-                    msg_text = piece.content.split(": ", 1)[-1] if ": " in piece.content else piece.content.strip()
-                    emotional_msgs.append(msg_text)
-
-        # Show up to 2 most recent emotional user messages in system prompt
-        if emotional_msgs:
-            system_parts.append("Recent User Messages: " + "; ".join(emotional_msgs[-2:]))
-
-        system_content = "\n\n".join(system_parts)
-
-        # Collect history messages in their original order (for conversation context)
-        history_messages: list[dict] = []
-        for piece in selected:
-            if piece.label == "history":
-                try:
-                    role_part, content_part = piece.content.split(":", 1)
-                    role_prefix = role_part.strip().lower()
-                    if role_prefix in ["user", "assistant"]:
-                        history_messages.append({
-                            "role": role_prefix,
-                            "content": content_part.strip()
-                        })
-                except ValueError:
+            if "context" in r or "sufficient" in r:      # agentic shape
+                context = str(r.get("context") or "")
+                if not context.strip():
                     continue
+                priority = 78 if r.get("sufficient") else 70
+                source_id = f"agentic_rag:round{r.get('rounds', 0)}"
+                queries = r.get("queries_tried") or []
+                header = ""
+                if queries:
+                    header = f"[retrieval queries: {', '.join(map(str, queries[:4]))}]\n"
+                pieces.append(ContextPiece("rag", header + context, priority,
+                                           source_id=source_id,
+                                           recency=len(rag_results) - idx))
+            else:                                        # legacy shape
+                if r.get("relevant") is False:
+                    continue
+                title = str(r.get("title", "evidence"))
+                content = str(r.get("content", "") or title)
+                score = float(r.get("score", 0.5) or 0.5)
+                pieces.append(ContextPiece(
+                    "rag", f"{title}: {content}", 70 + int(score * 10),
+                    source_id=f"doc:{r.get('id', title)}",
+                    recency=len(rag_results) - idx,
+                ))
+        return pieces
 
-        # Build final message list: system -> user query -> history messages
-        final_messages: list[dict] = []
-        final_messages.append({"role": "system", "content": system_content})
-        final_messages.append({"role": "user", "content": user_message})
-        for msg in history_messages:
-            final_messages.append(msg)
+    @staticmethod
+    def _tool_pieces(tools: Any) -> list[ContextPiece]:
+        if not tools:
+            return []
+        lines = []
+        for t in tools:
+            if isinstance(t, dict):
+                name = t.get("name", "tool")
+                desc = t.get("description", "")
+                lines.append(f"- {name}: {desc}".rstrip(": "))
+            else:
+                lines.append(f"- {t}")
+        return [ContextPiece("tools", "Available tools:\n" + "\n".join(lines), 85,
+                             source_id="tool_schema")]
+
+    def _history_pieces(self, history: list, current_user: str) -> list[ContextPiece]:
+        pieces: list[ContextPiece] = []
+        items = list(history or [])
+        # De-duplicate: if the newest history entry IS the current user turn,
+        # drop it here — the current question is appended (last) separately.
+        if items:
+            last = items[-1]
+            if _message_role(last) == "user" and _message_content(last) == current_user:
+                items = items[:-1]
+
+        for index, item in enumerate(items):
+            content = _message_content(item)
+            if not content.strip():
+                continue
+            role = _message_role(item)
+            emotional = role == "user" and bool(_EMOTIONAL_RE.search(content))
+            pieces.append(ContextPiece(
+                "history", content,
+                priority=50 if emotional else 40,
+                role=role,
+                source_id=f"history:{index}",
+                recency=index,           # ascending: larger = newer
+            ))
+        return pieces
+
+    # ── main entry point (signature kept compatible with nodes.py) ───
+    def assemble(self, state: dict, user_message: str, session_id: str = "") -> ContextBundle:
+        prompt = self.registry.get("system")
+        with suppress(Exception):
+            self.registry.record_run(prompt, session_id=session_id)
+
+        pieces: list[ContextPiece] = [
+            ContextPiece("system", prompt.content, 100, role="system",
+                         source_id=f"prompt:{prompt.name}:{prompt.version_no}"),
+            ContextPiece("current", user_message or "", 99, role="user",
+                         source_id="current_turn"),
+        ]
+
+        goal = state.get("task_goal")
+        constraints = [c for c in (state.get("constraints") or []) if str(c).strip()]
+        if goal or constraints:
+            parts = [f"Goal: {goal or ''}".rstrip()]
+            if constraints:
+                parts.append("Constraints: " + "; ".join(map(str, constraints)))
+            pieces.append(ContextPiece("task", "\n".join(parts), 90,
+                                       source_id="task_goal"))
 
         tools = state.get("available_tools") or []
+        pieces.extend(self._tool_pieces(tools))
+        pieces.extend(self._rag_pieces(state.get("rag_results")))
 
+        memory = state.get("memory_summary") or state.get("memory")
+        if memory and str(memory).strip():
+            pieces.append(ContextPiece("memory", str(memory), 60,
+                                       source_id="memory_summary"))
+
+        pieces.extend(self._history_pieces(state.get("messages", []), user_message))
+
+        # rank (importance) and fit (budget + degradation) are decoupled.
+        ranked = self.allocator.rank(pieces)
+        selected = self.allocator.fit(ranked)
+
+        # ── render: partitions ordered by ascending change frequency ──
+        by_label: dict[str, list[ContextPiece]] = {}
+        for p in selected:
+            by_label.setdefault(p.label, []).append(p)
+
+        system_parts: list[str] = []
+        for p in by_label.get("system", []):
+            system_parts.append(p.content)
+        for p in by_label.get("task", []):
+            system_parts.append(f"task_goal:{p.content.strip()}")
+        for p in by_label.get("tools", []):
+            system_parts.append(p.content)
+        rag_selected = by_label.get("rag", [])
+        if rag_selected:
+            system_parts.append(
+                "参考资料 (evidence):\n" + "\n\n".join(p.content for p in rag_selected))
+        for p in by_label.get("memory", []):
+            system_parts.append(f"Memory Context: {p.content}")
+
+        final_messages: list[dict] = [
+            {"role": "system", "content": "\n\n".join(system_parts)}
+        ]
+
+        # History in ORIGINAL chronological order (old → new), explicit roles.
+        for p in sorted(by_label.get("history", []), key=lambda x: x.recency):
+            final_messages.append({"role": p.role, "content": p.content})
+
+        # The current question is ALWAYS the last message.
+        current = by_label.get("current")
+        final_messages.append({
+            "role": "user",
+            "content": current[0].content if current else (user_message or ""),
+        })
+
+        used_tokens = sum(p.token_estimate for p in selected)
         return ContextBundle(
-            final_messages, tools, {
+            messages=final_messages,
+            tool_schema=list(tools),
+            metadata={
                 "source_counts": {
-                    label: sum(p.label == label for p in selected)
-                    for label in {p.label for p in selected}
+                    label: len(items) for label, items in by_label.items()
                 },
-                "token_estimate": sum(p.token_estimate for p in selected),
+                "token_estimate": used_tokens,
+                "utilization": self.allocator.utilization(selected),
+                "target_range": (self.allocator.TARGET_LOW, self.allocator.TARGET_HIGH),
+                "degraded": [
+                    {"source_id": p.source_id, "label": p.label, "tier": p.tier}
+                    for p in selected if p.tier != TIER_FULL
+                ],
                 "prompt_version": f"{prompt.name}:{prompt.version_no}",
                 "session_id": session_id,
-            }
+            },
         )

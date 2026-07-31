@@ -32,7 +32,24 @@ import json
 import logging
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
-from langchain_core.messages import HumanMessage, AIMessage
+
+# 三方守卫：langchain_core 缺席时降级为等价的轻量消息类型（仅用于 isinstance
+# 分流与 .content 读取）。纯 stdlib 单测无需安装 langchain 即可导入本模块。
+try:
+    from langchain_core.messages import HumanMessage, AIMessage
+except Exception:  # pragma: no cover
+    class _BaseMessage:
+        def __init__(self, content: str = "", **kwargs):
+            self.content = content
+
+        def __repr__(self) -> str:
+            return f"{type(self).__name__}({self.content!r})"
+
+    class HumanMessage(_BaseMessage):  # type: ignore
+        type = "human"
+
+    class AIMessage(_BaseMessage):  # type: ignore
+        type = "ai"
 
 logger = logging.getLogger(__name__)
 
@@ -189,9 +206,18 @@ class ContextCompactor:
                 new_count=len(messages),
             )
 
-        # 分离旧消息和新消息
-        keep = KEEP_RECENT_TURNS * 2  # 每条 = user + assistant
-        if len(messages) <= keep:
+        # 分离：保留首个 user query + 压缩中间 + 保留最近 N 轮
+        #
+        # 产品要求修正：只保留最近 N 轮会丢掉开头——而首个问题常含订单号 /
+        # 背景 / 诉求，是后续所有轮次的锚点。因此切分为三段：
+        #   [首个 user turn]  +  summarize(中间)  +  [最近 KEEP_RECENT_TURNS 轮]
+        keep = KEEP_RECENT_TURNS * 2  # 每轮 = user + assistant
+        first_idx = self._first_user_index(messages)
+
+        # 需要有可压缩的"中间段"：首 user turn 之后、最近窗口之前还有消息。
+        # 若消息太少（首turn与最近窗口重叠/相邻），无中间可压 → 不压缩。
+        recent_start = len(messages) - keep
+        if first_idx is None or recent_start <= first_idx + 1:
             return CompactionResult(
                 summary="",
                 messages=messages,
@@ -201,44 +227,54 @@ class ContextCompactor:
                 new_count=len(messages),
             )
 
-        old_messages = messages[:-keep]
-        new_messages = messages[-keep:]
+        first_turn = messages[first_idx:first_idx + 1]      # 首个 user 消息
+        middle_messages = messages[first_idx + 1:recent_start]  # 被摘要的中间段
+        new_messages = messages[recent_start:]              # 最近 N 轮完整保留
+        preserved = first_turn + new_messages               # 首尾拼接
 
-        # 检查缓存
+        # 检查缓存（中间段摘要按 session 复用）
         cached_summary = self._summary_cache.get(session_id) if session_id else None
         if cached_summary:
-            # 只有当旧消息没变化时才用缓存（简化：直接用）
-            old_tokens = _estimate_messages_tokens(old_messages)
+            old_tokens = _estimate_messages_tokens(middle_messages)
             return CompactionResult(
                 summary=cached_summary,
-                messages=new_messages,
+                messages=preserved,
                 compacted=False,  # 来自缓存，不是新压缩
                 tokens_saved=old_tokens,
                 old_count=len(messages),
-                new_count=len(new_messages),
+                new_count=len(preserved),
             )
 
-        # 执行 LLM 压缩
-        summary = self._compact_old_messages(old_messages)
+        # 执行 LLM 压缩（仅压中间段；首尾原样保留）
+        summary = self._compact_old_messages(middle_messages)
 
-        # 更新缓存
         if session_id:
             self._summary_cache[session_id] = summary
 
-        old_tokens = _estimate_messages_tokens(old_messages)
+        old_tokens = _estimate_messages_tokens(middle_messages)
         logger.info(
-            f"[Compaction] {len(messages)} → {len(new_messages)} messages, "
-            f"saved ~{old_tokens} tokens, summary={len(summary)} chars"
+            f"[Compaction] {len(messages)} → {len(preserved)} messages "
+            f"(首 query 保留 + 中间 {len(middle_messages)} 条摘要 + 最近 "
+            f"{len(new_messages)} 条), saved ~{old_tokens} tokens, "
+            f"summary={len(summary)} chars"
         )
 
         return CompactionResult(
             summary=summary,
-            messages=new_messages,
+            messages=preserved,
             compacted=True,
             tokens_saved=old_tokens,
             old_count=len(messages),
-            new_count=len(new_messages),
+            new_count=len(preserved),
         )
+
+    @staticmethod
+    def _first_user_index(messages: List) -> Optional[int]:
+        """返回第一个 HumanMessage 的下标；找不到返回 None。"""
+        for i, msg in enumerate(messages):
+            if isinstance(msg, HumanMessage):
+                return i
+        return None
 
     def _compact_old_messages(self, old_messages: List) -> str:
         """用 LLM 对旧消息做结构化摘要（优先走 Gateway 的 balanced tier 省成本）。"""
@@ -260,14 +296,17 @@ class ContextCompactor:
         raw = None
 
         # 优先走 LLM Gateway（lazy import 避免循环引用）
+        # 注意：chat_simple 是 async，必须通过 chat_sync 同步调用，
+        # 否则 coroutine 会静默泄漏导致 Gateway 被跳过。
         try:
             gw_module = _get_llm_gateway_module()
             gateway = gw_module.get_llm_gateway()
-            result = gateway.chat_simple(
+            from .llm_gateway import GatewayRequest
+            result = gateway.chat_sync(GatewayRequest(
                 messages=messages,
                 scene="context_compaction",
                 temperature=0.1,
-            )
+            ))
             raw = result.content
         except Exception as e:
             logger.warning(f"[Compaction] Gateway unavailable, falling back to direct LLM: {e}")

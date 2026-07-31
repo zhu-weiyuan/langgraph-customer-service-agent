@@ -37,7 +37,7 @@ class RedisClient:
     so the agent works without Redis installed/running.
     """
 
-    def __init__(self, url: str = "redis://localhost:6379/0", prefix: str = "cs"):
+    def __init__(self, url: str = "redis://127.0.0.1:6379/0", prefix: str = "cs"):
         self.prefix = prefix
         self._conn: Optional[redis.Redis] = None
         if REDIS_AVAILABLE:
@@ -197,11 +197,16 @@ class RedisClient:
             return 0
 
     def get_online_users(self) -> set[str]:
-        """Get the set of currently online user IDs."""
+        """Get the set of currently online user IDs.
+
+        修复：连接创建时 decode_responses=True，smembers 已返回 str，
+        再调 .decode() 会 AttributeError。兼容两种连接配置。
+        """
         if not self._conn:
             return set()
         try:
-            return {u.decode() for u in self._conn.smembers(self._key("online"))}
+            return {u.decode() if isinstance(u, bytes) else u
+                    for u in self._conn.smembers(self._key("online"))}
         except Exception:
             return set()
 
@@ -259,21 +264,32 @@ class RedisClient:
 
     # ── Rate Limiting (Sliding Window Algorithm) ───────────
 
-    def check_rate_limit(self, identifier: str, max_requests: int = 60, window_seconds: int = 60) -> dict:
+    def check_rate_limit(self, identifier: str, max_requests: int = 60,
+                         window_seconds: int = 60, fail_closed: bool = False) -> dict:
         """Check and enforce rate limit using sliding window algorithm.
 
         Uses Redis sorted set with timestamps as scores for precise sliding window.
+
+        ⚠️ fail-open 风险：默认行为下 Redis 不可用/查询异常时**直接放行**
+        （allowed=True）。这意味着 Redis 故障期间限流完全失效，可能被刷量。
+        面向公网/计费敏感的入口请传 fail_closed=True（故障时拒绝请求），
+        或改用 agent.rate_limiter.RedisTokenBucketLimiter（自带保守本地降级）。
 
         Args:
             identifier: User ID or IP address
             max_requests: Maximum requests allowed in the window
             window_seconds: Time window in seconds
+            fail_closed: True 时 Redis 不可用/出错拒绝请求（allowed=False）
 
         Returns:
             dict with 'allowed' (bool), 'remaining' (int), 'reset_at' (float)
         """
         if not self._conn:
-            return {"allowed": True, "remaining": max_requests, "reset_at": 0}
+            if fail_closed:
+                return {"allowed": False, "remaining": 0, "reset_at": 0,
+                        "degraded": True}
+            return {"allowed": True, "remaining": max_requests, "reset_at": 0,
+                    "degraded": True}
 
         key = self._key("ratelimit", identifier)
         now = time.time()
@@ -309,7 +325,12 @@ class RedisClient:
             }
         except Exception as e:
             logger.warning(f"Rate limit check failed: {e}")
-            return {"allowed": True, "remaining": max_requests, "reset_at": 0}
+            if fail_closed:
+                return {"allowed": False, "remaining": 0, "reset_at": 0,
+                        "degraded": True}
+            # fail-open：见 docstring 风险说明
+            return {"allowed": True, "remaining": max_requests, "reset_at": 0,
+                    "degraded": True}
 
     # ── Distributed Lock (SET NX EX) ───────────────────────
 
@@ -383,6 +404,6 @@ def get_redis() -> RedisClient:
     global _redis_client
     if _redis_client is None:
         import os
-        url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+        url = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
         _redis_client = RedisClient(url=url)
     return _redis_client

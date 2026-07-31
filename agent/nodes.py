@@ -10,10 +10,35 @@
 
 import time
 import logging
-from typing import Dict, Any, List
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from collections import deque
+from contextlib import suppress
+from typing import Dict, Any, List, Optional
 from langchain_core.messages import HumanMessage, AIMessage
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("agent.nodes")
+
+# Bound by runner.run_stream() for the graph worker that owns this request.
+# Only reply generation writes token events; the runner forwards them immediately as SSE.
+_stream_queue = None
+_stream_queue_local = threading.local()
+
+
+def _active_stream_queue():
+    return getattr(_stream_queue_local, "queue", None) or _stream_queue
+
+
+def _emit_stream_event(event: Dict[str, Any]) -> None:
+    stream_queue = _active_stream_queue()
+    if stream_queue is not None:
+        with suppress(Exception):
+            stream_queue.put(dict(event))
+
+
+def _emit_stream_progress(stage: str) -> None:
+    _emit_stream_event({"progress": stage})
+
 
 # ── Token 预算管理 ────────────────────────────────────────
 MAX_INPUT_TOKENS = 120_000     # 模型上下文上限（留余量）
@@ -86,7 +111,7 @@ def _is_history_recall_query(user_message: str) -> bool:
 # Node timing middleware (LangGraph best practice: monitor node latency)
 # ============================================================
 
-_node_timings = {}  # node_name -> list of durations in seconds
+_node_timings: Dict[str, deque] = {}  # bounded samples per node
 
 
 def _time_node(node_name: str):
@@ -104,10 +129,13 @@ def _time_node(node_name: str):
             yield
         finally:
             elapsed = time.time() - t0
-            _node_timings.setdefault(node_name, []).append(elapsed)
+            _node_timings.setdefault(node_name, deque(maxlen=1000)).append(elapsed)
             count = len(_node_timings[node_name])
             avg = sum(_node_timings[node_name]) / count
-            print(f"[Timing] {node_name} = {elapsed*1000:.0f}ms (avg={avg*1000:.0f}ms over {count} calls)")
+            logger.info("node=%s elapsed_ms=%.0f avg_ms=%.0f count=%s", node_name, elapsed * 1000, avg * 1000, count)
+            if record_node_duration is not None:
+                with suppress(Exception):
+                    record_node_duration(node_name, elapsed)
     return timer()
 
 
@@ -147,6 +175,12 @@ from .memory import (
 from .summary import generate_summary, format_ticket
 
 from .llm_client import get_llm_client
+from .llm_gateway import GatewayRequest, get_llm_gateway, get_gateway_context
+try:
+    from .metrics import record_rag_query, record_node_duration
+except Exception:  # metrics must never make chat unavailable
+    record_rag_query = None
+    record_node_duration = None
 
 # Context Compaction — 对话历史压缩（替代简单截断）
 from .context_compaction import get_compactor
@@ -182,14 +216,36 @@ RAG_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT + """
 请基于以上参考资料回答用户问题。如果参考资料中没有相关信息，诚实说明你不确定。"""
 
 
-def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT, max_tokens: int = 512) -> str:
-    """调用 LLM（通过统一客户端）。"""
-    client = get_llm_client()
-    full_msgs = []
+def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT,
+              max_tokens: int = 512, *, stream: bool = False) -> str:
+    """Call the model gateway and forward every provider token in stream mode."""
+    full_messages: List[dict] = []
     if system:
-        full_msgs.append({"role": "system", "content": system})
-    full_msgs.extend(messages)
-    return client.chat(full_msgs, max_tokens=max_tokens)
+        full_messages.append({"role": "system", "content": system})
+    full_messages.extend(messages or [])
+    scoped = get_gateway_context()
+    request = GatewayRequest(
+        messages=full_messages,
+        scene=str(scoped.get("scene") or "chat"),
+        tenant_id=str(scoped.get("tenant_id") or "default"),
+        user_id=scoped.get("user_id"),
+        trace_id=str(scoped.get("trace_id") or ""),
+        idempotency_key=scoped.get("idempotency_key"),
+        max_output_tokens=max_tokens,
+        metadata={"prompt_version": "chat-v1"},
+    )
+    gateway = get_llm_gateway()
+    if not stream:
+        return gateway.chat_sync(request).content
+    _emit_stream_progress("generating")
+    parts: List[str] = []
+    for token in gateway.stream_sync(request):
+        token = str(token or "")
+        if not token:
+            continue
+        parts.append(token)
+        _emit_stream_event({"token": token})
+    return "".join(parts)
 
 
 def _call_llm_json(messages: List[dict], system: str, max_tokens: int = 256) -> dict:
@@ -389,6 +445,7 @@ def build_reply_context(
     emotion_intensity: int = 1,
     retry_count: int = 0,
     state: dict = None,
+    user_id: str = '',
 ) -> Dict[str, Any]:
     """Build context for reply generation (shared between graph node and streaming API).
 
@@ -407,6 +464,7 @@ def build_reply_context(
       - compaction: Context Compaction 结果
     """
     # ── Step 1: Context Compaction ──────────────────────────────
+    _emit_stream_progress("assembling_context")
     compactor = get_compactor()
     compaction = compactor.maybe_compact(messages, session_id=session_id)
 
@@ -436,7 +494,11 @@ def build_reply_context(
     rag_context = ""
     rag_info = None
     if intent == 'consult' and latest_user:
+        _emit_stream_progress("retrieving_knowledge")
         rag_info = agentic_rag(latest_user, max_rounds=2)
+        if record_rag_query is not None:
+            with suppress(Exception):
+                record_rag_query(bool(rag_info.get('hits') or rag_info.get('context')))
         rag_context = rag_info.get('context', '')
         if rag_context:
             sections = rag_context.count('###')
@@ -450,10 +512,10 @@ def build_reply_context(
     
     # Prepare state-like structure for assembler input
     assembler_state = {
-        "messages": messages,
+        "messages": trimmed,
         "task_goal": "Provide helpful customer support",  # Could be dynamic
         "constraints": [],  # e.g. compliance rules
-        "memory_summary": build_memory_context(session_id) if session_id else None,
+        "memory_summary": build_memory_context(user_id or session_id) if (user_id or session_id) else None,
         "rag_results": [rag_info] if rag_info and rag_info.get('sufficient') else [],
         "available_tools": []  # No tools currently used in this agent
     }
@@ -514,9 +576,10 @@ def _generate_reply_inner(state: Dict[str, Any]) -> Dict[str, Any]:
         emotion=emotion,
         emotion_intensity=emotion_intensity,
         retry_count=retry_count,
+        user_id=state.get('user_id', '') or '',
     )
 
-    reply = _call_llm(ctx['context_messages'], ctx['system_prompt'], max_tokens=512)
+    reply = _call_llm(ctx['context_messages'], ctx['system_prompt'], max_tokens=512, stream=True)
     if not reply or not reply.strip():
         reply = "抱歉，我现在无法生成回复，请稍后再试。"
     ai_message = AIMessage(content=reply)
@@ -530,7 +593,14 @@ def _generate_reply_inner(state: Dict[str, Any]) -> Dict[str, Any]:
             intent=intent,
             emotion=emotion,
             emotion_intensity=emotion_intensity,
+            user_id=state.get('user_id', '') or None,
         )
+
+    # Conversation persistence is synchronous. Derived memory indexing is
+    # best-effort and cannot make an acknowledged chat disappear after refresh.
+    _schedule_long_term_memory_extraction(
+        state.get('user_id', '') or session_id, ctx['latest_user'], session_id
+    )
 
     return {'messages': [ai_message], 'bot_reply': reply}
 
@@ -538,6 +608,34 @@ def _generate_reply_inner(state: Dict[str, Any]) -> Dict[str, Any]:
 # ============================================================
 # 满意度检查（仅在对话结束时调用）
 # ============================================================
+
+
+# Derived long-term-memory indexing runs after persistence, outside the token path.
+_memory_extract_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="memory-extract")
+_memory_extract_slots = threading.BoundedSemaphore(value=8)
+
+
+def _extract_long_term_memory_async(user_id: str, user_message: str, session_id: str) -> None:
+    try:
+        from .user_memory import extract_from_message
+        extract_from_message(user_id=user_id, user_message=user_message, source_session=session_id)
+    except Exception:
+        logger.warning("long-term memory indexing failed: session=%s", session_id, exc_info=True)
+    finally:
+        _memory_extract_slots.release()
+
+
+def _schedule_long_term_memory_extraction(user_id: str, user_message: str, session_id: str) -> None:
+    if not (user_id and user_message and session_id):
+        return
+    if not _memory_extract_slots.acquire(blocking=False):
+        logger.warning("long-term memory indexing queue full: session=%s", session_id)
+        return
+    try:
+        _memory_extract_executor.submit(_extract_long_term_memory_async, user_id, user_message, session_id)
+    except Exception:
+        _memory_extract_slots.release()
+        logger.warning("failed to schedule long-term memory indexing: session=%s", session_id, exc_info=True)
 
 def check_satisfaction(state: Dict[str, Any]) -> Dict[str, Any]:
     """满意度检查节点 — 使用 LLM 生成自然的满意度询问。"""

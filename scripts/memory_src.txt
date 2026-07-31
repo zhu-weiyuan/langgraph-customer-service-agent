@@ -1,0 +1,15 @@
+def build_memory_context(user_id: str) -> str:
+    context = get_user_context(user_id)
+    parts = ["\n## ????"]
+    if context["name"]:
+        parts.append(f"- ?????{context['name']}")
+    if context["preferred_name"]:
+        parts.append(f"- ???????{context['preferred_name']}")
+    if context["product_interests"]:
+        parts.append("- ?????" + "?".join(context["product_interests"]))
+    if context["session_count"] > 1:
+        parts.append(f"- ??????{context['session_count']}")
+    if context["recent_unresolved"]:
+        parts.append("- ????????" + "?".join(
+            str(x.get("user_message", "")) for x in context["recent_unresolved"]))
+    return "\n".join(parts) if len(parts) > 1 else ""

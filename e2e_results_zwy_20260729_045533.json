@@ -1,0 +1,900 @@
+{
+  "total": 50,
+  "passed": 0,
+  "failed": 50,
+  "errors": 0,
+  "by_category": {
+    "normal": {
+      "total": 50,
+      "passed": 0,
+      "failed": 50
+    }
+  },
+  "details": [
+    {
+      "success": true,
+      "elapsed": 4.172491550445557,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 24,
+      "error": null,
+      "test_id": "normal_greeting_001",
+      "category": "normal",
+      "input": "你好",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 2.469296455383301,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 52,
+      "error": null,
+      "test_id": "normal_greeting_002",
+      "category": "normal",
+      "input": "您好",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 2.0662527084350586,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 24,
+      "error": null,
+      "test_id": "normal_greeting_003",
+      "category": "normal",
+      "input": "早上好",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 2.138845682144165,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 25,
+      "error": null,
+      "test_id": "normal_greeting_004",
+      "category": "normal",
+      "input": "下午好",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 3.072443723678589,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 57,
+      "error": null,
+      "test_id": "normal_greeting_005",
+      "category": "normal",
+      "input": "晚上好",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 1.987605094909668,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 32,
+      "error": null,
+      "test_id": "normal_greeting_006",
+      "category": "normal",
+      "input": "hi",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 2.661320686340332,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 127,
+      "error": null,
+      "test_id": "normal_greeting_007",
+      "category": "normal",
+      "input": "hello",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 1.8949596881866455,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 37,
+      "error": null,
+      "test_id": "normal_greeting_008",
+      "category": "normal",
+      "input": "hey",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 3.128884792327881,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎"
+      ],
+      "reply_length": 75,
+      "error": null,
+      "test_id": "normal_greeting_009",
+      "category": "normal",
+      "input": "哈喽",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 2.3204188346862793,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 21,
+      "error": null,
+      "test_id": "normal_greeting_010",
+      "category": "normal",
+      "input": "嗨",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 2.260716199874878,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 27,
+      "error": null,
+      "test_id": "normal_greeting_011",
+      "category": "normal",
+      "input": "有人在吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 2.9401731491088867,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 66,
+      "error": null,
+      "test_id": "normal_greeting_012",
+      "category": "normal",
+      "input": "请问客服在吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 28.628357410430908,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎"
+      ],
+      "reply_length": 229,
+      "error": null,
+      "test_id": "normal_greeting_013",
+      "category": "normal",
+      "input": "有人能帮我吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 29.018646001815796,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好"
+      ],
+      "reply_length": 231,
+      "error": null,
+      "test_id": "normal_greeting_014",
+      "category": "normal",
+      "input": "我需要咨询一下",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 22.875574111938477,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "帮助"
+      ],
+      "reply_length": 116,
+      "error": null,
+      "test_id": "normal_greeting_015",
+      "category": "normal",
+      "input": "打扰了",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 4.892205476760864,
+      "actual_intent": "chat",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 131,
+      "error": null,
+      "test_id": "normal_greeting_016",
+      "category": "normal",
+      "input": "您好我是老用户",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 43.25573444366455,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "帮助"
+      ],
+      "reply_length": 853,
+      "error": null,
+      "test_id": "normal_greeting_017",
+      "category": "normal",
+      "input": "第一次使用不太懂",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 32.382904291152954,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎"
+      ],
+      "reply_length": 367,
+      "error": null,
+      "test_id": "normal_greeting_018",
+      "category": "normal",
+      "input": "有什么可以帮我的吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 28.010812520980835,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 847,
+      "error": null,
+      "test_id": "normal_greeting_019",
+      "category": "normal",
+      "input": "我想了解产品",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 42.62649631500244,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 795,
+      "error": null,
+      "test_id": "normal_greeting_020",
+      "category": "normal",
+      "input": "智能音箱怎么样",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 20.32869791984558,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 483,
+      "error": null,
+      "test_id": "normal_greeting_021",
+      "category": "normal",
+      "input": "X-100 和 X-200 区别",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 44.28056287765503,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 826,
+      "error": null,
+      "test_id": "normal_greeting_022",
+      "category": "normal",
+      "input": "哪个性价比高",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 31.09573769569397,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 290,
+      "error": null,
+      "test_id": "normal_greeting_023",
+      "category": "normal",
+      "input": "有推荐套装吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 38.83952856063843,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "帮助"
+      ],
+      "reply_length": 591,
+      "error": null,
+      "test_id": "normal_greeting_024",
+      "category": "normal",
+      "input": "云服务必须吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 29.126002311706543,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 241,
+      "error": null,
+      "test_id": "normal_greeting_025",
+      "category": "normal",
+      "input": "APP 怎么下载",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 45.05375409126282,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 870,
+      "error": null,
+      "test_id": "normal_greeting_026",
+      "category": "normal",
+      "input": "支持哪些功能",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 16.211527585983276,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 311,
+      "error": null,
+      "test_id": "normal_greeting_027",
+      "category": "normal",
+      "input": "多少钱一台",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 21.06266450881958,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 527,
+      "error": null,
+      "test_id": "normal_greeting_028",
+      "category": "normal",
+      "input": "有优惠吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 24.851665019989014,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 225,
+      "error": null,
+      "test_id": "normal_greeting_029",
+      "category": "normal",
+      "input": "什么时候发货",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 33.09482169151306,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 594,
+      "error": null,
+      "test_id": "normal_greeting_030",
+      "category": "normal",
+      "input": "保修多久",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 12.983925342559814,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 303,
+      "error": null,
+      "test_id": "normal_greeting_031",
+      "category": "normal",
+      "input": "在哪里买",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 24.2043240070343,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎"
+      ],
+      "reply_length": 109,
+      "error": null,
+      "test_id": "normal_greeting_032",
+      "category": "normal",
+      "input": "电话多少",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 26.718173503875732,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 245,
+      "error": null,
+      "test_id": "normal_greeting_033",
+      "category": "normal",
+      "input": "地址在哪",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 27.798054456710815,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎"
+      ],
+      "reply_length": 365,
+      "error": null,
+      "test_id": "normal_greeting_034",
+      "category": "normal",
+      "input": "营业时间",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 25.79010248184204,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 177,
+      "error": null,
+      "test_id": "normal_greeting_035",
+      "category": "normal",
+      "input": "节假日值班吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 25.538250207901,
+      "actual_intent": "consult",
+      "intent_match": false,
+      "keyword_match": false,
+      "missed_keywords": [
+        "你好",
+        "欢迎",
+        "帮助"
+      ],
+      "reply_length": 183,
+      "error": null,
+      "test_id": "normal_greeting_036",
+      "category": "normal",
+      "input": "微信群有吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 28.59579849243164,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "解释",
+        "指导"
+      ],
+      "reply_length": 293,
+      "error": null,
+      "test_id": "normal_product_001",
+      "category": "normal",
+      "input": "X-100 支持语音助手吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 18.849133014678955,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 187,
+      "error": null,
+      "test_id": "normal_product_002",
+      "category": "normal",
+      "input": "X-200 功率多少瓦",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 29.09619927406311,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 295,
+      "error": null,
+      "test_id": "normal_product_003",
+      "category": "normal",
+      "input": "X-300 Pro 支持多房间同步吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 41.057557344436646,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "解释",
+        "指导"
+      ],
+      "reply_length": 531,
+      "error": null,
+      "test_id": "normal_product_004",
+      "category": "normal",
+      "input": "最大音量多少",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 33.12145113945007,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 856,
+      "error": null,
+      "test_id": "normal_product_005",
+      "category": "normal",
+      "input": "低音效果怎样",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 18.286715745925903,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 306,
+      "error": null,
+      "test_id": "normal_product_006",
+      "category": "normal",
+      "input": "支持蓝牙吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 27.92578148841858,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 236,
+      "error": null,
+      "test_id": "normal_product_007",
+      "category": "normal",
+      "input": "能用 AUX 输入吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 14.2448890209198,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 345,
+      "error": null,
+      "test_id": "normal_product_008",
+      "category": "normal",
+      "input": "有 USB 接口吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 27.849897384643555,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 315,
+      "error": null,
+      "test_id": "normal_product_009",
+      "category": "normal",
+      "input": "能播网络电台吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 27.360790967941284,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 285,
+      "error": null,
+      "test_id": "normal_product_010",
+      "category": "normal",
+      "input": "支持 AirPlay 吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 27.994457960128784,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 339,
+      "error": null,
+      "test_id": "normal_product_011",
+      "category": "normal",
+      "input": "能用 Google Assistant 控制吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 30.874597787857056,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 441,
+      "error": null,
+      "test_id": "normal_product_012",
+      "category": "normal",
+      "input": "能和 Alexa 联动吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 27.94673800468445,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 293,
+      "error": null,
+      "test_id": "normal_product_013",
+      "category": "normal",
+      "input": "支持 HomeKit 吗",
+      "status": "FAIL"
+    },
+    {
+      "success": true,
+      "elapsed": 29.619744777679443,
+      "actual_intent": "consult",
+      "intent_match": true,
+      "keyword_match": false,
+      "missed_keywords": [
+        "查询",
+        "解释",
+        "指导"
+      ],
+      "reply_length": 295,
+      "error": null,
+      "test_id": "normal_product_014",
+      "category": "normal",
+      "input": "可以用小爱同学控制吗",
+      "status": "FAIL"
+    }
+  ]
+}

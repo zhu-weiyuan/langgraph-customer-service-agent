@@ -1,7 +1,10 @@
 import { defineStore } from 'pinia'
 import {
   ApiError,
+  deleteMemory,
   fetchAnalytics,
+  fetchMemories,
+  fetchObservability,
   fetchSession,
   fetchSessions,
   sendChat,
@@ -11,6 +14,8 @@ import {
   submitReaction,
   type AnalyticsData,
   type ChatResult,
+  type MemoryItem,
+  type ObservabilitySnapshot,
   type RagSource,
   type Role,
   type SessionSummary,
@@ -87,6 +92,10 @@ export const useChatStore = defineStore('chat', {
     messages: [] as UiMessage[],
     analytics: null as AnalyticsData | null,
     analyticsAvailable: true,
+    observability: null as ObservabilitySnapshot | null,
+    observabilityLoading: false,
+    memories: [] as MemoryItem[],
+    memoriesLoading: false,
     loading: false,
     _abort: null as AbortController | null,
   }),
@@ -95,7 +104,7 @@ export const useChatStore = defineStore('chat', {
       const keyword = state.sessionSearch.trim().toLowerCase()
       if (!keyword) return state.sessions
       return state.sessions.filter((session) =>
-        [session.preview ?? '', session.session_id, ...(session.intents ?? [])]
+        [session.title ?? '', session.session_id]
           .join(' ')
           .toLowerCase()
           .includes(keyword),
@@ -106,19 +115,51 @@ export const useChatStore = defineStore('chat', {
     },
   },
   actions: {
+    /**
+     * Load everything scoped to the current logged-in user, then open their
+     * most recent history session (so the same user "keeps their memory").
+     */
     async bootstrap() {
-      await Promise.all([this.reloadSessions(), this.reloadAnalytics()])
+      // Sessions are the source of truth for the first screen.  Load them
+      // before optional analytics/memory calls so a slow or unavailable
+      // auxiliary panel cannot race history selection.
+      await this.reloadSessions()
+      await Promise.all([this.reloadAnalytics(), this.reloadMemories(), this.reloadObservability()])
+      await this.openMostRecentSession()
     },
 
     async reloadSessions() {
       try {
         this.sessions = await fetchSessions()
         this.sessionsAvailable = true
-      } catch {
-        // /api/sessions only exists in the legacy backend for now.
+      } catch (err) {
         this.sessionsAvailable = false
         this.sessions = []
+        const ui = useUiStore()
+        const message = err instanceof Error ? err.message : '未知错误'
+        console.error('Failed to load sessions', err)
+        ui.toast('error', `加载历史会话失败：${message}`)
       }
+    },
+
+    /** After (re)loading history, open the most recent session if one exists. */
+    async openMostRecentSession() {
+      const latest = this.sessions[0]
+      if (latest && latest.session_id !== this.sessionId) {
+        await this.selectSession(latest.session_id)
+      }
+    },
+
+    /** Wipe per-user state and start a fresh anonymous session (used on logout). */
+    resetForUser() {
+      this.cancelStreaming()
+      this.sessionId = makeId('web')
+      this.messages = []
+      this.sessions = []
+      this.memories = []
+      this.analytics = null
+      this.observability = null
+      this.sessionSearch = ''
     },
 
     async reloadAnalytics() {
@@ -129,6 +170,43 @@ export const useChatStore = defineStore('chat', {
         // /api/analytics only exists in the legacy backend for now.
         this.analytics = null
         this.analyticsAvailable = false
+      }
+    },
+
+    async reloadObservability() {
+      this.observabilityLoading = true
+      try {
+        this.observability = await fetchObservability()
+      } catch (err) {
+        this.observability = null
+        console.error('Failed to load observability', err)
+      } finally {
+        this.observabilityLoading = false
+      }
+    },
+
+    async reloadMemories() {
+      this.memoriesLoading = true
+      try {
+        this.memories = await fetchMemories()
+      } catch {
+        this.memories = []
+      } finally {
+        this.memoriesLoading = false
+      }
+    },
+
+    async removeMemory(memoryId: string) {
+      const ui = useUiStore()
+      const previous = this.memories
+      this.memories = this.memories.filter((m) => m.id !== memoryId)
+      try {
+        const result = await deleteMemory(memoryId)
+        if (result.error) throw new Error(result.error)
+        ui.toast('success', '已删除该条记忆')
+      } catch (err) {
+        this.memories = previous
+        ui.toast('error', `删除失败：${err instanceof Error ? err.message : '未知错误'}`)
       }
     },
 
@@ -247,12 +325,20 @@ export const useChatStore = defineStore('chat', {
             assistant.content = '（已取消）'
             assistant.error = true
           }
+        } else if (assistant.content.trim()) {
+          // A transport failure after tokens arrived must not trigger a second
+          // LLM request: that would duplicate the answer and waste tokens.
+          // Keep the partial answer visible and mark it as interrupted.
+          assistant.error = true
+          ui.toast('error', `Stream interrupted: ${err instanceof Error ? err.message : 'stream connection interrupted'}`)
         } else {
           try {
+            // Only use the buffered endpoint when the stream failed before
+            // producing any assistant content (e.g. an old backend/proxy).
             await this._sendBuffered(text, assistant)
           } catch (fallbackErr) {
             assistant.content =
-              fallbackErr instanceof Error ? `请求失败：${fallbackErr.message}` : '请求失败，暂时无法连接客服服务'
+              fallbackErr instanceof Error ? `Request failed: ${fallbackErr.message}` : 'Request failed: unable to connect to the support service'
             assistant.error = true
           }
         }
@@ -263,8 +349,11 @@ export const useChatStore = defineStore('chat', {
         this.loading = false
       }
 
-      void this.reloadSessions()
-      void this.reloadAnalytics()
+      // The server has finished persisting before the SSE done frame. Await the
+      // follow-up reads so a user who refreshes immediately after a reply sees
+      // the newly created session and its durable history.
+      await this.reloadSessions()
+      await Promise.all([this.reloadAnalytics(), this.reloadMemories(), this.reloadObservability()])
     },
 
     // -----------------------------------------------------------------------

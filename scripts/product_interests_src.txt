@@ -1,0 +1,31 @@
+def _update_product_interests(session_id: str, message: str,
+                              user_id: Optional[str] = None) -> None:
+    user_id = user_id or session_id
+    product_keywords = {
+        "????": ["??", "speaker", "??", "????"],
+        "??????": ["????", "??", "??", "??", "???", "zigbee"],
+        "???": ["?", "??", "??", "??", "??"],
+    }
+    detected = [p for p, kws in product_keywords.items()
+                if any(k.lower() in message.lower() for k in kws)]
+    if not detected:
+        return
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT product_interests FROM user_preferences WHERE session_id=%s",
+            (session_id,)).fetchall()
+        interests: List[str] = []
+        for row in rows:
+            for item in json_value(row.get("product_interests"), []):
+                if item not in interests:
+                    interests.append(item)
+        for item in detected:
+            if item not in interests:
+                interests.append(item)
+        conn.execute("DELETE FROM user_preferences WHERE session_id=%s", (session_id,))
+        conn.execute(
+            """INSERT INTO user_preferences
+               (user_id, session_id, product_interests, known_issues,
+                communication_style, update_count)
+               VALUES (%s, %s, %s, %s, NULL, 1)""",
+            (user_id, session_id, Jsonb(interests), Jsonb([])))

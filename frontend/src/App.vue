@@ -6,6 +6,8 @@ import ChatInput from './components/ChatInput.vue'
 import AnalyticsPanel from './components/AnalyticsPanel.vue'
 import StatusBar from './components/StatusBar.vue'
 import ToastStack from './components/ToastStack.vue'
+import LoginModal from './components/LoginModal.vue'
+import MemoryPanel from './components/MemoryPanel.vue'
 import { useChatStore } from './stores/chat'
 import { useUiStore } from './stores/ui'
 
@@ -14,6 +16,7 @@ const ui = useUiStore()
 
 const chatInput = ref<InstanceType<typeof ChatInput> | null>(null)
 const messageCount = computed(() => store.messages.length)
+const memoryCount = computed(() => store.memories.length)
 
 function onSuggest(text: string) {
   chatInput.value?.setText(text)
@@ -29,7 +32,19 @@ function onNewSession() {
   store.newSession()
 }
 
+/** Called after a successful login (from LoginModal) or a restored session. */
+async function afterAuth() {
+  await ui.verifyMe()
+  await store.bootstrap()
+}
+
+function onLogout() {
+  ui.logout()
+  store.resetForUser()
+}
+
 function onKeydown(event: KeyboardEvent) {
+  if (!ui.auth.isLoggedIn) return
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault()
     onNewSession()
@@ -39,7 +54,16 @@ function onKeydown(event: KeyboardEvent) {
 onMounted(() => {
   ui.startHealthPolling()
   window.addEventListener('keydown', onKeydown)
-  void store.bootstrap()
+  // Restore identity before loading user-scoped sessions. Anonymous bootstrap
+  // would race login and can overwrite the authenticated history.
+  if (ui.restoreAuth()) {
+    // Verify first, then load sessions/memory.  Running these in parallel
+    // allowed an expired JWT to race bootstrap and made history appear empty.
+    void (async () => {
+      await ui.verifyMe()
+      await store.bootstrap()
+    })()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -53,73 +77,93 @@ onBeforeUnmount(() => {
     <div class="ambient ambient-one"></div>
     <div class="ambient ambient-two"></div>
 
-    <header class="topbar">
-      <div class="product-mark">
-        <button class="icon-button sidebar-toggle" title="会话列表" @click="ui.toggleSidebar()">☰</button>
-        <div class="logo-orb"><span>✦</span></div>
-        <div>
-          <div class="product-name">Aster <span>Support</span></div>
-          <div class="product-subtitle">AI CUSTOMER OPERATIONS</div>
+    <!-- Not logged in: the login gate is the whole screen. -->
+    <LoginModal v-if="!ui.auth.isLoggedIn" @authenticated="() => void afterAuth()" />
+
+    <template v-else>
+      <header class="topbar">
+        <div class="product-mark">
+          <button class="icon-button sidebar-toggle" title="会话列表" @click="ui.toggleSidebar()">☰</button>
+          <div class="logo-orb"><span>✦</span></div>
+          <div>
+            <div class="product-name">Aster <span>Support</span></div>
+            <div class="product-subtitle">AI CUSTOMER OPERATIONS</div>
+          </div>
         </div>
-      </div>
 
-      <div class="topbar-actions">
-        <StatusBar />
-        <button
-          class="icon-button"
-          :class="{ active: ui.analyticsOpen }"
-          title="切换洞察面板"
-          @click="ui.toggleAnalytics()"
-        >📊 洞察</button>
-      </div>
-    </header>
+        <div class="topbar-actions">
+          <StatusBar />
+          <button
+            class="icon-button"
+            :class="{ active: ui.memoryOpen }"
+            title="查看我的长期记忆"
+            @click="ui.toggleMemory()"
+          >🧠 记忆<span v-if="memoryCount" class="count-badge">{{ memoryCount }}</span></button>
+          <button
+            class="icon-button"
+            :class="{ active: ui.analyticsOpen }"
+            title="切换洞察面板"
+            @click="ui.toggleAnalytics()"
+          >📊 洞察</button>
+          <div class="user-chip" :title="`已登录：${ui.auth.username}`">
+            <span class="user-avatar-mini">{{ ui.auth.username.slice(0, 1).toUpperCase() }}</span>
+            <span class="user-name">{{ ui.auth.username }}</span>
+            <button class="user-logout" title="登出" @click="onLogout">登出</button>
+          </div>
+        </div>
+      </header>
 
-    <div class="workspace" :class="{ 'no-analytics': !ui.analyticsOpen }">
-      <section class="left-rail glass-panel" :class="{ open: ui.sidebarOpen }">
-        <SessionSidebar
-          :sessions="store.filteredSessions"
-          :active-session-id="store.sessionId"
-          :search="store.sessionSearch"
-          :available="store.sessionsAvailable"
-          @select="onSelectSession"
-          @new-session="onNewSession"
-          @update-search="store.sessionSearch = $event"
-        />
-      </section>
+      <div class="workspace" :class="{ 'no-analytics': !ui.analyticsOpen, 'analytics-open': ui.analyticsOpen }">
+        <section class="left-rail glass-panel" :class="{ open: ui.sidebarOpen }">
+          <SessionSidebar
+            :sessions="store.filteredSessions"
+            :active-session-id="store.sessionId"
+            :search="store.sessionSearch"
+            :available="store.sessionsAvailable"
+            @select="onSelectSession"
+            @new-session="onNewSession"
+            @update-search="store.sessionSearch = $event"
+          />
+        </section>
 
-      <main class="conversation glass-panel">
-        <div class="conversation-header">
-          <div class="conversation-title">
-            <div class="title-icon">◌</div>
-            <div>
-              <div class="eyebrow">当前会话</div>
-              <h1>售后支持对话</h1>
+        <main class="conversation glass-panel">
+          <div class="conversation-header">
+            <div class="conversation-title">
+              <div class="title-icon">◌</div>
+              <div>
+                <div class="eyebrow">当前会话</div>
+                <h1>售后支持对话</h1>
+              </div>
+            </div>
+            <div class="conversation-actions">
+              <span class="message-count">{{ messageCount }} 条消息</span>
             </div>
           </div>
-          <div class="conversation-actions">
-            <span class="message-count">{{ messageCount }} 条消息</span>
-          </div>
-        </div>
 
-        <MessageList :messages="store.messages" @suggest="onSuggest" />
+          <MessageList :messages="store.messages" @suggest="onSuggest" />
 
-        <ChatInput
-          ref="chatInput"
-          :loading="store.loading"
-          :can-cancel="store.canCancel"
-          @send="store.send"
-          @cancel="store.cancelStreaming()"
-        />
-      </main>
+          <ChatInput
+            ref="chatInput"
+            :loading="store.loading"
+            :can-cancel="store.canCancel"
+            @send="store.send"
+            @cancel="store.cancelStreaming()"
+          />
+        </main>
 
-      <section v-if="ui.analyticsOpen" class="right-rail glass-panel">
-        <AnalyticsPanel
-          :analytics="store.analytics"
-          :available="store.analyticsAvailable"
-          @refresh="store.reloadAnalytics()"
-        />
-      </section>
-    </div>
+        <section v-if="ui.analyticsOpen" class="right-rail glass-panel">
+          <AnalyticsPanel
+            :analytics="store.analytics"
+            :available="store.analyticsAvailable"
+            :observability="store.observability"
+            :observability-loading="store.observabilityLoading"
+            @refresh="() => Promise.all([store.reloadAnalytics(), store.reloadObservability()])"
+          />
+        </section>
+      </div>
+
+      <MemoryPanel v-if="ui.memoryOpen" />
+    </template>
 
     <ToastStack />
   </div>

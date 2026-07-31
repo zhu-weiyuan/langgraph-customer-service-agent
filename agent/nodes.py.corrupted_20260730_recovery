@@ -1,0 +1,248 @@
+"""节点函数 - LangGraph 智能客服 Agent (本地 LLM via llama.cpp)
+
+流程：
+1. 用户提问 → bot 回复（不问满意度）
+2. 用户继续问 → bot 继续回答
+3. 用户表示结束（"再见"、"谢谢"、"好了"）→ 才问满意度
+4. 满意 → 结束语；不满意 → 重试；连续不满意/强负面情绪 → 转人工
+
+P1-A 变更：
+- 删除第二套 token 预算裁剪（estimate_total_tokens + _trim_messages_by_tokens）：
+  上下文预算完全以 ContextAssembler(40–60% 利用率 + 三档降级)为准。
+- 删除死代码 `_is_history_recall_query`、`_trim_messages` 与未用常量。
+- 所有 token 估算统一走 agent.token_estimator。
+- print() 全部改为 logging（logger = "agent.nodes"），信息内容保留。
+- `_node_timings` 每个节点使用 deque(maxlen=1000) 防止无界增长。
+- 修复 build_reply_context 中 context_messages 死变量：压缩后的历史真正传给
+  assembler（旧代码构建后立即被 bundle 覆盖，压缩结果被丢弃）。
+- 情感结果真正生效：get_tone_adjustment(emotion, intensity) 并入 reply 的
+  system prompt；emotion/emotion_intensity 参数接通。
+- assembler_state["available_tools"] 保留为空列表，但 bundle.tool_schema
+  透传给调用方（为将来接入工具做准备）。
+- 三方/重依赖 import 全部带 try/except 守卫，保证本模块在纯 stdlib 容器中
+  可 import、可编译、可做纯函数测试。
+"""
+
+import time
+import logging
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
+from collections import deque
+from typing import Dict, Any, List, Optional
+
+logger = logging.getLogger("agent.nodes")
+
+# Streaming queue — set by runner.run_stream() before graph execution.
+# _call_llm() puts real tokens into this queue when stream=True.
+_stream_queue = None
+_stream_queue_local = threading.local()
+
+# Embedding a derived long-term memory can call another service.  Keep it off
+# the latency-critical reply path: the conversation itself is persisted first.
+_memory_extract_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="memory-extract")
+_memory_extract_slots = threading.BoundedSemaphore(value=8)
+
+
+def _extract_long_term_memory_async(user_id: str, user_message: str, session_id: str) -> None:
+    """Best-effort indexing of a completed turn into long-term memory."""
+    try:
+        from agent.user_memory import extract_from_message
+        result = extract_from_message(
+            user_id=user_id,
+            user_message=user_message,
+            source_session=session_id,
+        )
+        if result.get("stored"):
+            logger.info("memory[%s] indexed for session=%s", result.get("kind", "?"), session_id)
+    except Exception:
+        logger.warning("long-term memory extraction failed (session=%s, user=%s)",
+                       session_id, user_id, exc_info=True)
+    finally:
+        _memory_extract_slots.release()
+
+
+def _schedule_long_term_memory_extraction(user_id: str, user_message: str, session_id: str) -> None:
+    """Queue bounded background indexing without delaying an SSE response."""
+    if not (user_id and user_message and session_id):
+        return
+    if not _memory_extract_slots.acquire(blocking=False):
+        logger.warning("long-term memory extraction queue is full; skip session=%s", session_id)
+        return
+    try:
+        _memory_extract_executor.submit(_extract_long_term_memory_async, user_id, user_message, session_id)
+    except Exception:
+        _memory_extract_slots.release()
+        logger.warning("failed to schedule long-term memory extraction (session=%s)", session_id,
+                       exc_info=True)
+
+
+def _active_stream_queue():
+    """Return the queue bound to the current graph worker thread."""
+
+    reply = _call_llm(ctx['context_messages'], ctx['system_prompt'],
+                       max_tokens=512, stream=True)
+    if not reply or not reply.strip():
+        reply = "抱歉，我现在无法生成回复，请稍后再试。"
+    ai_message = AIMessage(content=reply)
+
+    # Save to memory（user_id 主键；session 作为本次对话外键）
+    if session_id and ctx['latest_user'] and save_conversation is not None:
+        save_conversation(
+            session_id=session_id,
+            user_message=ctx['latest_user'],
+            bot_reply=reply,
+            intent=intent,
+            emotion=emotion,
+            emotion_intensity=emotion_intensity,
+            user_id=user_id,
+        )
+        # Derived pgvector memory indexing must not delay first token or done.
+        _schedule_long_term_memory_extraction(user_id, ctx['latest_user'], session_id)
+
+    return {'messages': [ai_message], 'bot_reply': reply}
+
+
+# ============================================================
+# 满意度检查（仅在对话结束时调用）
+# ============================================================
+
+def check_satisfaction(state: Dict[str, Any]) -> Dict[str, Any]:
+    """满意度检查节点 — 使用 LLM 生成自然的满意度询问。"""
+    prompt = _call_llm(
+        [{"role": "user", "content": "请自然地询问用户是否满意刚才的服务，简短友好"}],
+        _active_system_prompt(state) + "\n只生成满意度询问的话，不要回复其他内容。",
+        max_tokens=80
+    )
+
+    ai_message = AIMessage(content=prompt)
+    logger.info("[满意度检查] 询问用户")
+    return {'messages': [ai_message]}
+
+
+# ============================================================
+# 处理满意度反馈
+# ============================================================
+
+SATISFACTION_SYSTEM = """你是一个满意度判断器。根据用户回复判断是否满意。
+
+返回严格的 JSON（不要其他文字）：
+{"satisfied": true} 或 {"satisfied": false}
+
+规则：
+- "满意"、"好"、"可以"、"OK"、"谢谢" → true
+- "不满意"、"不好"、"不行"、"一般"、继续抱怨 → false
+- 如果用户提出了新问题（不是回答满意度）→ false"""
+
+
+def process_satisfaction(state: Dict[str, Any]) -> Dict[str, Any]:
+    """处理满意度反馈节点 — 使用 LLM 判断用户是否满意。"""
+    messages = state.get('messages', [])
+    retry_count = state.get('retry_count', 0)
+
+    user_message = ''
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            user_message = msg.content
+            break
+
+    if not user_message:
+        return {'satisfaction': None, 'retry_count': retry_count}
+
+    judge_result = _call_llm_json(
+        [{"role": "user", "content": f"用户回复：{user_message}\n判断用户对服务是否满意。"}],
+        SATISFACTION_SYSTEM
+    )
+
+    satisfaction = judge_result.get('satisfied', False)
+    new_retry = retry_count + (0 if satisfaction else 1)
+    logger.info("[处理满意度] '%s' → 满意=%s, 重试=%s", user_message, satisfaction, new_retry)
+    return {'satisfaction': satisfaction, 'retry_count': new_retry}
+
+
+# ============================================================
+# 转人工
+# ============================================================
+
+def escalate_to_human(state: Dict[str, Any]) -> Dict[str, Any]:
+    """转人工节点 — 使用 langgraph interrupt 挂起等待人工介入。
+
+    interrupt 延迟导入并带守卫：langgraph 不可用时直接标记 escalate=True。
+    """
+    session_id = state.get('session_id', 'unknown')
+    intent = state.get('intent', 'unknown')
+    retry_count = state.get('retry_count', 0)
+
+    logger.warning("[转人工] 问题升级！session=%s, intent=%s, retries=%s",
+                   session_id, intent, retry_count)
+
+    try:
+        from langgraph.types import interrupt
+    except Exception:  # pragma: no cover - bare container
+        return {'escalate': True}
+
+    user_msgs = [m.content for m in state.get('messages', [])
+                 if isinstance(m, HumanMessage)]
+    human_response = interrupt({
+        "type": "human_intervention_required",
+        "message": "需要人工客服介入处理",
+        "session_id": session_id,
+        "context": {
+            "intent": intent,
+            "retry_count": retry_count,
+            "emotion": state.get('emotion'),
+            "emotion_intensity": state.get('emotion_intensity'),
+            "last_user_message": user_msgs[-1] if user_msgs else None,
+        }
+    })
+
+    if human_response:
+        return {
+            'messages': [AIMessage(content=f"[人工客服]: {human_response}")],
+            'escalate': False
+        }
+    return {'escalate': True}
+
+
+# ============================================================
+# 结束对话
+# ============================================================
+
+def finalize(state: Dict[str, Any]) -> Dict[str, Any]:
+    """结束对话节点 — 使用 LLM 生成自然的结束语 + 生成工单摘要。"""
+    session_id = state.get('session_id', '')
+    messages = state.get('messages', [])
+    satisfaction = state.get('satisfaction')
+    emotion = state.get('emotion', 'neutral')
+    emotion_intensity = state.get('emotion_intensity', 1)
+
+    closing = _call_llm(
+        [{"role": "user", "content": "请自然地结束这次客服对话，表达感谢和祝福"}],
+        _active_system_prompt(state) + "\n只生成结束语，简短温暖。",
+        max_tokens=100
+    )
+
+    ai_message = AIMessage(content=closing)
+
+    # Generate ticket summary
+    if session_id and len(messages) >= 2 and generate_summary is not None:
+        try:
+            ticket = generate_summary(
+                messages=messages,
+                emotion=emotion,
+                emotion_intensity=emotion_intensity,
+                satisfaction=satisfaction,
+            )
+            if format_ticket is not None:
+                logger.info("%s", format_ticket(ticket))
+            from .memory import save_ticket
+            save_ticket(ticket)
+        except Exception as e:
+            logger.error("[工单生成失败] %s", e)
+
+    # Mark all issues as resolved when session ends positively
+    if session_id and mark_resolved is not None:
+        mark_resolved(session_id)
+
+    logger.info("[结束对话] 服务完成")
+    return {'messages': [ai_message]}

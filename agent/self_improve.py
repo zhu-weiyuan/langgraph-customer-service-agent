@@ -17,6 +17,7 @@ Self-Improvement Loop — Agent 自我优化框架
     # 输出：失败模式分析 + 知识缺口 + 改进建议
 """
 
+import difflib
 import json
 import re
 from collections import Counter, defaultdict
@@ -160,20 +161,31 @@ class PromptOptimizer:
     """基于 bad case 分析，自动优化 system prompt。"""
 
     # Bad case pattern → prompt improvement mapping
+    #
+    # P4 修复：原实现把所有 condition 都用 avg_metrics 调用，而
+    # high_miss_rate_edge / adversarial_failures 的 condition 读的是
+    # failure_pattern_analysis 的分布字段（difficulty_distribution /
+    # category_distribution），avg_metrics 里永远没有 → 两条规则永不触发。
+    # 现在每条规则显式声明数据源 "source"（avg_metrics | pattern_stats），
+    # analyze_and_suggest 按声明分派正确入参。
     IMPROVEMENT_RULES = {
         "low_faithfulness": {
-            "condition": lambda m: m.get("faithfulness", 1.0) is not None and m["faithfulness"] < 0.7,
+            "source": "avg_metrics",
+            "condition": lambda m: m.get("faithfulness") is not None and m["faithfulness"] < 0.7,
             "suggestion": "\n\n【重要】回答时必须严格基于参考资料中的信息。如果参考资料中没有相关信息，诚实说明你不确定，绝对不要编造信息。",
         },
         "low_relevancy": {
-            "condition": lambda m: m.get("answer_relevancy", 1.0) is not None and m["answer_relevancy"] < 0.6,
+            "source": "avg_metrics",
+            "condition": lambda m: m.get("answer_relevancy") is not None and m["answer_relevancy"] < 0.6,
             "suggestion": "\n\n【重要】请紧扣用户的问题回答，不要偏离主题。如果问题涉及多个方面，逐一回答每个方面。",
         },
         "high_miss_rate_edge": {
+            "source": "pattern_stats",
             "condition": lambda stats: stats.get("difficulty_distribution", {}).get("L4", 0) > 3,
             "suggestion": "\n\n【重要】用户可能会用模糊、口语化或极短的方式提问。请尽量理解用户的真实意图，不要拘泥于字面意思。",
         },
         "adversarial_failures": {
+            "source": "pattern_stats",
             "condition": lambda stats: stats.get("category_distribution", {}).get("adversarial", 0) > 2,
             "suggestion": "\n\n【重要】如果遇到挑衅、诱导或完全离题的问题，保持专业态度，礼貌地引导回产品话题。不要与用户争论。",
         },
@@ -205,9 +217,11 @@ class PromptOptimizer:
 
         avg_metrics = {k: sum(v) / len(v) for k, v in metrics_sum.items()}
 
-        # Check each improvement rule
+        # Check each improvement rule — dispatch on the declared data source
+        sources = {"avg_metrics": avg_metrics, "pattern_stats": pattern_stats}
         for rule_name, rule in self.IMPROVEMENT_RULES.items():
-            if rule["condition"](avg_metrics):
+            data = sources.get(rule.get("source", "avg_metrics"), avg_metrics)
+            if rule["condition"](data):
                 suggestions.append({
                     "rule": rule_name,
                     "suggestion": rule["suggestion"],
@@ -521,6 +535,174 @@ class SelfImprovementPipeline:
             )
 
         return suggestions
+
+
+# ── 4.5 P4 可编程改进闭环 ────────────────────────────────────────
+#
+# run_improvement_cycle 的可编程重构：不再依赖 print/交互，
+# 直接从 FeedbackStore(bad_cases 表) 取信号 → 规则分析 →
+# 基于当前 active prompt 版本生成候选（status=candidate）→ 返回结构化 report。
+# candidate 强制携带与父版本的结构化 diff（difflib 逐段对比）。
+
+
+def structured_diff(parent_text: str, candidate_text: str) -> Dict[str, Any]:
+    """与父版本的结构化 diff：逐段(双换行分段)对比 + 统一 diff 行。"""
+    parent_segments = [s for s in re.split(r"\n{2,}", parent_text) if s.strip()]
+    cand_segments = [s for s in re.split(r"\n{2,}", candidate_text) if s.strip()]
+    matcher = difflib.SequenceMatcher(None, parent_segments, cand_segments)
+    segments = []
+    for op, i1, i2, j1, j2 in matcher.get_opcodes():
+        if op == "equal":
+            continue
+        segments.append({
+            "op": op,
+            "parent_segments": parent_segments[i1:i2],
+            "candidate_segments": cand_segments[j1:j2],
+        })
+    unified = list(difflib.unified_diff(
+        parent_text.splitlines(), candidate_text.splitlines(),
+        fromfile="parent", tofile="candidate", lineterm="", n=1))
+    return {
+        "segment_changes": segments,
+        "unified": unified[:200],
+        "parent_chars": len(parent_text),
+        "candidate_chars": len(candidate_text),
+    }
+
+
+def feedback_rows_to_cases(rows: List[Dict]) -> List[Dict]:
+    """把 feedback_store.bad_cases 行适配成 PromptOptimizer/pattern 分析的 case 形状。
+
+    映射约定：
+    - signal_type → failure_type；escalation/repeat_question 记为 adversarial 之外的
+      对应 category（低分文本差评若 comment 含挑衅类关键词记 adversarial）。
+    - score(1-5 星) 归一化到 [0,1] 记为 answer_relevancy 代理指标；
+      repeat_question 的 score 是相似度，转为低 relevancy 信号 (1 - sim)。
+    """
+    cases = []
+    for r in rows:
+        signal = r.get("signal_type", "")
+        score = r.get("score")
+        metrics: Dict[str, float] = {}
+        category = "normal"
+        difficulty = "L1"
+        if signal == "rating" and score is not None:
+            metrics["answer_relevancy"] = max(0.0, (float(score) - 1) / 4.0)
+        elif signal == "feedback" and score is not None and score > 0:
+            metrics["answer_relevancy"] = max(0.0, (float(score) - 1) / 4.0)
+        elif signal == "reaction":
+            metrics["answer_relevancy"] = 0.0
+        elif signal == "repeat_question":
+            sim = float(score or 1.0)
+            metrics["answer_relevancy"] = max(0.0, 1.0 - sim)
+            difficulty = "L4"  # 模糊/追问类边缘 case
+        elif signal == "escalation":
+            metrics["answer_relevancy"] = 0.0
+            difficulty = "L4"
+        comment = (r.get("comment") or "") + (r.get("query") or "")
+        if any(k in comment for k in ("骗", "垃圾", "投诉你", "忽略", "扮演", "无视")):
+            category = "adversarial"
+        cases.append({
+            "timestamp": r.get("ts", ""),
+            "query": r.get("query", ""),
+            "difficulty": difficulty,
+            "category": category,
+            "ground_truth": [],
+            "retrieved_sources": [],
+            "metrics": metrics,
+            "failure_type": signal,
+        })
+    return cases
+
+
+def analyze_feedback(rows: List[Dict]) -> Dict[str, Any]:
+    """对反馈行做失败模式分析（与 failure_pattern_analysis 同形状）。"""
+    cases = feedback_rows_to_cases(rows)
+    if not cases:
+        return {"total_bad_cases": 0, "cases": [],
+                "failure_type_distribution": {},
+                "difficulty_distribution": {}, "category_distribution": {}}
+    return {
+        "total_bad_cases": len(cases),
+        "cases": cases,
+        "failure_type_distribution": dict(Counter(
+            c["failure_type"] for c in cases).most_common()),
+        "difficulty_distribution": dict(Counter(
+            c["difficulty"] for c in cases).most_common()),
+        "category_distribution": dict(Counter(
+            c["category"] for c in cases).most_common()),
+        "weakest_knowledge_sources": [],
+        "top_failed_keywords": [],
+    }
+
+
+def run_improvement_cycle_programmatic(
+    feedback_store,
+    registry,
+    prompt_name: str = "system_prompt",
+    *,
+    batch_limit: int = 500,
+    min_cases: int = 3,
+    mark_processed: bool = True,
+) -> Dict[str, Any]:
+    """P4 闭环第一段：反馈 → 分析 → 候选版本（candidate + 结构化 diff）。
+
+    Args:
+        feedback_store: agent.feedback_store.FeedbackStore
+        registry: agent.prompt_registry.PromptRegistry（须已 seed prompt_name）
+        prompt_name: 要优化的 prompt 模板名
+        batch_limit: 单轮消费的未处理反馈上限
+        min_cases: 少于该数量则不生成候选（信号不足）
+        mark_processed: 生成候选后是否把消费过的反馈标记 processed
+
+    Returns:
+        report dict：{analyzed, pattern_stats, suggestions, candidate:{...}|None}
+    """
+    rows = feedback_store.unprocessed_batch(limit=batch_limit)
+    pattern_stats = analyze_feedback(rows)
+    cases = pattern_stats.pop("cases", [])
+
+    report: Dict[str, Any] = {
+        "timestamp": datetime.now().isoformat(),
+        "analyzed": len(rows),
+        "pattern_stats": pattern_stats,
+        "suggestions": [],
+        "candidate": None,
+    }
+    if len(rows) < min_cases:
+        report["skipped"] = f"only {len(rows)} unprocessed cases (< {min_cases})"
+        return report
+
+    active = registry.get_active(prompt_name)
+    optimizer = PromptOptimizer(base_prompt=active.content)
+    result = optimizer.analyze_and_suggest(cases, pattern_stats)
+    suggestions = result.get("suggestions", [])
+    report["suggestions"] = suggestions
+    report["avg_metrics"] = result.get("avg_metrics", {})
+
+    if suggestions:
+        candidate_text = optimizer.generate_improved_prompt(suggestions)
+        if candidate_text != active.content:
+            diff = structured_diff(active.content, candidate_text)
+            diff["rules_applied"] = [s["rule"] for s in suggestions]
+            pv = registry.create_version(
+                prompt_name, candidate_text,
+                parent_version_id=active.version_id,
+                status="candidate",
+                change_reason="auto candidate from feedback analysis: "
+                              + ",".join(s["rule"] for s in suggestions),
+                diff=diff,
+            )
+            report["candidate"] = {
+                "version_no": pv.version_no,
+                "version_id": pv.version_id,
+                "parent_version_no": active.version_no,
+                "rules_applied": diff["rules_applied"],
+                "diff_segments": len(diff["segment_changes"]),
+            }
+    if mark_processed and rows:
+        feedback_store.mark_processed([r["id"] for r in rows])
+    return report
 
 
 # ── 5. Experiment Tracker ────────────────────────────────

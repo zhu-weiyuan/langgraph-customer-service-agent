@@ -83,7 +83,7 @@ class TestCompactionLogic:
         assert result.compacted is True
         assert result.summary == "【对话历史摘要】测试摘要"
         # 保留最近 KEEP_RECENT_TURNS*2 = 10 条
-        assert len(result.messages) == KEEP_RECENT_TURNS * 2
+        assert len(result.messages) == 1 + KEEP_RECENT_TURNS * 2
         assert result.tokens_saved > 0
 
     def test_force_compaction(self):
@@ -205,7 +205,7 @@ class TestLLMIntegration:
         })
 
         mock_gw = MagicMock()
-        mock_gw.chat_simple.return_value = MagicMock(content=mock_response)
+        mock_gw.chat_sync.return_value = MagicMock(content=mock_response)
 
         # Patch the lazy loader to return a mock gateway module
         from agent import context_compaction as cc_module

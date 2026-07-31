@@ -19,6 +19,16 @@ from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
+# ── Mock 开关（应用层压测用，默认关闭）─────────────────────
+# MOCK_LLM=1 时 chat/chat_json/chat_stream 不发任何 HTTP，返回固定回复，
+# 延迟由 MOCK_LLM_DELAY_MS 控制。详见 agent/mock_llm.py。
+try:                                     # 包内导入
+    from .mock_llm import (mock_chat, mock_chat_json, mock_llm_enabled,
+                           mock_stream)
+except ImportError:                      # 直接以脚本方式运行本文件时
+    from mock_llm import (mock_chat, mock_chat_json, mock_llm_enabled,  # type: ignore
+                          mock_stream)
+
 # ── 重试配置 ─────────────────────────────────────────────
 MAX_RETRIES = 3
 BASE_DELAY = 1.0       # 首次重试等待1秒
@@ -39,15 +49,30 @@ class LLMClient:
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 2000,  # mimov2.5 needs higher tokens due to reasoning
+        use_gateway: Optional[bool] = None,
     ):
-        # Load from .env file if exists
+        # An explicit endpoint keeps the legacy direct HTTP client for compatibility;
+        # the application singleton (no explicit arguments) uses the unified gateway.
+        explicit_connection = any(value is not None for value in (base_url, api_key, model))
+        self._use_gateway = (not explicit_connection) if use_gateway is None else bool(use_gateway)
+        # Load from .env file if exists (only for local development)
+        # In Docker/container environments, prefer environment variables over .env file
         env_path = Path(__file__).parent.parent / ".env"
-        if env_path.exists():
+        if env_path.exists() and not os.getenv("_IN_DOCKER"):
             self._load_env(env_path)
 
-        self.base_url = base_url or os.getenv("OPENAI_BASE_URL") or "https://api.xiaomimimo.com/v1"
+        # 约定：base_url **包含 /v1**（如 https://api.xiaomimimo.com/v1）。
+        # 所有端点统一在其后拼接资源路径：
+        #   chat()        → {base_url}/chat/completions
+        #   list_models() → {base_url}/models
+        # 不要把 /chat/completions 写进 base_url（llm_gateway.py 同此约定）。
+        self.base_url = (base_url or os.getenv("OPENAI_BASE_URL")
+                         or "https://api.xiaomimimo.com/v1").rstrip("/")
         self.api_url = self.base_url  # Alias for compatibility
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY") or "sk-ckmnbfew0gajnwb508q42tvbvyvcswtf9k2c6wfqwi991ksj"
+        # 安全修复：不再内置硬编码 key 兜底，一律从参数或环境变量读取。
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY") or ""
+        if not self.api_key and not mock_llm_enabled():
+            logger.warning("OPENAI_API_KEY is not set; LLM calls will fail until configured")
         self.model = model or os.getenv("OPENAI_MODEL") or "mimo-v2.5"
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -112,8 +137,35 @@ class LLMClient:
         - 429限流时优先使用 Retry-After 头
         - 最多重试 max_retries 次
         """
+        # MOCK_LLM=1：应用层压测模式，不发 HTTP，固定延迟 + 固定回复
+        if mock_llm_enabled():
+            return mock_chat(messages)
+
+        if self._use_gateway:
+            from .llm_gateway import GatewayRequest, get_gateway_context, get_llm_gateway
+            context = get_gateway_context()
+            request = GatewayRequest(
+                messages=messages,
+                scene=str(context.get("scene") or "chat"),
+                tenant_id=str(context.get("tenant_id") or "default"),
+                user_id=context.get("user_id"),
+                trace_id=str(context.get("trace_id") or ""),
+                idempotency_key=context.get("idempotency_key"),
+                prompt_version=str(context.get("prompt_version") or "v1"),
+                metadata={**context, "trace_session": context.get("trace_session")},
+                temperature=self.temperature if temperature is None else temperature,
+                max_output_tokens=self.max_tokens if max_tokens is None else max_tokens,
+            )
+            return get_llm_gateway().chat_sync(request).content.strip()
+
         import requests
 
+        if not self.api_key:
+            raise RuntimeError(
+                "LLM API key is empty. Set the OPENAI_API_KEY environment variable "
+                "(or pass api_key=) before calling the LLM client.")
+
+        # base_url 已含 /v1（见 __init__ 注释），此处只拼资源路径
         url = f"{self.base_url}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -124,6 +176,9 @@ class LLMClient:
             "messages": messages,
             "temperature": temperature or self.temperature,
             "max_tokens": max_tokens or self.max_tokens,
+            # Qwen-compatible switches: return final answer without reasoning traces.
+            "enable_thinking": False,
+            "chat_template_kwargs": {"enable_thinking": False},
         }
 
         last_exception = None
@@ -207,10 +262,17 @@ class LLMClient:
         Args:
             default_response: 所有兜底失败后返回的默认值，默认为空dict
         """
+        # MOCK_LLM=1：直接返回场景对应的合法 JSON（走 Level 1 等价路径）
+        if mock_llm_enabled():
+            return mock_chat_json(messages, system)
+
         msgs = []
         if system:
             msgs.append({"role": "system", "content": system})
         msgs.extend(messages)
+
+        # 修复：raw 先绑定，避免 Level 1 的 chat() 抛异常时后续引用 raw 触发 NameError
+        raw = ""
 
         # ── Level 1: 直接解析 ──────────────────────────────
         try:
@@ -221,23 +283,25 @@ class LLMClient:
         except Exception as e:
             logger.error(f"Level 1 failed: {e}")
 
-        # ── Level 2: 让 LLM 修复格式 ───────────────────────
-        try:
-            fix_prompt = (
-                "上面的输出不是合法JSON，请修正格式。"
-                "原始内容：\n" + raw + "\n"
-                "请直接返回修正后的JSON，不要解释。"
-            )
-            fixed = self.chat([{"role": "user", "content": fix_prompt}])
-            parsed = self._extract_json(fixed)
-            if parsed:
-                return parsed
-        except Exception as e:
-            logger.error(f"Level 2 failed: {e}")
+        # ── Level 2: 让 LLM 修复格式（Level 1 无输出时跳过）─
+        if raw:
+            try:
+                fix_prompt = (
+                    "上面的输出不是合法JSON，请修正格式。"
+                    "原始内容：\n" + raw + "\n"
+                    "请直接返回修正后的JSON，不要解释。"
+                )
+                fixed = self.chat([{"role": "user", "content": fix_prompt}])
+                parsed = self._extract_json(fixed)
+                if parsed:
+                    return parsed
+            except Exception as e:
+                logger.error(f"Level 2 failed: {e}")
 
         # ── Level 3: Few-shot 示例引导 ─────────────────────
         try:
-            msgs.append({"role": "assistant", "content": raw})
+            if raw:
+                msgs.append({"role": "assistant", "content": raw})
             msgs.append({"role": "user", "content": (
                 '请严格按要求返回JSON，不要解释。'
                 '例如：{"intent": "chat", "ending": false}'
@@ -253,21 +317,177 @@ class LLMClient:
         logger.warning(f"All JSON parsing levels failed, returning default: {default_response}")
         return default_response or {}
 
-    @staticmethod
-    def _extract_json(text: str) -> dict:
-        """Extract JSON object from the LAST response only (skip system prompt contamination)."""
+    # 调用方实际会读取的 JSON key 白名单（用于优先挑选目标 JSON 对象）：
+    # - nodes.py:        intent / ending / satisfaction / satisfied
+    # - sentiment.py:    emotion / intensity
+    # - agentic_rag.py:  sufficient / reason / new_queries
+    # - summary.py:      issue_category / description / resolution / priority
+    # - 通用:            confidence
+    EXPECTED_JSON_KEYS = frozenset({
+        "intent", "ending", "satisfaction", "satisfied",
+        "emotion", "intensity",
+        "sufficient", "reason", "new_queries",
+        "issue_category", "description", "resolution", "priority",
+        "confidence",
+    })
+
+    @classmethod
+    def _extract_json(cls, text: str) -> dict:
+        """Extract JSON object from the LAST response only.
+
+        策略（修复旧版白名单缺 key 导致 sentiment/summary/RAG 的合法 JSON 被丢弃）：
+        1. 优先返回包含任一白名单 key 的 JSON 对象（倒序，取最后一个）
+        2. 否则退化为通用提取：返回最后一个合法 JSON 对象，由调用方自行校验字段
+        """
         import re
-        # Only look at the last 500 chars of response to avoid matching system prompt
-        tail = text[-500:] if len(text) > 500 else text
-        matches = re.findall(r'\{[^{}]+\}', tail, re.DOTALL)
-        for m in matches:
+        if not text:
+            return {}
+        # Only look at the last 800 chars of response to avoid matching system prompt
+        tail = text[-800:] if len(text) > 800 else text
+        matches = re.findall(r'\{[^{}]*\}', tail, re.DOTALL)
+        generic: dict = {}
+        for m in reversed(matches):          # 倒序：最后出现的优先
             try:
                 obj = json.loads(m)
-                if isinstance(obj, dict) and any(k in obj for k in ('intent', 'ending', 'satisfaction')):
-                    return obj
             except json.JSONDecodeError:
                 continue
-        return {}
+            if not isinstance(obj, dict):
+                continue
+            if any(k in obj for k in cls.EXPECTED_JSON_KEYS):
+                return obj
+            if not generic:
+                generic = obj                # 记住最后一个合法 dict 作为兜底
+        return generic
+
+    def chat_stream(
+        self,
+        messages: List[dict],
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+    ):
+        """True token-by-token streaming via HTTP SSE (requests + stream=True).
+
+        Sends the same payload as :meth:`chat` but with ``"stream": True``,
+        parses SSE ``data: {...}`` lines, and yields each text delta.
+
+        - MOCK_LLM=1：不发 HTTP，按 MOCK_LLM_TOKENS 切片逐块吐出。
+        """
+        if mock_llm_enabled():
+            for piece in mock_stream(messages):
+                yield piece
+            return
+
+        if self._use_gateway:
+            from .llm_gateway import GatewayRequest, get_gateway_context, get_llm_gateway
+            context = get_gateway_context()
+            request = GatewayRequest(
+                messages=messages,
+                scene=str(context.get("scene") or "chat"),
+                tenant_id=str(context.get("tenant_id") or "default"),
+                user_id=context.get("user_id"),
+                trace_id=str(context.get("trace_id") or ""),
+                idempotency_key=context.get("idempotency_key"),
+                prompt_version=str(context.get("prompt_version") or "v1"),
+                metadata={**context, "trace_session": context.get("trace_session")},
+                temperature=self.temperature if temperature is None else temperature,
+                max_output_tokens=self.max_tokens if max_tokens is None else max_tokens,
+            )
+            yield from get_llm_gateway().stream_sync(request)
+            return
+
+        import requests
+
+        if not self.api_key:
+            raise RuntimeError(
+                "LLM API key is empty. Set the OPENAI_API_KEY environment variable "
+                "(or pass api_key=) before calling the LLM client.")
+
+        url = f"{self.base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature or self.temperature,
+            "max_tokens": max_tokens or self.max_tokens,
+            "enable_thinking": False,
+            "chat_template_kwargs": {"enable_thinking": False},
+            "stream": True,  # <-- 关键：开启真流式
+        }
+
+        attempt = 0
+        max_retries = 3
+        last_error = None
+        while attempt <= max_retries:
+            try:
+                with requests.post(
+                    url, headers=headers, json=payload,
+                    timeout=120, stream=True
+                ) as resp:
+                    resp.raise_for_status()
+                    # 关键修复：不依赖 requests 的自动解码（可能用 Latin-1 损坏 UTF-8），
+                    # 直接按 UTF-8 解码原始字节。
+                    for raw_line in resp.iter_lines(chunk_size=1, decode_unicode=False):
+                        if not raw_line:
+                            continue
+                        line = raw_line.decode("utf-8").strip()
+                        if not line.startswith("data: "):
+                            continue
+                        data_str = line[6:]
+                        if data_str.strip() == "[DONE]":
+                            return
+                        try:
+                            data = json.loads(data_str)
+                            choices = data.get("choices", [])
+                            if choices:
+                                delta = choices[0].get("delta", {})
+                                content = delta.get("content", "")
+                                if content:
+                                    yield content
+                        except json.JSONDecodeError:
+                            continue
+                return  # 成功完成
+            except (requests.exceptions.ConnectionError,
+                    requests.exceptions.Timeout) as e:
+                last_error = e
+                delay = self._calculate_delay(attempt)
+                logger.warning(f"chat_stream {type(e).__name__}, retry {attempt+1}/{max_retries} in {delay:.1f}s")
+                time.sleep(delay)
+                attempt += 1
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.status_code in (429, 502, 503):
+                    last_error = e
+                    delay = self._calculate_delay(attempt)
+                    logger.warning(f"chat_stream HTTP {e.response.status_code}, retry {attempt+1}/{max_retries}")
+                    time.sleep(delay)
+                    attempt += 1
+                else:
+                    raise
+            except Exception:
+                raise
+
+        raise RuntimeError(
+            f"LLM streaming request failed after {max_retries} retries. "
+            f"Last error: {last_error}"
+        ) from last_error
+
+    def list_models(self, timeout: float = 10.0) -> list:
+        """List available models（连通性探测也可用）。
+
+        与 chat() 的 URL 拼接约定一致：base_url 已含 /v1，此处只拼 /models。
+        （旧版 app 层各自手写 replace("/chat/completions", "") 再拼 /models，
+        两处口径不一致；统一收敛到本方法。）
+        """
+        import requests
+
+        url = f"{self.base_url}/models"
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        resp = requests.get(url, headers=headers, timeout=timeout)
+        resp.raise_for_status()
+        data = resp.json()
+        return data.get("data", []) if isinstance(data, dict) else []
 
     def generate_reply(
         self,

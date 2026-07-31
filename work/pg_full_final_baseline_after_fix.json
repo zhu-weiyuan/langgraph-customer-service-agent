@@ -1,0 +1,60 @@
+{
+  "database_counts": {
+    "conversation_history": 418,
+    "checkpoints": 288,
+    "checkpoint_writes": 958,
+    "checkpoint_blobs": 213,
+    "traces": 354,
+    "rag_documents": 12,
+    "rag_chunks": 273,
+    "sessions": 111,
+    "conversation_history_zwy": 13
+  },
+  "sqlite_files": {
+    "user_memory.db": {
+      "exists": true,
+      "size": 585728,
+      "mtime_ns": 1785260605433194800
+    },
+    "user_memory.db-wal": {
+      "exists": true,
+      "size": 86552,
+      "mtime_ns": 1785260926123868000
+    },
+    "user_memory.db-shm": {
+      "exists": true,
+      "size": 32768,
+      "mtime_ns": 1785260605453480600
+    },
+    "data/p4_self_improve.db": {
+      "exists": true,
+      "size": 81920,
+      "mtime_ns": 1785260891096547500
+    },
+    "data/trace.db": {
+      "exists": true,
+      "size": 622592,
+      "mtime_ns": 1785259503861912100
+    },
+    "agent/trace.db": {
+      "exists": true,
+      "size": 143360,
+      "mtime_ns": 1785166306559265600
+    },
+    "checkpoints/checkpoints.db": {
+      "exists": true,
+      "size": 131072,
+      "mtime_ns": 1785261168709608400
+    },
+    "checkpoints.db": {
+      "exists": true,
+      "size": 20480,
+      "mtime_ns": 1784347099263327100
+    },
+    "runtime.db": {
+      "exists": true,
+      "size": 12288,
+      "mtime_ns": 1784475799323330500
+    }
+  }
+}

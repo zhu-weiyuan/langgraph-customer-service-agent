@@ -28,7 +28,15 @@ OPENROUTER_API_KEY = os.environ.get(
 
 
 def _get_api_key() -> str:
-    """Get OpenRouter API key from OpenClaw config."""
+    """Get API key: env（运行时读取，兼容 load_dotenv 晚于模块导入）→ OpenClaw config.
+
+    修复：旧版只认模块导入时快照的 OPENROUTER_API_KEY；用户在 .env 里配的是
+    OPENAI_API_KEY → 请求带着空 Bearer 打出 401。现在运行时兜底读取两者。
+    """
+    env_key = (os.environ.get("OPENROUTER_API_KEY", "").strip()
+               or os.environ.get("OPENAI_API_KEY", "").strip())
+    if env_key:
+        return env_key
     if OPENROUTER_API_KEY:
         return OPENROUTER_API_KEY
 
@@ -66,6 +74,21 @@ def _get_embedding(text: str, max_retries: int = 3) -> Optional[List[float]]:
     Returns:
         Embedding vector (list of floats) or None if all retries fail
     """
+    # 优先走统一 EmbeddingClient（OPENAI_API_KEY/OPENAI_BASE_URL/EMBEDDING_MODEL，
+    # 带 Authorization 头 + 批量/重试）；未配置或失败则继续原 OpenRouter 路径。
+    try:
+        from .embedding_client import EmbeddingClient
+        _client = EmbeddingClient.from_env(strict=False)
+    except Exception:
+        _client = None
+    if _client is not None:
+        try:
+            vec = _client.embed_one(text)
+            if vec:
+                return vec
+        except Exception as e:
+            print(f"[Vector RAG] EmbeddingClient failed, trying OpenRouter: {e}")
+
     import requests  # lazy import
 
     for attempt in range(max_retries):
@@ -255,7 +278,32 @@ def build_index():
     # Create new vector store
     _vector_store = SimpleVectorStore()
 
+    # ── 磁盘缓存:避免每次进程重启后首个请求重打 64 次 embedding API ──
+    import hashlib as _hl
+    import json as _json
+    import os as _os
+    _cache_key = _hl.sha256(
+        ("|".join(f"{s['title']}\x00{s['text']}" for s in sections)
+         + _os.environ.get("EMBEDDING_MODEL", "")
+         + _os.environ.get("EMBEDDING_DIMENSIONS", "")).encode("utf-8")
+    ).hexdigest()[:16]
+    _cache_path = _os.path.join("data", f"vector_index_{_cache_key}.json")
+    try:
+        with open(_cache_path, encoding="utf-8") as f:
+            cached = _json.load(f)
+        for entry in cached:
+            _vector_store.add(entry["embedding"], entry["meta"])
+        _indexed = True
+        print(f"[Vector RAG] Index loaded from cache: {len(cached)} sections "
+              f"({_cache_path})")
+        return
+    except FileNotFoundError:
+        pass
+    except Exception as exc:  # 缓存损坏则重建
+        print(f"[Vector RAG] Cache unusable ({exc}); rebuilding")
+
     # Embed each section
+    _cache_entries = []
     for i, section in enumerate(sections):
         # Combine title and text for better semantic representation
         text_to_embed = f"{section['title']} {section['text']}"
@@ -267,14 +315,23 @@ def build_index():
             print(f"    ⚠️  Failed to get embedding for section {i+1}")
             continue
 
-        _vector_store.add(embedding, {
+        meta = {
             "title": section["title"],
             "text": section["text"],
             "source": section["source"],
-        })
+        }
+        _vector_store.add(embedding, meta)
+        _cache_entries.append({"embedding": list(embedding), "meta": meta})
 
     _indexed = True
     print(f"[Vector RAG] Index built: {_vector_store.vectors.__len__()} sections indexed")
+    try:
+        _os.makedirs("data", exist_ok=True)
+        with open(_cache_path, "w", encoding="utf-8") as f:
+            _json.dump(_cache_entries, f, ensure_ascii=False)
+        print(f"[Vector RAG] Index cached to {_cache_path}")
+    except Exception as exc:
+        print(f"[Vector RAG] Cache write failed (non-fatal): {exc}")
 
 
 def vector_retrieve(query: str, top_k: int = 3) -> List[Dict]:

@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   // never exposed as VITE_* browser variables or bundled into frontend assets.
   const env = loadEnv(mode, '..', '')
   const apiKey = env.API_KEYS?.split(',')[0]?.trim()
-  const backend = env.BACKEND_URL?.trim() || 'http://127.0.0.1:7862'
+  const backend = env.BACKEND_URL?.trim() || 'http://127.0.0.1:7860'
 
   const proxyEntry = {
     target: backend,
@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         '/api': proxyEntry,
         '/healthz': proxyEntry,
+        '/readyz': proxyEntry,
       },
     },
   }

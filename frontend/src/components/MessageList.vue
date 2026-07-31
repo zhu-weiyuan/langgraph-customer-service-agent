@@ -24,8 +24,20 @@ function formatTime(value: string): string {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
+const PROGRESS_LABELS: Record<string, string> = {
+  analyzing: '正在分析问题…',
+  retrieving: '正在检索知识库…',
+  recalling_memory: '正在读取长期记忆…',
+  assembling_context: '正在整理上下文…',
+  generating: '正在生成回复…',
+}
+
 function intentLabel(intent: string): string {
   return INTENT_LABELS[intent] ?? intent
+}
+
+function progressLabel(progress: string): string {
+  return PROGRESS_LABELS[progress] ?? '正在处理…'
 }
 
 watch(
@@ -85,7 +97,7 @@ const SUGGESTIONS = [
           <!-- pending: typing dots / progress hint -->
           <span v-if="message.role === 'assistant' && !message.content && message.streaming" class="progress-hint">
             <span class="typing-dots"><i></i><i></i><i></i></span>
-            <template v-if="message.progress === 'analyzing'">正在分析问题…</template>
+            <template>{{ progressLabel(message.progress) }}</template>
           </span>
 
           <!-- assistant: sanitized markdown with typing cursor while streaming -->

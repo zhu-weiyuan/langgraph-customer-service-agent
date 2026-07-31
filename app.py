@@ -19,8 +19,8 @@ from uuid import uuid4
 from datetime import datetime
 from collections import defaultdict
 
-# Windows UTF-8 — skip under pytest (CaptureFixture has no .buffer)
-if sys.platform == 'win32' and '__pytest' not in sys.modules:
+# Windows UTF-8 — leave pytest capture streams untouched.
+if sys.platform == 'win32' and 'pytest' not in sys.modules:
     try:
         # Use line buffering to ensure immediate output
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace', line_buffering=True)
@@ -35,7 +35,26 @@ from agent.security.prompt_guard import scan_input as prompt_scan, reinforce_sys
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import os
 
-# ── Template Loader ─────────────────────────────────────────────
+def _timeline_langchain_messages(session_id: str, limit: int = 100):
+    """Load persisted conversation messages and remove adjacent checkpoint duplicates."""
+    from agent.memory import get_conversation_messages
+    rows = get_conversation_messages(session_id, limit=limit)
+    result = []
+    seen = set()
+    previous = None
+    for row in rows:
+        role = row.get("role", "user")
+        content = row.get("content", "")
+        key = (role, content)
+        if key == previous or key in seen:
+            continue
+        seen.add(key)
+        previous = key
+        result.append(HumanMessage(content=content) if role == "user"
+                      else AIMessage(content=content))
+    return result
+
+
 def _load_template(name):
     """Load an HTML template from the templates/ directory."""
     template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
@@ -50,7 +69,8 @@ def _load_template(name):
 # Load templates from JSON-encoded strings (avoids HTML parser issues with </tag> in <script>)
 from agent._html_strings import INDEX as _RAW_CHAT_HTML, ANALYTICS as ANALYTICS_HTML
 from agent.logging_config import setup_logging, logger
-from agent.observability import MetricsCollector, AlertService
+from agent.metrics import MetricsCollector
+from agent.observability import AlertService
 metrics = MetricsCollector()
 alert_service = AlertService(metrics)
 # 告警规则：平均延迟超过 5s 时触发
@@ -129,13 +149,17 @@ def _check_llm_connectivity() -> bool:
 def init():
     """Initialize the agent graph.
 
-    Set USE_SQLITE=1 environment variable for persistent checkpointing.
+    Set USE_POSTGRES=1 for persistent checkpointing via PostgreSQL,
+    or USE_SQLITE=1 for SQLite (default: in-memory MemorySaver).
     """
     global _graph, _trace_service
+    use_postgres = os.environ.get('USE_POSTGRES', '0') == '1'
     use_sqlite = os.environ.get('USE_SQLITE', '0') == '1'
     db_path = os.environ.get('CHECKPOINT_DB', 'checkpoints.db')
-    _graph = build_graph(use_sqlite=use_sqlite, db_path=db_path)
-    print(f"[Server] Agent initialized (Real LLM via llama.cpp, sqlite={use_sqlite})")
+    _graph = build_graph(use_postgres=use_postgres, use_sqlite=use_sqlite,
+                         db_path=db_path)
+    mode = 'postgres' if use_postgres else 'sqlite' if use_sqlite else 'memory'
+    print(f"[Server] Agent initialized (checkpointer={mode})")
 
     # Initialize observability trace service
     from agent.observability import TraceService
@@ -232,30 +256,24 @@ def stream_llm_reply(messages, system_prompt, max_tokens=384):
                     print(f"[Stream] Client disconnected: {e}")
                     return
                 except TimeoutError:
-                    yield 'data: {"error": "响应超时，请稍后重试"}\n\n'
+                    # 返回文本让 run_agent_stream 包装为 SSE
+                    yield "【响应超时，请稍后重试】"
                     return
             print(f"[Stream] Finished with {token_count} tokens")
     except Exception as e:
         error_msg = str(e)
-        # 检查是否是 429 限流错误
         if "429" in error_msg or "Too Many Requests" in error_msg:
             rate_limiter.record_vendor_429()
-            yield 'data: {"error": "服务繁忙，请稍后重试"}\n\n'
-        else:
-            rate_limiter.record_vendor_success()  # 其他错误不算熔断
-            print(f"[Streaming 错误] {e}")
-            yield f'data: {{"error": "流式响应失败：{error_msg}"}}\n\n'
-    except Exception as e:
-        print(f"[Streaming 错误] {e}")
-        # 检查是否是 429 限流错误
-        if "429" in str(e):
-            rate_limiter.record_vendor_429()
-        else:
-            rate_limiter.record_vendor_success()  # 其他错误不算熔断
-        # Fallback: non-streaming call
+            yield "【服务繁忙，请稍后重试】"
+            return
+        # 其他错误：降级为非流式调用，逐字切块渐进显示
+        print(f"[Stream] Streaming failed, fallback to non-streaming: {e}")
+        rate_limiter.record_vendor_success()
         from agent.nodes import _call_llm
         fallback = _call_llm(messages, system_prompt, max_tokens)
-        yield fallback
+        if fallback:
+            for i in range(0, len(fallback), 3):
+                yield fallback[i:i+3]
 
 
 def run_agent_stream(session_id, user_message, trace_session=None):
@@ -536,6 +554,12 @@ def _classify_message(content):
 
 
 class ChatHandler(BaseHTTPRequestHandler):
+    @staticmethod
+    def _degraded_response(message: str, session_id: str, request_id: str) -> dict:
+        return {"fallback": True, "request_id": request_id,
+                "session_id": session_id,
+                "error": "服务暂时不可用，请稍后再试"}
+
     protocol_version = 'HTTP/1.1'
     
     def log_message(self, format, *args):
@@ -574,7 +598,12 @@ class ChatHandler(BaseHTTPRequestHandler):
         limiter = get_rate_limiter()
         
         try:
-            limiter.acquire(user_id=session_id, model="mimo-v2.5")
+            # 同步限流：使用滑动窗口层检查 IP + session
+            from agent.rate_limiter import LocalConservativeLimiter as _LocalLimiter
+            _local = _LocalLimiter()  # 内置线程安全的滑动窗口，初始即用
+            layer_keys = {"ip": self.client_address[0] if hasattr(self, 'client_address') else 'unknown',
+                          "session": session_id}
+            _local.acquire(layer_keys)
             return True
         except RateLimitError as e:
             self.send_response(429)
@@ -583,16 +612,9 @@ class ChatHandler(BaseHTTPRequestHandler):
             body = json.dumps({
                 "error": str(e),
                 "retry_after": 60,
-                "vendor_circuit_open": limiter.is_vendor_circuit_open(),
             }, ensure_ascii=False)
             self.wfile.write(body.encode('utf-8'))
             return False
-        finally:
-            # 释放并发限制（在请求处理完后）
-            try:
-                limiter.release()
-            except Exception:
-                pass
 
     def do_GET(self):
         # Phase A: Generate request_id at the very top
@@ -627,9 +649,10 @@ class ChatHandler(BaseHTTPRequestHandler):
             self._send_health()
             return
 
-        # Rate limit all other GET endpoints
-        if not self._check_rate_limit():
-            return
+        # Rate limit API endpoints only, not static/HTML
+        if self.path not in ('/', '/index.html') and self.path.startswith('/api/'):
+            if not self._check_rate_limit():
+                return
 
         if self.path == '/' or self.path == '/index.html':
             self.send_response(200)
@@ -1242,6 +1265,12 @@ class ChatHandler(BaseHTTPRequestHandler):
 
             if stream:
                 # SSE streaming response (Phase A: add X-Request-ID)
+                # 启用 TCP_NODELAY 禁用 Nagle 算法，确保每次 write/flush 立即发送到网络
+                try:
+                    import socket as _sock
+                    self.connection.setsockopt(_sock.IPPROTO_TCP, _sock.TCP_NODELAY, 1)
+                except Exception:
+                    pass
                 self._send_response_headers_and_set_trace(start_time, 200)
                 self.send_header('X-Request-ID', self._request_id)  # Phase A: stream path
                 self.send_header('Content-Type', 'text/event-stream; charset=utf-8')
@@ -1255,16 +1284,24 @@ class ChatHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
                 status_code = 200
+                error_occurred = False
+                # 使用 connection.sendall 直接写入 socket，绕过 Python 的 BufferedWriter
+                _send = lambda data: self.connection.sendall(data.encode('utf-8'))
                 try:
                     for chunk in run_agent_stream(session_id, user_message, trace_session=trace_session):
-                        self.wfile.write(chunk.encode('utf-8'))
-                        self.wfile.flush()
+                        _send(chunk)
                 except Exception as e:
                     status_code = 500
+                    error_occurred = True
                     import traceback
                     traceback.print_exc()
-                    err = json.dumps({'error': str(e)}, ensure_ascii=False)
-                    self.wfile.write(f"data: {err}\n\n".encode('utf-8'))
+                    # 使用 _degraded_response 统一降级
+                    err_data = self._degraded_response(user_message, session_id, self._request_id)
+                    # 同时发送 error 帧 + done 帧，保证前端能显示错误
+                    err = json.dumps({'error': err_data['error']}, ensure_ascii=False)
+                    _send(f"data: {err}\n\n")
+                    done_meta = json.dumps({'done': True, 'error': err_data['error'], 'fallback': True, 'session_id': session_id}, ensure_ascii=False)
+                    _send(f"data: {done_meta}\n\n")
                 finally:
                     duration_ms = (time.time() - start_time) * 1000
                     # 记录指标：请求计数 + 延迟直方图 + 错误计数
@@ -1306,7 +1343,9 @@ class ChatHandler(BaseHTTPRequestHandler):
                 except Exception as e:
                     import traceback
                     traceback.print_exc()
-                    response = json.dumps({'error': str(e)}, ensure_ascii=False)
+                    # 统一降级响应
+                    err_data = self._degraded_response(user_message, session_id, self._request_id)
+                    response = json.dumps(err_data, ensure_ascii=False)
                 finally:
                     duration_ms = (time.time() - start_time) * 1000
                     # 记录指标：请求计数 + 延迟直方图 + 错误计数

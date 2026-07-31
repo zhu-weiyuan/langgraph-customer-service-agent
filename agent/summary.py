@@ -17,6 +17,7 @@ Dialogue Summary Module
 """
 
 import json
+import uuid
 from datetime import datetime
 from typing import Dict, Any, List
 from langchain_core.messages import HumanMessage, AIMessage
@@ -87,7 +88,9 @@ def generate_summary(messages: List[Any], emotion: str = "neutral",
     # Build ticket
     now = datetime.now()
     ticket = {
-        "ticket_id": f"T-{now.strftime('%Y%m%d')}-{now.hour:02d}{now.minute:02d}",
+        # 修复：旧格式 T-YYYYMMDD-HHMM 同一分钟内多个工单会同号（配合 DB 层
+        # INSERT OR REPLACE 时直接互相覆盖）。追加 uuid 短后缀保证唯一。
+        "ticket_id": f"T-{now.strftime('%Y%m%d')}-{now.hour:02d}{now.minute:02d}-{uuid.uuid4().hex[:8]}",
         "issue_category": summary.get("issue_category", "其他"),
         "description": summary.get("description", ""),
         "resolution": summary.get("resolution", ""),

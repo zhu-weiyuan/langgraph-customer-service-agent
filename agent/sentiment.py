@@ -38,49 +38,56 @@ SENTIMENT_SYSTEM = """你是一个情感分析器。分析用户消息的情绪�
 # ── Lightweight keyword-based fallback (avoids LLM call when obvious) ──
 _KEYWORDS = {
     "angry": [
-        "垃圾", "太差", "操你", "傻逼", "废物", "骗子", "黑心", "坑人",
-        "愤怒", "气死", "恶心", "无语", "受够了", "滚蛋", "去死",
-        "投诉", "举报", "维权", "差评", "退款", "退货",
-    ],
+        "垃圾", "太差", "操你", "傻逼", "废物", "骗子", "黑心", "坑人", "愤怒", "气死", "恶心", "无语",
+        "受够了", "滚蛋", "去死", "投诉", "举报", "维权", "差评", "我要退款", "要求退款", "不给退款",
+        "退款失败", "为什么还不退款", "很生气",
+        "气死我了"],
     "sad": [
-        "失望", "难过", "伤心", "可怜", "无助", "绝望", "心碎",
-        "不好用", "没用", "白买了", "浪费钱", "后悔",
-    ],
+        "失望", "难过", "伤心", "可怜", "无助", "绝望", "心碎", "不好用", "没用", "白买了", "浪费钱", "后悔",
+        "太失望",
+        "真的后悔"],
     "anxious": [
-        "着急", "急死", "快点", "紧急", "怎么办", "救命", "来不及",
-        "坏了", "不能用", "开不了机", "连不上", "闪退",
+        "着急", "急死", "快点", "紧急", "怎么办", "救命", "来不及", "坏了", "不能用", "开不了机", "连不上", "闪退",
+        "登录不上", "多久到账", "还没到账", "一直亮", "怎么找回",
     ],
     "happy": [
-        "太好了", "很棒", "喜欢", "满意", "好用", "赞", "给力",
-        "谢谢", "感谢", "不错", "很好", "完美", "开心",
+        "太好了", "很棒", "喜欢", "满意", "好用", "赞", "给力", "谢谢", "感谢", "不错", "很好", "完美", "开心",
+        "解决了", "再见", "没事了",
     ],
+}
+_STRONG_KEYWORDS = {
+    "angry": {"操你", "傻逼", "去死", "滚蛋", "垃圾", "太差", "坑人", "气死", "投诉", "我要退款", "要求退款", "不给退款", "为什么还不退款", "很生气", "气死我了"},
+    "sad": {"失望", "难过", "伤心", "无助", "绝望", "后悔", "白买了", "太失望", "真的后悔"},
+    "anxious": {"救命", "紧急", "急死", "着急", "怎么办", "连不上", "不能用", "登录不上", "多久到账", "还没到账", "怎么找回"},
+    "happy": {"太好了", "满意", "谢谢", "感谢", "完美", "开心", "解决了", "很好", "好用", "再见", "没事了"},
 }
 
 
 def _keyword_sentiment(text: str) -> Optional[Dict[str, Any]]:
-    """Fast keyword-based emotion detection. Returns None if inconclusive."""
+    """关键词情绪快判：高置信单词立即生效，降低本地 LLM JSON 失败带来的误判。"""
+    text = text or ""
     scores = {"angry": 0, "sad": 0, "anxious": 0, "happy": 0}
+    strongest: Dict[str, int] = {emotion: 0 for emotion in scores}
     for emotion, words in _KEYWORDS.items():
         for word in words:
             if word in text:
-                scores[emotion] += 1
+                # 较长短语比单字/双字更具辨识度，例如“多久到账”优先于泛化的“退款”。
+                weight = 2 if len(word) >= 3 else 1
+                if word in _STRONG_KEYWORDS[emotion]:
+                    # Explicit but short wording (for example anger or regret)
+                    # must not lose to a generic operational problem phrase.
+                    weight = max(weight, 3)
+                    strongest[emotion] = max(strongest[emotion], len(word))
+                scores[emotion] += weight
 
-    max_emotion = max(scores, key=scores.get)
-    max_score = scores[max_emotion]
-
-    # Only trust keyword match if at least 2 hits or 1 hit with strong words
-    if max_score >= 2:
-        intensity = min(5, max_score + 1)
-        return {"emotion": max_emotion, "intensity": intensity}
-    elif max_score == 1:
-        # Single hit — only trust for very strong keywords
-        strong_words = {"操你", "傻逼", "去死", "滚蛋", "救命", "紧急", "完美"}
-        for word in _KEYWORDS.get(max_emotion, []):
-            if word in text and word in strong_words:
-                return {"emotion": max_emotion, "intensity": 4}
-
+    max_score = max(scores.values())
+    candidates = [emotion for emotion, score in scores.items() if score == max_score]
+    # 同分时优先选包含更长高置信短语的情绪；仍相同则保持稳定顺序。
+    emotion = max(candidates, key=lambda item: strongest[item])
+    if max_score >= 2 or strongest[emotion]:
+        intensity = min(5, max(2, max_score + (1 if strongest[emotion] else 0)))
+        return {"emotion": emotion, "intensity": intensity}
     return None
-
 
 # Cache for recent sentiment results
 _sentiment_cache = {}
@@ -207,7 +214,10 @@ def analyze(text: str, session_id: Optional[str] = None, cache_key: Optional[str
     Returns:
         {"emotion": str, "intensity": int, "trend": str, "should_escalate": bool}
     """
-    ck = cache_key or f"{session_id}:{text[:50]}" if session_id else text[:50]
+    # 修复运算符优先级：旧写法 `cache_key or f"..." if session_id else text[:50]`
+    # 解析为 `(cache_key or f"...") if session_id else text[:50]`，session_id 为空时
+    # 显式传入的 cache_key 被直接忽略。加括号让 cache_key 始终优先生效。
+    ck = cache_key or (f"{session_id}:{text[:50]}" if session_id else text[:50])
     if ck in _sentiment_cache:
         cached = _sentiment_cache[ck].copy()
         # Add trend info if session_id provided

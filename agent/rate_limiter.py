@@ -1,343 +1,410 @@
 # -*- coding: utf-8 -*-
 """
-分层限流器 — 用户级 / 租户级 / 模型级 / 供应商级
+分层限流器（P1-B 重写版）— 全局 / IP / 用户 / 会话 四层令牌桶
 
-四层架构：
-1. 用户级：防止单个用户滥用（滑动窗口）
-2. 租户级：控制企业/项目套餐成本（令牌桶）
-3. 模型级：避免热门模型被打满（令牌桶 + 并发信号量）
-4. 供应商级：保护外部依赖（全局令牌桶 + 熔断器）
+设计：
+1. **RedisTokenBucketLimiter** — redis.asyncio + 内嵌 Lua 脚本，一次 EVAL 原子
+   检查并扣减全部四层令牌桶（任何一层不足则整体不扣减，返回触发层与 retry_after）。
+2. **fail-closed 降级** — Redis 不可用时降级到 LocalConservativeLimiter
+   （线程安全滑动窗口，限额取正常值的 50%，窗口数据定期清理防内存泄漏），
+   并通过 degrade_callback 上报降级指标。绝不因 Redis 挂掉而放开全部流量。
+3. **并发闸门** — asyncio.Semaphore 真实 acquire/release：
+       async with limiter.concurrency():
+           ... call model ...
+   （删除旧版"读 Semaphore._value 对比自增计数器"的假信号量。）
+4. **统一异常** — RateLimitExceeded(layer, retry_after)。
 
-使用示例：
-    limiter = MultiLevelRateLimiter()
-    
-    # 在请求进入时检查
-    if not limiter.acquire(user_id="u123", model="mimo-v2.5"):
-        raise RateLimitError("请求过多，请稍后重试")
-    
-    # 收到 429 时触发熔断
-    limiter.record_vendor_429()
-    
-    # 检查是否已熔断
-    if limiter.is_vendor_circuit_open():
-        raise ServiceUnavailableError("供应商服务不可用")
+三方依赖策略：redis 延迟导入 + 守卫；纯 stdlib 环境可 import 本模块并使用
+LocalConservativeLimiter / 注入 Fake Redis 测试。
 """
 
-import time
-import threading
+import asyncio
+import contextlib
 import logging
-from collections import defaultdict
-from typing import Optional, Dict, Any
+import threading
+import time
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
-class RateLimitError(Exception):
-    """限流异常"""
-    pass
+# ─────────────────────────────────────────────────────
+# 异常
+# ─────────────────────────────────────────────────────
+
+class RateLimitExceeded(Exception):
+    """统一限流异常：带触发层级与建议重试等待时间（秒）。"""
+
+    def __init__(self, layer: str, retry_after: float, message: Optional[str] = None):
+        self.layer = layer
+        self.retry_after = max(0.0, float(retry_after))
+        super().__init__(
+            message or f"Rate limit exceeded at layer '{layer}', "
+                       f"retry after {self.retry_after:.1f}s")
 
 
-class SlidingWindow:
-    """滑动窗口限流器。
+# 兼容旧代码的别名（旧文件抛 RateLimitError）
+RateLimitError = RateLimitExceeded
 
-    在固定时间窗口内限制请求数量。
 
-    Args:
-        max_requests: 最大请求数
-        window_seconds: 窗口大小（秒）
+# ─────────────────────────────────────────────────────
+# 配置
+# ─────────────────────────────────────────────────────
+
+@dataclass(frozen=True)
+class BucketConfig:
+    """令牌桶配置：rate 每秒补充令牌数，capacity 桶容量（突发上限）。"""
+    rate: float
+    capacity: int
+
+
+# 四层默认限额（全局 / 单 IP / 单用户 / 单会话）
+DEFAULT_BUCKETS: Dict[str, BucketConfig] = {
+    "global":  BucketConfig(rate=100.0, capacity=200),
+    "ip":      BucketConfig(rate=5.0,   capacity=20),
+    "user":    BucketConfig(rate=2.0,   capacity=10),
+    "session": BucketConfig(rate=1.0,   capacity=5),
+}
+
+LAYER_ORDER = ("global", "ip", "user", "session")
+
+
+# ─────────────────────────────────────────────────────
+# Lua 脚本：一次原子检查并扣减多个令牌桶
+# ─────────────────────────────────────────────────────
+#
+# KEYS[i]         第 i 个桶的 Redis key（hash: tokens, ts）
+# ARGV[1]         now（秒，浮点）
+# ARGV[2]         cost（本次扣减令牌数）
+# ARGV[2+i*2-1]   第 i 个桶的 rate
+# ARGV[2+i*2]     第 i 个桶的 capacity
+#
+# 返回：
+#   {1}                     全部通过并已扣减
+#   {0, i, retry_after_ms}  第 i 个桶（1-based）不足，未扣减任何桶
+MULTI_BUCKET_LUA = """
+local now = tonumber(ARGV[1])
+local cost = tonumber(ARGV[2])
+local n = #KEYS
+local tokens = {}
+
+-- Pass 1: 补充令牌并检查全部桶
+for i = 1, n do
+    local rate = tonumber(ARGV[1 + i * 2])
+    local capacity = tonumber(ARGV[2 + i * 2])
+    local bucket = redis.call('HMGET', KEYS[i], 'tokens', 'ts')
+    local cur = tonumber(bucket[1])
+    local ts = tonumber(bucket[2])
+    if cur == nil then
+        cur = capacity
+        ts = now
+    end
+    local elapsed = math.max(0, now - ts)
+    cur = math.min(capacity, cur + elapsed * rate)
+    if cur < cost then
+        local retry_after = 0
+        if rate > 0 then
+            retry_after = (cost - cur) / rate
+        end
+        return {0, i, math.ceil(retry_after * 1000)}
+    end
+    tokens[i] = cur
+end
+
+-- Pass 2: 全部通过，统一扣减
+for i = 1, n do
+    local rate = tonumber(ARGV[1 + i * 2])
+    local capacity = tonumber(ARGV[2 + i * 2])
+    local ttl = 60
+    if rate > 0 then
+        ttl = math.ceil(capacity / rate) + 60
+    end
+    redis.call('HSET', KEYS[i], 'tokens', tokens[i] - cost, 'ts', now)
+    redis.call('EXPIRE', KEYS[i], ttl)
+end
+return {1}
+"""
+
+
+# ─────────────────────────────────────────────────────
+# 本地保守限流器（fail-closed 降级路径）
+# ─────────────────────────────────────────────────────
+
+class LocalConservativeLimiter:
+    """线程安全滑动窗口限流器 — Redis 不可用时的保守降级实现。
+
+    - 限额取正常值的 conservative_factor（默认 50%）：单实例视角看不到集群
+      总量，收紧限额避免 Redis 故障期间超卖。
+    - 窗口数据定期整体清理（cleanup_interval），防止 key 集合只增不减导致
+      内存泄漏（旧版仅清理被再次访问的 key）。
     """
-    def __init__(self, max_requests: int, window_seconds: float):
-        self.max_requests = max_requests
-        self.window = window_seconds
-        self._requests: Dict[str, list] = defaultdict(list)
+
+    def __init__(self,
+                 buckets: Optional[Dict[str, BucketConfig]] = None,
+                 window_seconds: float = 10.0,
+                 conservative_factor: float = 0.5,
+                 cleanup_interval: float = 60.0,
+                 clock: Callable[[], float] = time.monotonic):
+        base = buckets or DEFAULT_BUCKETS
+        self._window = window_seconds
+        self._clock = clock
+        self._cleanup_interval = cleanup_interval
+        self._last_cleanup = clock()
+        # 窗口内允许的请求数 = rate * window * factor（至少 1）
+        self._limits: Dict[str, int] = {
+            layer: max(1, int(cfg.rate * window_seconds * conservative_factor))
+            for layer, cfg in base.items()
+        }
+        self._events: Dict[str, list] = {}   # key → [timestamps]
         self._lock = threading.Lock()
 
-    def is_allowed(self, key: str) -> bool:
-        """检查是否允许请求。
+    def limit_for(self, layer: str) -> int:
+        return self._limits.get(layer, 1)
 
-        Args:
-            key: 限流键（如用户ID、IP等）
+    def _maybe_cleanup(self, now: float) -> None:
+        """定期全量清理过期窗口数据，防内存泄漏。调用方需持锁。"""
+        if now - self._last_cleanup < self._cleanup_interval:
+            return
+        cutoff = now - self._window
+        stale = []
+        for key, events in self._events.items():
+            fresh = [t for t in events if t > cutoff]
+            if fresh:
+                self._events[key] = fresh
+            else:
+                stale.append(key)
+        for key in stale:
+            del self._events[key]
+        self._last_cleanup = now
 
-        Returns:
-            True 如果允许，False 否则
-        """
-        now = time.time()
-        cutoff = now - self.window
-
+    def acquire(self, layer_keys: Dict[str, str], cost: int = 1) -> None:
+        """检查并记录所有层；任一层超限抛 RateLimitExceeded（不记录任何层）。"""
+        now = self._clock()
+        cutoff = now - self._window
         with self._lock:
-            # 清理过期请求
-            self._requests[key] = [t for t in self._requests[key] if t > cutoff]
-            
-            # 检查是否超限
-            if len(self._requests[key]) >= self.max_requests:
-                logger.warning(f"Rate limit exceeded for {key}: {len(self._requests[key])}/{self.max_requests}")
-                return False
-            
-            # 记录请求
-            self._requests[key].append(now)
-            return True
+            self._maybe_cleanup(now)
+            # Pass 1: 检查
+            for layer in LAYER_ORDER:
+                if layer not in layer_keys:
+                    continue
+                key = f"{layer}:{layer_keys[layer]}"
+                events = [t for t in self._events.get(key, []) if t > cutoff]
+                self._events[key] = events
+                limit = self.limit_for(layer)
+                if len(events) + cost > limit:
+                    retry_after = (events[0] + self._window - now) if events else self._window
+                    raise RateLimitExceeded(
+                        layer=layer, retry_after=max(0.1, retry_after),
+                        message=f"[degraded/local] rate limit at '{layer}' "
+                                f"({len(events)}/{limit} in {self._window}s window)")
+            # Pass 2: 记录
+            for layer in LAYER_ORDER:
+                if layer not in layer_keys:
+                    continue
+                key = f"{layer}:{layer_keys[layer]}"
+                self._events.setdefault(key, []).extend([now] * cost)
 
-    def remaining(self, key: str) -> int:
-        """查询剩余可用请求数。"""
-        now = time.time()
-        cutoff = now - self.window
-        
+    def tracked_keys(self) -> int:
         with self._lock:
-            current = [t for t in self._requests[key] if t > cutoff]
-            return max(0, self.max_requests - len(current))
-
-    def reset(self, key: str) -> None:
-        """重置指定键的限流状态。"""
-        with self._lock:
-            self._requests.pop(key, None)
+            return len(self._events)
 
 
-class TokenBucket:
-    """令牌桶限流器。
+# ─────────────────────────────────────────────────────
+# Redis 四层令牌桶限流器（主路径）
+# ─────────────────────────────────────────────────────
 
-    允许一定程度的突发流量，但长期速率受限制。
+class RedisTokenBucketLimiter:
+    """redis.asyncio + Lua 一次原子检查扣减四层令牌桶；Redis 故障时 fail-closed
+    降级到 LocalConservativeLimiter（50% 限额），并回调降级指标。
 
-    Args:
-        rate: 每秒添加的令牌数
-        capacity: 桶的最大容量（突发上限）
+    Usage:
+        limiter = RedisTokenBucketLimiter()          # 或注入 redis_client（测试用 Fake）
+        await limiter.acquire(user_id="u1", ip="1.2.3.4", session_id="s1")
+        async with limiter.concurrency():
+            ... call model ...
     """
-    def __init__(self, rate: float, capacity: int):
-        self.rate = rate
-        self.capacity = capacity
-        self._tokens = capacity
-        self._last_refill = time.time()
-        self._lock = threading.Lock()
 
-    def is_allowed(self, tokens: int = 1) -> bool:
-        """检查是否有足够令牌。
+    def __init__(self,
+                 redis_client: Any = None,
+                 redis_url: str = "redis://127.0.0.1:6379/0",
+                 buckets: Optional[Dict[str, BucketConfig]] = None,
+                 prefix: str = "rl",
+                 max_concurrency: int = 10,
+                 degrade_callback: Optional[Callable[[str], None]] = None,
+                 local_limiter: Optional[LocalConservativeLimiter] = None,
+                 clock: Callable[[], float] = time.time):
+        self._buckets = dict(buckets or DEFAULT_BUCKETS)
+        self._prefix = prefix
+        self._clock = clock
+        self._redis = redis_client
+        self._redis_url = redis_url
+        self._degrade_callback = degrade_callback
+        self._local = local_limiter or LocalConservativeLimiter(buckets=self._buckets)
+        self._degraded = False
+        self._degraded_count = 0
+        self._stats_lock = threading.Lock()
+        # 并发闸门：真实的 asyncio.Semaphore acquire/release
+        self._semaphore = asyncio.Semaphore(max_concurrency)
+        self._max_concurrency = max_concurrency
+        self._active = 0
 
-        Args:
-            tokens: 需要的令牌数
+    # ── Redis 连接（延迟导入 + 守卫）─────────────────
 
-        Returns:
-            True 如果有足够令牌，False 否则
+    def _get_redis(self) -> Any:
+        if self._redis is None:
+            try:
+                import redis.asyncio as aioredis   # 延迟导入
+            except ImportError as e:
+                raise ConnectionError("redis package not installed") from e
+            self._redis = aioredis.from_url(self._redis_url, decode_responses=True)
+        return self._redis
+
+    # ── 主入口 ────────────────────────────────────────
+
+    def _layer_keys(self, user_id: Optional[str], ip: Optional[str],
+                    session_id: Optional[str]) -> Dict[str, str]:
+        keys = {"global": "all"}
+        if ip:
+            keys["ip"] = ip
+        if user_id:
+            keys["user"] = user_id
+        if session_id:
+            keys["session"] = session_id
+        return keys
+
+    async def acquire(self, user_id: Optional[str] = None, ip: Optional[str] = None,
+                      session_id: Optional[str] = None, cost: int = 1) -> None:
+        """检查并扣减四层令牌桶；超限抛 RateLimitExceeded。
+
+        Redis 故障 → fail-closed：降级到本地保守限流（50% 限额）而非放行。
         """
-        with self._lock:
-            self._refill()
-            
-            if self._tokens >= tokens:
-                self._tokens -= tokens
-                return True
-            
-            return False
+        layer_keys = self._layer_keys(user_id, ip, session_id)
+        try:
+            await self._acquire_redis(layer_keys, cost)
+            with self._stats_lock:
+                self._degraded = False
+        except RateLimitExceeded:
+            raise
+        except Exception as e:
+            self._record_degrade(str(e))
+            # fail-closed 降级：本地保守限流（同步、线程安全）
+            self._local.acquire(layer_keys, cost)
 
-    def _refill(self) -> None:
-        """补充令牌。"""
-        now = time.time()
-        elapsed = now - self._last_refill
-        new_tokens = elapsed * self.rate
-        
-        if new_tokens > 0:
-            self._tokens = min(self.capacity, self._tokens + new_tokens)
-            self._last_refill = now
+    async def _acquire_redis(self, layer_keys: Dict[str, str], cost: int) -> None:
+        redis_client = self._get_redis()
+        layers = [layer for layer in LAYER_ORDER if layer in layer_keys]
+        keys = [f"{self._prefix}:{layer}:{layer_keys[layer]}" for layer in layers]
+        argv: list = [self._clock(), cost]
+        for layer in layers:
+            cfg = self._buckets[layer]
+            argv.extend([cfg.rate, cfg.capacity])
+        result = await redis_client.eval(MULTI_BUCKET_LUA, len(keys), *keys, *argv)
+        # result: [1] 通过；[0, failing_index(1-based), retry_after_ms] 拒绝
+        if int(result[0]) != 1:
+            failing_layer = layers[int(result[1]) - 1]
+            retry_after = float(result[2]) / 1000.0
+            raise RateLimitExceeded(layer=failing_layer, retry_after=retry_after)
 
-    @property
-    def available_tokens(self) -> int:
-        """当前可用令牌数。"""
-        with self._lock:
-            self._refill()
-            return int(self._tokens)
+    def _record_degrade(self, reason: str) -> None:
+        with self._stats_lock:
+            first = not self._degraded
+            self._degraded = True
+            self._degraded_count += 1
+        if first:
+            logger.error(f"Redis rate limiter unavailable ({reason}); "
+                         f"fail-closed degradation to local conservative limiter (50% limits)")
+        if self._degrade_callback is not None:
+            try:
+                self._degrade_callback(reason)
+            except Exception:
+                logger.exception("degrade_callback raised")
 
+    # ── 并发闸门（真实 Semaphore）─────────────────────
 
-class CircuitBreaker:
-    """熔断器。
+    @contextlib.asynccontextmanager
+    async def concurrency(self, timeout: Optional[float] = None):
+        """并发闸门：async with limiter.concurrency(): ...
 
-    当供应商连续返回错误时，自动"熔断"一段时间，避免雪崩。
-
-    Args:
-        failure_threshold: 失败次数阈值（达到后熔断）
-        recovery_timeout: 恢复等待时间（秒）
-    """
-    def __init__(self, failure_threshold: int = 5, recovery_timeout: float = 60.0):
-        self.failure_threshold = failure_threshold
-        self.recovery_timeout = recovery_timeout
-        
-        self._failure_count = 0
-        self._last_failure_time = 0
-        self._state = "closed"  # closed / open / half-open
-        self._lock = threading.Lock()
-
-    def is_allowed(self) -> bool:
-        """检查是否允许请求。
-
-        Returns:
-            True 如果允许，False 否则（熔断中）
+        timeout 秒内拿不到并发额度抛 RateLimitExceeded(layer='concurrency')。
         """
-        with self._lock:
-            if self._state == "closed":
-                return True
-            
-            if self._state == "open":
-                # 检查是否到了恢复时间
-                if time.time() - self._last_failure_time >= self.recovery_timeout:
-                    self._state = "half-open"
-                    logger.info("Circuit breaker transitioning to half-open")
-                    return True
-                return False
-            
-            # half-open: 允许一个请求测试
-            return True
+        if timeout is None:
+            await self._semaphore.acquire()
+        else:
+            try:
+                await asyncio.wait_for(self._semaphore.acquire(), timeout=timeout)
+            except asyncio.TimeoutError:
+                raise RateLimitExceeded(
+                    layer="concurrency", retry_after=1.0,
+                    message=f"Too many concurrent requests (max {self._max_concurrency})")
+        self._active += 1
+        try:
+            yield
+        finally:
+            self._active -= 1
+            self._semaphore.release()
 
-    def record_success(self) -> None:
-        """记录成功请求。"""
-        with self._lock:
-            if self._state == "half-open":
-                logger.info("Circuit breaker closed after successful request")
-            self._failure_count = 0
-            self._state = "closed"
+    # ── 观测 ─────────────────────────────────────────
 
-    def record_failure(self) -> None:
-        """记录失败请求。"""
-        with self._lock:
-            self._failure_count += 1
-            self._last_failure_time = time.time()
-            
-            if self._failure_count >= self.failure_threshold:
-                logger.warning(
-                    f"Circuit breaker OPEN after {self._failure_count} failures "
-                    f"(threshold={self.failure_threshold})"
-                )
-                self._state = "open"
-
-    @property
-    def state(self) -> str:
-        """当前熔断器状态。"""
-        return self._state
+    def get_stats(self) -> Dict[str, Any]:
+        with self._stats_lock:
+            return {
+                "degraded": self._degraded,
+                "degraded_count": self._degraded_count,
+                "active_concurrency": self._active,
+                "max_concurrency": self._max_concurrency,
+                "local_tracked_keys": self._local.tracked_keys(),
+                "buckets": {layer: {"rate": cfg.rate, "capacity": cfg.capacity}
+                            for layer, cfg in self._buckets.items()},
+            }
 
 
 class MultiLevelRateLimiter:
-    """分层限流器。
+    """Synchronous compatibility adapter for the pre-P1 limiter API."""
 
-    四层架构：
-    1. 用户级：滑动窗口（60 req/60s）
-    2. 租户级：令牌桶（100 tokens/s，容量1000）
-    3. 模型级：令牌桶 + 并发信号量
-    4. 供应商级：全局令牌桶 + 熔断器
+    def __init__(self, user_max_requests=60, vendor_rate=100.0,
+                 vendor_capacity=200, max_concurrent_requests=10, **_kwargs):
+        self._max = max(1, int(max_concurrent_requests))
+        self._active = 0
+        self._lock = threading.Lock()
+        self._user_max = max(1, int(user_max_requests))
+        self._users: Dict[str, int] = {}
 
-    Args:
-        user_max_requests: 用户级最大请求数
-        user_window_seconds: 用户级窗口大小（秒）
-        vendor_rate: 供应商级每秒令牌数
-        vendor_capacity: 供应商级令牌桶容量
-        vendor_failure_threshold: 供应商熔断失败阈值
-        vendor_recovery_timeout: 供应商恢复等待时间（秒）
-    """
-    def __init__(
-        self,
-        user_max_requests: int = 60,
-        user_window_seconds: float = 60.0,
-        vendor_rate: float = 100.0,
-        vendor_capacity: int = 1000,
-        vendor_failure_threshold: int = 5,
-        vendor_recovery_timeout: float = 60.0,
-    ):
-        # 用户级限流（滑动窗口）
-        self.user_limiter = SlidingWindow(user_max_requests, user_window_seconds)
-        
-        # 供应商级限流（令牌桶 + 熔断器）
-        self.vendor_limiter = TokenBucket(vendor_rate, vendor_capacity)
-        self.vendor_circuit_breaker = CircuitBreaker(
-            failure_threshold=vendor_failure_threshold,
-            recovery_timeout=vendor_recovery_timeout,
-        )
-        
-        # 模型级限流（按模型名隔离）
-        self.model_limiters: Dict[str, TokenBucket] = {}
-        self._model_lock = threading.Lock()
-        
-        # 并发信号量（限制同时进行的请求数）
-        self._concurrent_semaphore = threading.Semaphore(10)  # 最多10个并发
-        self._active_requests = 0
-        self._concurrent_lock = threading.Lock()
-
-    def acquire(self, user_id: str, model: str = "default") -> bool:
-        """检查所有层级限流。
-
-        Args:
-            user_id: 用户ID
-            model: 模型名称
-
-        Returns:
-            True 如果所有层级都允许，False 否则
-
-        Raises:
-            RateLimitError: 如果任何一层被限流
-        """
-        # ① 检查供应商熔断器
-        if not self.vendor_circuit_breaker.is_allowed():
-            raise RateLimitError("供应商服务不可用（熔断中），请稍后重试")
-        
-        # ② 用户级限流
-        if not self.user_limiter.is_allowed(user_id):
-            remaining = self.user_limiter.remaining(user_id)
-            raise RateLimitError(
-                f"请求过多，请等待 {self.user_limiter.window} 秒后重试 "
-                f"(剩余 {remaining}/{self.user_limiter.max_requests})"
-            )
-        
-        # ③ 供应商级限流
-        if not self.vendor_limiter.is_allowed():
-            raise RateLimitError("系统繁忙，请稍后重试")
-        
-        # ④ 模型级限流（按需创建）
-        model_limiter = self._get_model_limiter(model)
-        if not model_limiter.is_allowed():
-            raise RateLimitError(f"模型 {model} 繁忙，请稍后重试")
-        
-        # ⑤ 并发限制
-        with self._concurrent_lock:
-            if self._active_requests >= self._concurrent_semaphore._value:
-                raise RateLimitError("系统繁忙，正在处理的请求过多")
-            self._active_requests += 1
-        
-        return True
+    def acquire(self, user_id: str) -> None:
+        with self._lock:
+            if self._active >= self._max:
+                raise RateLimitError("concurrency", 1.0, "系统繁忙，正在处理的请求过多")
+            if self._users.get(user_id, 0) >= self._user_max:
+                raise RateLimitError("user", 1.0, "用户请求过多")
+            self._active += 1
+            self._users[user_id] = self._users.get(user_id, 0) + 1
 
     def release(self) -> None:
-        """释放并发限制。"""
-        with self._concurrent_lock:
-            self._active_requests = max(0, self._active_requests - 1)
+        with self._lock:
+            if self._active > 0:
+                self._active -= 1
 
-    def record_vendor_success(self) -> None:
-        """记录供应商成功响应（用于熔断器恢复）。"""
-        self.vendor_circuit_breaker.record_success()
-
-    def record_vendor_429(self) -> None:
-        """记录供应商 429 限流响应。"""
-        self.vendor_circuit_breaker.record_failure()
-
-    def is_vendor_circuit_open(self) -> bool:
-        """检查供应商熔断器是否打开。"""
-        return self.vendor_circuit_breaker.state == "open"
-
-    def _get_model_limiter(self, model: str) -> TokenBucket:
-        """获取或创建模型级限流器。"""
-        with self._model_lock:
-            if model not in self.model_limiters:
-                # 每个模型：50 tokens/s，容量200
-                self.model_limiters[model] = TokenBucket(rate=50.0, capacity=200)
-            return self.model_limiters[model]
-
-    def get_stats(self) -> Dict[str, Any]:
-        """获取限流统计信息。"""
-        return {
-            "vendor_circuit_state": self.vendor_circuit_breaker.state,
-            "vendor_available_tokens": self.vendor_limiter.available_tokens,
-            "active_requests": self._active_requests,
-            "model_limiters": {
-                model: limiter.available_tokens 
-                for model, limiter in self.model_limiters.items()
-            },
-        }
+    def get_stats(self) -> Dict[str, int]:
+        return {"active_requests": self._active,
+                "max_concurrent_requests": self._max,
+                "available_concurrency": self._max - self._active}
 
 
-# ── 全局实例 ────────────────────────────────────────────────
-_rate_limiter = MultiLevelRateLimiter()
+# ─────────────────────────────────────────────────────
+# 全局实例（延迟创建，避免 import 即建 Semaphore 绑定错误事件循环）
+# ─────────────────────────────────────────────────────
 
-def get_rate_limiter() -> MultiLevelRateLimiter:
+_rate_limiter: Optional[RedisTokenBucketLimiter] = None
+_rate_limiter_lock = threading.Lock()
+
+
+def get_rate_limiter() -> RedisTokenBucketLimiter:
     """获取全局限流器实例。"""
+    global _rate_limiter
+    if _rate_limiter is None:
+        with _rate_limiter_lock:
+            if _rate_limiter is None:
+                import os
+                _rate_limiter = RedisTokenBucketLimiter(
+                    redis_url=os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0"))
     return _rate_limiter

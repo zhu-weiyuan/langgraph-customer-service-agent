@@ -1,0 +1,45 @@
+﻿{"id": "eval-001", "query": "你好", "expected_intent": "chat", "expected_emotion": "neutral", "expected_doc_keywords": [], "rag_expected": false, "category": "闲聊"}
+{"id": "eval-002", "query": "你是谁", "expected_intent": "chat", "expected_emotion": "neutral", "expected_doc_keywords": [], "rag_expected": false, "category": "闲聊"}
+{"id": "eval-003", "query": "在吗", "expected_intent": "chat", "expected_emotion": "neutral", "expected_doc_keywords": [], "rag_expected": false, "category": "闲聊"}
+{"id": "eval-004", "query": "讲个笑话吧", "expected_intent": "chat", "expected_emotion": "neutral", "expected_doc_keywords": [], "rag_expected": false, "category": "闲聊"}
+{"id": "eval-005", "query": "今天天气怎么样", "expected_intent": "chat", "expected_emotion": "neutral", "expected_doc_keywords": [], "rag_expected": false, "category": "闲聊"}
+{"id": "eval-006", "query": "谢谢你的帮助", "expected_intent": "ending", "expected_emotion": "happy", "expected_doc_keywords": [], "rag_expected": false, "category": "结束对话"}
+{"id": "eval-007", "query": "再见", "expected_intent": "ending", "expected_emotion": "happy", "expected_doc_keywords": [], "rag_expected": false, "category": "结束对话"}
+{"id": "eval-008", "query": "好了，没事了", "expected_intent": "ending", "expected_emotion": "happy", "expected_doc_keywords": [], "rag_expected": false, "category": "结束对话"}
+{"id": "eval-009", "query": "不用了谢谢", "expected_intent": "ending", "expected_emotion": "happy", "expected_doc_keywords": [], "rag_expected": false, "category": "结束对话"}
+{"id": "eval-010", "query": "谢谢，解决了", "expected_intent": "ending", "expected_emotion": "happy", "expected_doc_keywords": [], "rag_expected": false, "category": "结束对话"}
+{"id": "eval-011", "query": "音箱怎么连接 WiFi", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["WiFi", "连接"], "rag_expected": true, "category": "配网"}
+{"id": "eval-012", "query": "蓝牙一直连不上，怎么办", "expected_intent": "consult", "expected_emotion": "anxious", "expected_doc_keywords": ["蓝牙", "配对"], "rag_expected": true, "category": "连接故障"}
+{"id": "eval-013", "query": "我的订单到哪了", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["订单", "物流"], "rag_expected": true, "category": "物流"}
+{"id": "eval-014", "query": "退货需要什么条件", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["退货", "7 天"], "rag_expected": true, "category": "退换货"}
+{"id": "eval-015", "query": "产品保修期多长", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["保修", "2 年"], "rag_expected": true, "category": "保修售后"}
+{"id": "eval-016", "query": "忘记密码怎么找回", "expected_intent": "consult", "expected_emotion": "anxious", "expected_doc_keywords": ["忘记密码", "短信验证码"], "rag_expected": true, "category": "账号安全"}
+{"id": "eval-017", "query": "支持哪些支付方式", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["支付", "微信"], "rag_expected": true, "category": "支付"}
+{"id": "eval-018", "query": "怎么修改发票抬头", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["发票", "抬头"], "rag_expected": true, "category": "发票"}
+{"id": "eval-019", "query": "网关红灯一直亮怎么办", "expected_intent": "consult", "expected_emotion": "anxious", "expected_doc_keywords": ["网关", "离线"], "rag_expected": true, "category": "网关故障"}
+{"id": "eval-020", "query": "错误码 E1001 是什么意思", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["E1001", "错误码"], "rag_expected": true, "category": "错误码"}
+{"id": "eval-021", "query": "音量怎么调节", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["音量", "调节"], "rag_expected": true, "category": "产品使用"}
+{"id": "eval-022", "query": "会员有什么权益", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["会员", "权益"], "rag_expected": true, "category": "会员"}
+{"id": "eval-023", "query": "API 怎么调用", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["API", "调用"], "rag_expected": true, "category": "开放平台"}
+{"id": "eval-024", "query": "怎么申请维修", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["维修", "保修"], "rag_expected": true, "category": "保修售后"}
+{"id": "eval-025", "query": "这个音箱质量太差了", "expected_intent": "complaint", "expected_emotion": "angry", "expected_doc_keywords": ["音箱", "保修"], "rag_expected": true, "category": "产品投诉"}
+{"id": "eval-026", "query": "我要退款，买回来就坏了", "expected_intent": "complaint", "expected_emotion": "angry", "expected_doc_keywords": ["退款", "退货"], "rag_expected": true, "category": "退款投诉"}
+{"id": "eval-027", "query": "物流拖了这么久还没发货，我很生气", "expected_intent": "complaint", "expected_emotion": "angry", "expected_doc_keywords": ["物流", "发货"], "rag_expected": true, "category": "物流投诉"}
+{"id": "eval-028", "query": "太失望了，设备总是掉线", "expected_intent": "complaint", "expected_emotion": "sad", "expected_doc_keywords": ["掉线", "网关"], "rag_expected": true, "category": "故障投诉"}
+{"id": "eval-029", "query": "你们售后太坑人了，我要投诉", "expected_intent": "complaint", "expected_emotion": "angry", "expected_doc_keywords": ["售后", "投诉"], "rag_expected": true, "category": "售后投诉"}
+{"id": "eval-030", "query": "买了会员却不能用，气死我了", "expected_intent": "complaint", "expected_emotion": "angry", "expected_doc_keywords": ["会员", "云服务"], "rag_expected": true, "category": "会员投诉"}
+{"id": "eval-031", "query": "退款多久到账", "expected_intent": "consult", "expected_emotion": "anxious", "expected_doc_keywords": ["退款", "到账"], "rag_expected": true, "category": "退款咨询"}
+{"id": "eval-032", "query": "质量问题能不能换新", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["质量", "换新"], "rag_expected": true, "category": "换新咨询"}
+{"id": "eval-033", "query": "为什么还不退款", "expected_intent": "complaint", "expected_emotion": "angry", "expected_doc_keywords": ["退款", "退货"], "rag_expected": true, "category": "退款投诉"}
+{"id": "eval-034", "query": "花了钱却不能用，真的后悔", "expected_intent": "complaint", "expected_emotion": "sad", "expected_doc_keywords": ["不能用", "退款"], "rag_expected": true, "category": "产品投诉"}
+{"id": "eval-035", "query": "我很满意，音箱很好用", "expected_intent": "consult", "expected_emotion": "happy", "expected_doc_keywords": ["音箱"], "rag_expected": true, "category": "正向反馈"}
+{"id": "eval-036", "query": "太好了，终于连上 WiFi 了", "expected_intent": "consult", "expected_emotion": "happy", "expected_doc_keywords": ["WiFi", "连接"], "rag_expected": true, "category": "正向反馈"}
+{"id": "eval-037", "query": "一直登录不上，急死我了", "expected_intent": "consult", "expected_emotion": "anxious", "expected_doc_keywords": ["登录", "账号"], "rag_expected": true, "category": "账号故障"}
+{"id": "eval-038", "query": "智能灯怎么配对网关", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["网关", "配对"], "rag_expected": true, "category": "设备配网"}
+{"id": "eval-039", "query": "今天天气不错", "expected_intent": "chat", "expected_emotion": "neutral", "expected_doc_keywords": [], "rag_expected": false, "category": "闲聊"}
+{"id": "eval-040", "query": "帮我写一首诗", "expected_intent": "chat", "expected_emotion": "neutral", "expected_doc_keywords": [], "rag_expected": false, "category": "闲聊"}
+{"id": "eval-041", "query": "谢谢", "expected_intent": "ending", "expected_emotion": "happy", "expected_doc_keywords": [], "rag_expected": false, "category": "结束对话"}
+{"id": "eval-042", "query": "你好，我的订单还没发货", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["订单", "发货"], "rag_expected": true, "category": "多意图"}
+{"id": "eval-043", "query": "我想退货，但先问一下流程", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["退货", "流程"], "rag_expected": true, "category": "多意图"}
+{"id": "eval-044", "query": "设备坏了怎么办", "expected_intent": "consult", "expected_emotion": "anxious", "expected_doc_keywords": ["故障", "维修"], "rag_expected": true, "category": "故障咨询"}
+{"id": "eval-045", "query": "我只是想问问你们有什么产品", "expected_intent": "consult", "expected_emotion": "neutral", "expected_doc_keywords": ["产品"], "rag_expected": true, "category": "产品咨询"}

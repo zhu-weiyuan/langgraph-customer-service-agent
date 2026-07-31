@@ -6,26 +6,46 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: langgraph-cs-agent
+    # 显式 uvicorn 多 worker 启动（与 app_fastapi.py __main__ 一致）。
+    # 每个 worker 是独立进程：内存态（并发闸/降级限流窗口/metrics）各自独立，
+    # 跨 worker 一致性依赖 Redis（限流）与 SQLite WAL（业务数据）。
+    command: >
+      uvicorn app_fastapi:app --host 0.0.0.0 --port 7860
+      --workers ${WORKERS:-2} --timeout-graceful-shutdown 35
     ports:
       - "7860:7860"
     environment:
-      # LLM Configuration (no insecure defaults — fail fast if unset)
-      - OPENAI_API_KEY=${OPENAI_API_KEY:?OPENAI_API_KEY must be set}
-      - LLM_API_KEY=${LLM_API_KEY:?LLM_API_KEY must be set}
-      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-http://host.docker.internal:8080}
+      # LLM Configuration (always use host.docker.internal in Docker)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-local}
+      - OPENAI_BASE_URL=http://host.docker.internal:8080/v1
       - OPENAI_MODEL=${OPENAI_MODEL:-qwen3.5}
 
+      # Embedding Configuration (SiliconFlow)
+      - EMBEDDING_API_KEY=${EMBEDDING_API_KEY:-}
+      - EMBEDDING_BASE_URL=${EMBEDDING_BASE_URL:-https://api.siliconflow.cn/v1}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-4B}
+      - EMBEDDING_DIMENSIONS=${EMBEDDING_DIMENSIONS:-1024}
+
       # Application Settings
-      - PORT=7860
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - _IN_DOCKER=1
       - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-60}
       - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
-      - USE_SQLITE=${USE_SQLITE:-1}
-      - CHECKPOINT_DB=${CHECKPOINT_DB:-checkpoints.db}
+      # 与 agent/graph.py 的默认值对齐：卷挂载在 /app/checkpoints
+      - CHECKPOINT_DB=${CHECKPOINT_DB:-checkpoints/checkpoints.db}
+      # observability 从 env 读 trace 路径（app_fastapi lifespan 传给 TraceService）
+      # PostgreSQL checkpointer（可选）：USE_POSTGRES=1 时 langgraph 走
+      # AsyncPostgresSaver（POSTGRES_DSN 见下方注释掉的 postgres 服务）
+      - USE_POSTGRES=1
+      - POSTGRES_DSN=postgresql://langgraph:${POSTGRES_PASSWORD}@postgres:5432/langgraph
+      - DATABASE_URL=postgresql://langgraph:${POSTGRES_PASSWORD}@postgres:5432/langgraph
+      - PG_DSN=postgresql://langgraph:${POSTGRES_PASSWORD}@postgres:5432/langgraph
+      - RAG_BACKEND=pgvector
+      - WORKERS=${WORKERS:-2}
       
       # Security
       - API_KEY=${API_KEY:-}
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - JWT_EXPIRATION_MINUTES=${JWT_EXPIRATION_MINUTES:-60}
       
@@ -55,18 +75,21 @@ services:
       # Graceful Shutdown
       - SHUTDOWN_TIMEOUT_SECONDS=${SHUTDOWN_TIMEOUT_SECONDS:-30}
       
-      # Redis (optional caching)
+      # Redis (rate limiting + caching; 挂掉时限流 fail-closed 本地降级)
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
       - REDIS_HOST=${REDIS_HOST:-redis}
       - REDIS_PORT=${REDIS_PORT:-6379}
       - REDIS_DB=${REDIS_DB:-0}
     volumes:
       - ./knowledge:/app/knowledge:ro
-      - checkpoints:/app/checkpoints:rw
       - ./logs:/app/logs:rw
-      - ./agent/trace.db:/app/agent/trace.db:rw
+      # 目录挂载（旧版单文件 bind mount 会因 SQLite WAL 生成 -wal/-shm
+      # 侧文件而丢数据/报错；trace.db 及其它数据文件统一放 ./data）
+      # 会话列表仍由 agent/memory.py 读取该 SQLite 文件；绑定主机文件以保留历史会话
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860/api/health', timeout=5)"]
+      # /healthz 是纯存活探针（不触发 LLM/DB 检查）
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860/healthz', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -82,6 +105,8 @@ services:
     stop_grace_period: 30s
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - langgraph-network
@@ -116,32 +141,32 @@ services:
           cpus: '0.5'
           memory: 512M
 
-  # Optional: PostgreSQL for production persistence
-  # postgres:
-  #   image: postgres:16
-  #   container_name: langgraph-postgres
-  #   environment:
-  #     - POSTGRES_USER=${POSTGRES_USER:-langgraph}
-  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
-  #     - POSTGRES_DB=${POSTGRES_DB:-langgraph}
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #     - ./migrations:/docker-entrypoint-initdb.d:ro
-  #   ports:
-  #     - "127.0.0.1:5432:5432"
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-langgraph} -d ${POSTGRES_DB:-langgraph}"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   networks:
-  #     - langgraph-network
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '1.0'
-  #         memory: 1G
+  # PostgreSQL + pgvector for production persistence.
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: langgraph-postgres
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-langgraph}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-change-me-in-production}
+      - POSTGRES_DB=${POSTGRES_DB:-langgraph}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-langgraph} -d ${POSTGRES_DB:-langgraph}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - langgraph-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
 
   # Prometheus for metrics (optional monitoring)
   prometheus:
@@ -151,6 +176,7 @@ services:
       - "127.0.0.1:9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -171,10 +197,11 @@ services:
       - "127.0.0.1:3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     restart: unless-stopped
     depends_on:
       - prometheus
@@ -184,7 +211,6 @@ services:
       - monitoring
 
 volumes:
-  checkpoints:
   redis_data:
   postgres_data:
   prometheus_data:

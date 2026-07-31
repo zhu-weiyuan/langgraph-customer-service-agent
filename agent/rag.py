@@ -303,7 +303,8 @@ def _get_section(doc_id: int) -> dict:
     return None
 
 
-def retrieve(query: str, top_k: int = 3, use_vector: bool = True) -> List[dict]:
+def retrieve(query: str, top_k: int = 3, use_vector: bool = True,
+             apply_diversity: bool = True) -> List[dict]:
     """Retrieve most relevant sections using hybrid BM25 + TF-IDF + Vector (RRF fusion).
 
     Args:
@@ -311,6 +312,8 @@ def retrieve(query: str, top_k: int = 3, use_vector: bool = True) -> List[dict]:
         top_k: Number of results to return
         use_vector: If True, combine BM25+TF-IDF with vector retrieval via RRF fusion.
                    Falls back to BM25+TF-IDF only if vector retrieval fails.
+        apply_diversity: If True, filter results for source diversity (default True for prod).
+                        Set False for evaluation to get fair ranking assessment.
 
     Returns:
         List of {"title", "text", "score", "source"} dicts sorted by fused relevance.
@@ -366,11 +369,17 @@ def retrieve(query: str, top_k: int = 3, use_vector: bool = True) -> List[dict]:
     # --- RRF (Reciprocal Rank Fusion) fusion ---
     if vector_results:
         fused = _rrf_fusion(scored_sections, vector_results, top_k=top_k * 3)
-        return _apply_diversity(fused, top_k=top_k)
+        if apply_diversity:
+            return _apply_diversity(fused, top_k=top_k)
+        else:
+            return fused[:top_k]
     else:
         for s in scored_sections:
             s.pop("_rank_bm25", None)
-        return _apply_diversity(scored_sections, top_k=top_k)
+        if apply_diversity:
+            return _apply_diversity(scored_sections, top_k=top_k)
+        else:
+            return scored_sections[:top_k]
 
 
 def _rrf_fusion(bm25_results: List[dict], vector_results: List[dict],
@@ -418,8 +427,16 @@ def _rrf_fusion(bm25_results: List[dict], vector_results: List[dict],
     return fused[:top_k]
 
 
-def _apply_diversity(results: List[dict], top_k: int = 3) -> List[dict]:
-    """Apply source diversity filtering to results."""
+def _apply_diversity(results: List[dict], top_k: int = 5) -> List[dict]:
+    """Apply source diversity filtering to results.
+
+    Args:
+        results: Sorted results from RRF fusion or reranker
+        top_k: Maximum number of results to return (default 5 for balanced coverage)
+
+    Returns:
+        Diversified results with at most 2 per source.
+    """
     diverse_results = []
     source_counts = {}
     for result in results:
@@ -429,7 +446,7 @@ def _apply_diversity(results: List[dict], top_k: int = 3) -> List[dict]:
             source_counts[source] = source_counts.get(source, 0) + 1
         if len(diverse_results) >= top_k:
             break
-    return diverse_results
+    return diverse_results[:top_k]
 
 
 def build_context(query: str, max_length: int = 1500) -> str:

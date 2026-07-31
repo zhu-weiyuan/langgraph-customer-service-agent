@@ -24,6 +24,10 @@ function formatTime(value?: string): string {
   if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)} 小时前`
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
+
+function titleOf(session: SessionSummary): string {
+  return session.title?.trim() || '未命名会话'
+}
 </script>
 
 <template>
@@ -34,7 +38,7 @@ function formatTime(value?: string): string {
       <span class="new-chat-shortcut">⌘ K</span>
     </button>
 
-    <div class="sidebar-section-label">会话中心</div>
+    <div class="sidebar-section-label">我的历史会话</div>
     <label class="search-box">
       <span>⌕</span>
       <input
@@ -53,13 +57,12 @@ function formatTime(value?: string): string {
         @click="emit('select', session.session_id)"
       >
         <div class="session-item-top">
-          <span class="session-person">客户咨询</span>
-          <span class="session-time">{{ formatTime(session.last_activity) }}</span>
+          <span class="session-person">对话</span>
+          <span class="session-time">{{ formatTime(session.last_active) }}</span>
         </div>
-        <strong>{{ session.preview || '等待客户提问' }}</strong>
+        <strong>{{ titleOf(session) }}</strong>
         <div class="session-item-bottom">
           <span class="session-count">{{ session.message_count }} 条对话</span>
-          <span v-if="session.intents?.[0]" class="intent-pill">{{ session.intents[0] }}</span>
         </div>
       </button>
 
@@ -71,7 +74,7 @@ function formatTime(value?: string): string {
         </template>
         <template v-else>
           <p>会话目录暂不可用</p>
-          <small>后端上线 /api/sessions 后自动恢复</small>
+          <small>请检查后端 /api/sessions 是否可用</small>
         </template>
       </div>
     </div>

@@ -7,6 +7,10 @@ langchain-core>=1.0.0
 # SQLite Checkpointer（持久化状态存储）
 langgraph-checkpoint-sqlite>=3.0.0
 
+# PostgreSQL Checkpointer（替代 SQLite，生产环境推荐）
+langgraph-checkpoint-postgres>=3.0.0
+psycopg[binary]>=3.0.0
+
 # 可选：如果需要真实 LLM 集成，取消注释以下依赖
 # openai>=1.0.0
 # langchain-openai>=0.2.0

@@ -45,6 +45,15 @@ def setup_logging(level: str = "INFO", console_output: bool = True):
         level: Logging level (DEBUG, INFO, WARNING, ERROR)
         console_output: If True, output to stdout; else file only
     """
+    # P1 — Windows GBK 编码容错: 日志中含非 GBK 字符（如 \u2011 不断连短横）
+    # 时 StreamHandler.emit() 抛 UnicodeEncodeError 并静默丢弃整条消息。
+    # reconfigure(errors='replace') 让 stdout/stderr 用 '?' 替换无法编码的
+    # 字符而非抛出异常, 保证日志行永远可达。
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(errors='replace')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(errors='replace')
+
     root_logger = logging.getLogger()
     root_logger.setLevel(getattr(logging, level.upper(), logging.INFO))
     

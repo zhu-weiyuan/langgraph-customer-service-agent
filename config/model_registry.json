@@ -1,0 +1,43 @@
+﻿{
+  "version": "1",
+  "models": [
+    {
+      "name": "local-qwen",
+      "provider": "llamacpp",
+      "protocol": "openai_chat_completions",
+      "base_url": "http://localhost:8080/v1",
+      "api_key_env": "OPENAI_API_KEY",
+      "model_id": "ornith-1.0-35b-Q5_K_M.gguf",
+      "context_window": 160000,
+      "max_output": 4096,
+      "tier": "balanced",
+      "capabilities": ["json", "streaming"],
+      "languages": ["*"],
+      "expected_latency_ms": 800,
+      "success_rate": 0.99,
+      "priority": 10,
+      "input_cost_per_m": 0.0,
+      "output_cost_per_m": 0.0,
+      "enabled": true
+    },
+    {
+      "name": "cloud-pro",
+      "provider": "xiaomimimo",
+      "protocol": "openai_chat_completions",
+      "base_url": "https://api.xiaomimimo.com/v1",
+      "api_key_env": "LLM_API_KEY",
+      "model_id": "mimo-v2.5",
+      "context_window": 1000000,
+      "max_output": 8192,
+      "tier": "flagship",
+      "capabilities": ["json", "streaming", "tool_call", "reasoning"],
+      "languages": ["*"],
+      "expected_latency_ms": 1200,
+      "success_rate": 0.98,
+      "priority": 20,
+      "input_cost_per_m": 2.0,
+      "output_cost_per_m": 8.0,
+      "enabled": true
+    }
+  ]
+}

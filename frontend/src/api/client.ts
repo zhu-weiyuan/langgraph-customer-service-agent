@@ -52,12 +52,61 @@ export interface StreamMeta {
   [key: string]: unknown
 }
 
+/**
+ * Session row as returned by the multi-user backend
+ * (GET /api/sessions → sessions[]): history for the *current* logged-in user.
+ */
 export interface SessionSummary {
   session_id: string
+  title?: string
+  created_at?: string
+  last_active?: string
   message_count: number
-  last_activity?: string
-  intents?: string[]
-  preview?: string
+}
+
+// ---------------------------------------------------------------------------
+// Auth types
+// ---------------------------------------------------------------------------
+
+export interface LoginResult {
+  ok: boolean
+  user_id: string
+  registered?: boolean
+  access_token: string | null
+  token_type?: string
+  session_id?: string
+  error?: string
+}
+
+export interface RegisterResult {
+  ok: boolean
+  user_id: string
+  created?: boolean
+  access_token: string | null
+  token_type?: string
+  error?: string
+}
+
+export interface MeResult {
+  user_id: string
+  tenant_id: string
+  auth_scheme: string
+  authenticated: boolean
+}
+
+/** One long-term memory row (GET /api/memory → memories[]). */
+export interface MemoryItem {
+  id: string
+  content: string
+  kind: string
+  importance: number
+  created_at?: string
+}
+
+export interface DeleteMemoryResult {
+  ok?: boolean
+  deleted?: string
+  error?: string
 }
 
 export interface SessionDetail {
@@ -80,6 +129,71 @@ export interface HealthStatus {
   status: string
   version?: string
   uptime_seconds?: number
+}
+
+/** Detailed service health returned by GET /api/health. */
+export interface ServiceHealth {
+  ok: boolean
+  service?: string
+  version?: string
+  port?: number
+  uptime_seconds?: number
+  llm?: { reachable?: boolean }
+  redis?: { available?: boolean }
+  rate_limiter?: {
+    degraded?: boolean
+    degraded_count?: number
+    active_concurrency?: number
+    max_concurrency?: number
+  }
+  database?: {
+    conversations?: number
+    total_ratings?: number
+    avg_rating?: number
+  }
+}
+
+export interface ReadinessCheck {
+  ok: boolean
+  pgvector?: boolean
+  degraded_mode?: boolean
+  error?: string
+  [key: string]: unknown
+}
+
+/** Dependency readiness returned by GET /api/ready. */
+export interface ReadinessStatus {
+  ready: boolean
+  checks: Record<string, ReadinessCheck>
+}
+
+export interface PrometheusSample {
+  name: string
+  labels: Record<string, string>
+  value: number
+}
+
+export interface ObservabilitySnapshot {
+  health: ServiceHealth
+  readiness: ReadinessStatus
+  metrics: {
+    samples: PrometheusSample[]
+    requests_total: number
+    errors_total: number
+    avg_latency_ms: number
+    rate_limit_total: number
+    llm_requests_total: number
+    llm_errors_total: number
+    llm_input_tokens: number
+    llm_output_tokens: number
+    llm_cost_yuan: number
+    rag_hit_ratio: number | null
+    rag_queries_total: number
+    rag_hits_total: number
+    feedback_total: number
+    endpoint_requests: Record<string, number>
+    endpoint_errors: Record<string, number>
+  }
 }
 
 export interface OkResult {
@@ -106,10 +220,46 @@ export class ApiError extends Error {
 const DEFAULT_TIMEOUT_MS = 15_000
 
 interface RequestOptions {
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'DELETE'
   body?: unknown
   timeoutMs?: number
   signal?: AbortSignal
+  headers?: Record<string, string>
+}
+
+// ---------------------------------------------------------------------------
+// Auth identity injection
+//
+// A single module-level identity, set by the ui store after login/restore.
+// Every request through rawRequest() carries it automatically:
+//   - JWT available  → `Authorization: Bearer <token>`
+//   - JWT_SECRET off → `X-User-Id: <user_id>` (backend derives identity `u:<id>`)
+// Kept out of the Pinia store so client.ts stays store-agnostic (no cycle).
+// ---------------------------------------------------------------------------
+
+interface AuthIdentity {
+  userId: string
+  token: string | null
+}
+
+let authIdentity: AuthIdentity | null = null
+
+/** Set (or clear, with null) the identity attached to every subsequent request. */
+export function setAuthIdentity(identity: AuthIdentity | null): void {
+  authIdentity = identity
+}
+
+/** Build the auth headers for the current identity (empty when anonymous). */
+function authHeaders(): Record<string, string> {
+  if (!authIdentity) return {}
+
+  // Always send the stable user id alongside the JWT. If a restored JWT has
+  // expired, the backend can safely fall back to X-User-Id instead of silently
+  // downgrading an authenticated browser session to anon-<ip>.
+  const headers: Record<string, string> = {}
+  if (authIdentity.userId) headers['X-User-Id'] = authIdentity.userId
+  if (authIdentity.token) headers.Authorization = `Bearer ${authIdentity.token}`
+  return headers
 }
 
 async function extractErrorMessage(res: Response): Promise<string> {
@@ -128,7 +278,7 @@ async function extractErrorMessage(res: Response): Promise<string> {
 
 /** Perform a fetch with timeout; throws normalized ApiError on any failure. */
 async function rawRequest(path: string, options: RequestOptions = {}): Promise<Response> {
-  const { method = 'GET', body, timeoutMs = DEFAULT_TIMEOUT_MS, signal } = options
+  const { method = 'GET', body, timeoutMs = DEFAULT_TIMEOUT_MS, signal, headers: extraHeaders } = options
   const controller = new AbortController()
   const timer = window.setTimeout(() => controller.abort(new DOMException('timeout', 'TimeoutError')), timeoutMs)
   // Relay the caller's signal onto the fetch controller. Deliberately NOT
@@ -137,10 +287,13 @@ async function rawRequest(path: string, options: RequestOptions = {}): Promise<R
   signal?.addEventListener('abort', () => controller.abort(signal.reason), { once: true })
 
   try {
+    const headers: Record<string, string> = { ...authHeaders(), ...(extraHeaders ?? {}) }
+    if (body !== undefined) headers['Content-Type'] = 'application/json'
     const res = await fetch(path, {
       method,
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      headers: Object.keys(headers).length ? headers : undefined,
       body: body !== undefined ? JSON.stringify(body) : undefined,
+      credentials: 'same-origin',
       signal: controller.signal,
     })
     if (!res.ok) {
@@ -336,21 +489,156 @@ export function fetchHealth(): Promise<HealthStatus> {
   return requestJson<HealthStatus>('/healthz', { timeoutMs: 8_000 })
 }
 
+export function fetchServiceHealth(): Promise<ServiceHealth> {
+  return requestJson<ServiceHealth>('/api/health', { timeoutMs: 8_000 })
+}
+
+export function fetchReadiness(): Promise<ReadinessStatus> {
+  return requestJson<ReadinessStatus>('/api/ready', { timeoutMs: 8_000 })
+}
+
+function parsePrometheusLabels(raw: string): Record<string, string> {
+  const labels: Record<string, string> = {}
+  const pattern = /([a-zA-Z_][a-zA-Z0-9_]*)="((?:\\.|[^"])*)"/g
+  for (const match of raw.matchAll(pattern)) {
+    labels[match[1]] = match[2]
+      .replace(/\\n/g, '\\n')
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, '\\')
+  }
+  return labels
+}
+
+export function parsePrometheusMetrics(text: string): PrometheusSample[] {
+  const samples: PrometheusSample[] = []
+  const pattern = /^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{([^}]*)\})?\s+([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?|NaN|[+-]?Inf)(?:\s+\d+)?$/
+  for (const line of text.split(/\r?\n/)) {
+    if (!line || line.startsWith('#')) continue
+    const match = line.match(pattern)
+    if (!match) continue
+    const value = match[3] === '+Inf' ? Number.POSITIVE_INFINITY
+      : match[3] === '-Inf' ? Number.NEGATIVE_INFINITY
+        : Number(match[3])
+    if (!Number.isFinite(value)) continue
+    samples.push({ name: match[1], labels: parsePrometheusLabels(match[2] ?? ''), value })
+  }
+  return samples
+}
+
+function sumSamples(samples: PrometheusSample[], name: string, predicate?: (sample: PrometheusSample) => boolean): number {
+  return samples
+    .filter((sample) => sample.name === name && (!predicate || predicate(sample)))
+    .reduce((total, sample) => total + sample.value, 0)
+}
+
+export async function fetchObservability(): Promise<ObservabilitySnapshot> {
+  const [health, readiness, metricsResponse, liveness] = await Promise.all([
+    fetchServiceHealth(),
+    fetchReadiness(),
+    rawRequest('/api/metrics', { timeoutMs: 8_000, headers: { Accept: 'text/plain' } }),
+    fetchHealth(),
+  ])
+  health.uptime_seconds = liveness.uptime_seconds
+  const metricsText = await metricsResponse.text()
+  const samples = parsePrometheusMetrics(metricsText)
+  const requestSamples = samples.filter((sample) => sample.name === 'http_requests_total')
+  const endpointRequests: Record<string, number> = {}
+  const endpointErrors: Record<string, number> = {}
+  for (const sample of requestSamples) {
+    const endpoint = sample.labels.endpoint ?? 'unknown'
+    endpointRequests[endpoint] = (endpointRequests[endpoint] ?? 0) + sample.value
+    if (Number(sample.labels.status ?? 0) >= 500) {
+      endpointErrors[endpoint] = (endpointErrors[endpoint] ?? 0) + sample.value
+    }
+  }
+  const durationCount = sumSamples(samples, 'http_request_duration_seconds_count')
+  const durationSum = sumSamples(samples, 'http_request_duration_seconds_sum')
+  return {
+    health,
+    readiness,
+    metrics: {
+      samples,
+      requests_total: requestSamples.reduce((total, sample) => total + sample.value, 0),
+      errors_total: Object.values(endpointErrors).reduce((total, value) => total + value, 0),
+      avg_latency_ms: durationCount ? (durationSum / durationCount) * 1000 : 0,
+      rate_limit_total: sumSamples(samples, 'rate_limit_events_total'),
+      llm_requests_total: sumSamples(samples, 'llm_requests_total'),
+      llm_errors_total: sumSamples(samples, 'llm_requests_total', (sample) => sample.labels.outcome !== 'success'),
+      llm_input_tokens: sumSamples(samples, 'llm_tokens_total', (sample) => sample.labels.direction === 'input'),
+      llm_output_tokens: sumSamples(samples, 'llm_tokens_total', (sample) => sample.labels.direction === 'output'),
+      llm_cost_yuan: sumSamples(samples, 'llm_cost_yuan_total'),
+      rag_hit_ratio: sumSamples(samples, 'rag_queries_total') > 0
+        ? (samples.find((sample) => sample.name === 'rag_hit_ratio')?.value ?? 0)
+        : null,
+      rag_queries_total: sumSamples(samples, 'rag_queries_total'),
+      rag_hits_total: sumSamples(samples, 'rag_hits_total'),
+      feedback_total: sumSamples(samples, 'feedback_events_total'),
+      endpoint_requests: endpointRequests,
+      endpoint_errors: endpointErrors,
+    },
+  }
+}
+
 export function fetchSession(sessionId: string): Promise<SessionDetail> {
   return requestJson<SessionDetail>(`/api/session/${encodeURIComponent(sessionId)}`)
 }
 
 /**
- * GET /api/sessions — only present in the legacy backend today; the FastAPI
- * port will add it later. Callers must treat ApiError(status 404) as "no
- * session directory available yet".
+ * GET /api/sessions — history of the *currently authenticated* user
+ * (identity carried by the auth header injected in rawRequest).
  */
 export async function fetchSessions(): Promise<SessionSummary[]> {
   const data = await requestJson<{ sessions?: SessionSummary[] }>('/api/sessions')
   return data.sessions ?? []
 }
 
-/** GET /api/analytics — same availability caveat as fetchSessions. */
+/** GET /api/analytics. */
 export function fetchAnalytics(): Promise<AnalyticsData> {
   return requestJson<AnalyticsData>('/api/analytics')
+}
+
+// ---------------------------------------------------------------------------
+// Auth + long-term memory
+// ---------------------------------------------------------------------------
+
+/** POST /api/auth/login — username (+ optional password); first login registers. */
+export function login(username: string, password?: string): Promise<LoginResult> {
+  const body: Record<string, unknown> = { username }
+  if (password) body.password = password
+  return requestJson<LoginResult>('/api/auth/login', { method: 'POST', body })
+}
+
+/** POST /api/auth/register — explicit registration with optional display name. */
+export function register(
+  username: string,
+  password?: string,
+  displayName?: string,
+): Promise<RegisterResult> {
+  const body: Record<string, unknown> = { username }
+  if (password) body.password = password
+  if (displayName) body.display_name = displayName
+  return requestJson<RegisterResult>('/api/auth/register', { method: 'POST', body })
+}
+
+/** GET /api/auth/me — resolve the identity the backend sees for the current headers. */
+export function fetchMe(): Promise<MeResult> {
+  return requestJson<MeResult>('/api/auth/me', { timeoutMs: 8_000 })
+}
+
+/** POST /api/auth/logout - clear backend login cookies. */
+export function logout(): Promise<OkResult> {
+  return requestJson<OkResult>('/api/auth/logout', { method: 'POST', timeoutMs: 8_000 })
+}
+
+/** GET /api/memory — the current user's long-term memories. */
+export async function fetchMemories(): Promise<MemoryItem[]> {
+  const data = await requestJson<{ memories?: MemoryItem[] }>('/api/memory')
+  return data.memories ?? []
+}
+
+/** DELETE /api/memory/{id} — remove one of the current user's memories. */
+export function deleteMemory(memoryId: string): Promise<DeleteMemoryResult> {
+  return requestJson<DeleteMemoryResult>(`/api/memory/${encodeURIComponent(memoryId)}`, {
+    method: 'DELETE',
+  })
 }

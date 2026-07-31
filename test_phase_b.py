@@ -21,16 +21,20 @@ def test_circuit_opens_per_model_and_recovers():
     assert breaker.state("provider", "model-a") == CircuitState.CLOSED
 
 
+async def _async_fail(*args, **kwargs):
+    raise ConnectionError("down")
+
+
 def test_gateway_returns_degraded_result_when_candidates_fail(monkeypatch):
-    from agent.llm_gateway import LLMGateway, GatewayRequest, ModelProfile
-    model = ModelProfile("test", "test", "http://localhost", "", "x", 4096, 100,
+    """When all models fail, gateway raises AllModelsFailedError (not a degraded response)."""
+    from agent.llm_gateway import LLMGateway, GatewayRequest, ModelProfile, AllModelsFailedError
+    model = ModelProfile("test", "test", "http://localhost", "test-key", "x", 4096, 100,
                          "balanced", 0, 0)
     gateway = LLMGateway([model])
-    monkeypatch.setattr(gateway, "_call_model", lambda *args, **kwargs: (_ for _ in ()).throw(ConnectionError("down")))
-    response = gateway.chat(GatewayRequest(messages=[{"role": "user", "content": "hi"}], tenant_id="free"))
-    assert response.fallback_used is True
-    assert response.model_used == "degraded"
-    assert "暂时不可用" in response.content
+    monkeypatch.setattr(gateway, "_call_model", _async_fail)
+    import pytest
+    with pytest.raises(AllModelsFailedError, match="All models in fallback chain failed"):
+        gateway.chat_sync(GatewayRequest(messages=[{"role": "user", "content": "hi"}], tenant_id="free"))
 
 
 def test_context_monitor_thresholds(caplog):

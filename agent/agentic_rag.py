@@ -17,17 +17,39 @@ from typing import List, Dict, Optional
 from .rag import retrieve as rag_retrieve
 from .llm_client import get_llm_client
 
+# RAG_BACKEND=tfidf|hybrid|pgvector 后端选择（含运行期优雅降级 TF-IDF）。
+# rag_backend 不可用时保持旧行为（直接走 rag.retrieve）。
+try:
+    from .rag_backend import retrieve as _backend_retrieve
+except Exception:  # pragma: no cover
+    def _backend_retrieve(query, top_k=3):
+        return rag_retrieve(query, top_k=top_k)
+
 # ---------------------------------------------------------------------------
-# Prompts
+# Prompts (Improved with Few-Shot and Entity Extraction)
 # ---------------------------------------------------------------------------
 
-REWRITE_PROMPT = """你是一个信息检索专家。用户问了一个问题，你需要生成 2-3 个不同的搜索查询词，用于在知识库中检索相关信息。
+REWRITE_PROMPT = """你是智能客服检索助手。将用户问题改写为 2-3 个知识库搜索查询。
 
-要求：
-- 每个查询词 3-8 个字，尽量用关键词而非完整句子
-- 从不同角度覆盖用户问题（同义词、相关概念）
-- 返回严格的 JSON 数组格式：["查询1", "查询2", "查询3"]
-不要返回其他任何文字。"""
+【改写策略】
+1. **提取关键词**：保留核心实体（产品名、错误码、功能名）
+2. **标准化表达**：口语→书面语（"连不上"→"无法连接"，"咋弄"→"如何操作"）
+3. **补充隐含信息**：根据上下文补全型号、场景等
+4. **多角度覆盖**：从症状、原因、解决方案不同角度构造
+
+【特殊处理】
+- **错误码**：E001/E018 等直接保留，生成"错误码 E001"、"E001 解决方法"
+- **产品型号**：X-100/X-200/X-300 Pro 保留，可生成型号专用查询
+- **多跳问题**：拆分因果链（"为什么灯闪不能控制"→["灯闪烁原因", "设备无法控制"]）
+
+【输出格式】
+严格 JSON 数组，无其他文字：["查询 1", "查询 2", "查询 3"]
+
+【示例】
+用户："我家那个小音箱咋连 WiFi 啊" → ["音箱 WiFi 配网步骤", "智能音箱连接无线网络", "音箱无法连接 WiFi 排查"]
+用户："E018 是什么错误" → ["错误码 E018", "E018 过载保护", "智能插座过载处理"]
+
+现在改写："""
 
 EVALUATE_PROMPT = """你是一个信息质量评估专家。下面是一次知识库检索的结果，请判断这些结果是否能回答用户的问题。
 
@@ -37,7 +59,7 @@ EVALUATE_PROMPT = """你是一个信息质量评估专家。下面是一次知�
 {results}
 
 返回严格的 JSON 格式（不要其他文字）：
-{{"sufficient": true/false, "reason": "简短理由", "new_queries": ["新查询1", "新查询2"]}}
+{{"sufficient": true/false, "reason": "简短理由", "new_queries": ["新查询 1", "新查询 2"]}}
 
 规则：
 - 如果结果中包含了回答用户问题所需的关键信息 → sufficient: true
@@ -60,71 +82,125 @@ def agentic_rag(user_query: str, max_rounds: int = 2) -> Dict[str, any]:
             "sufficient": bool,      # Whether results are deemed sufficient
         }
     """
-    llm = get_llm_client()
+    # Fast mode is the interactive default: perform one PostgreSQL + pgvector
+    # retrieval and immediately reserve the local LLM for the user-visible
+    # answer stream.  The former default used one or more planner/evaluator
+    # LLM calls before generation and could hit the 120-second graph timeout.
+    # Set AGENTIC_RAG_MODE=deep for the slower evaluate/rewrite loop.
+    import os as _os
+    mode = _os.environ.get("AGENTIC_RAG_MODE", "fast").strip().lower()
+    if mode not in {"fast", "deep"}:
+        mode = "fast"
+    _env_rounds = _os.environ.get("AGENTIC_RAG_MAX_ROUNDS", "").strip()
+    if _env_rounds.isdigit():
+        max_rounds = max(1, int(_env_rounds))
+    _skip_eval = _os.environ.get("AGENTIC_RAG_EVAL", "").strip() == "0"
     result = {
         "context": "",
-        "rounds": 0,
+        "rounds": 1,
         "queries_tried": [],
         "sufficient": False,
+        "hits": [],
+        "mode": mode,
+        "planner_llm_calls": 0,
     }
 
     current_query = user_query
+    # Literal-query retrieval remains quality-safe because rag_backend performs
+    # pgvector retrieval, reranking and lexical relevance filtering.
+    initial_hits = _retrieve_queries([user_query], result)
+    if mode == "fast":
+        result["context"] = _build_context_string(initial_hits) if initial_hits else ""
+        result["sufficient"] = bool(initial_hits)
+        return result
 
-    for round_num in range(1, max_rounds + 1):
-        result["rounds"] = round_num
+    # Deep mode only: let the LLM evaluate/rewrite weak retrieval results.
+    llm = get_llm_client()
+    if initial_hits:
+        initial_formatted = _format_results(initial_hits)
+        if _skip_eval:
+            result["context"] = _build_context_string(initial_hits)
+            result["sufficient"] = True
+            return result
+        result["planner_llm_calls"] += 1
+        initial_eval = _evaluate(llm, user_query, initial_formatted)
+        if initial_eval.get("sufficient", False):
+            result["context"] = _build_context_string(initial_hits)
+            result["sufficient"] = True
+            return result
+        next_queries = initial_eval.get("new_queries") or []
+    else:
+        next_queries = []
 
-        # Step 1: Rewrite query into search keywords
-        queries = _rewrite_query(llm, current_query)
-        print(f"[Agentic RAG Round {round_num}] Rewritten queries: {queries}")
-
-        # Step 2: Retrieve with each query, merge & deduplicate
-        all_results = []
-        seen_titles = set()
-        for q in queries:
-            result["queries_tried"].append(q)
-            hits = rag_retrieve(q, top_k=3)
-            for h in hits:
-                key = (h["title"], h["source"])
-                if key not in seen_titles:
-                    seen_titles.add(key)
-                    all_results.append(h)
-
-        # Sort by score descending, keep top 5
-        all_results.sort(key=lambda x: x["score"], reverse=True)
-        all_results = all_results[:5]
+    # 原始检索不充分后，才进入改写检索。max_rounds 表示最多改写次数，
+    # 因此默认 2 表示最差情况会改写两次，而不是“原始轮 + 一次改写”。
+    for rewrite_round in range(1, max(0, max_rounds) + 1):
+        result["rounds"] = rewrite_round + 1
+        queries = [str(q).strip() for q in next_queries if str(q).strip()][:3]
+        if not queries:
+            result["planner_llm_calls"] += 1
+            queries = _rewrite_query(llm, current_query)
+        print(f"[Agentic RAG Rewrite {rewrite_round}] Queries: {queries}")
+        all_results = _retrieve_queries(queries, result)
 
         if not all_results:
-            print(f"[Agentic RAG Round {round_num}] No results found")
+            print(f"[Agentic RAG Rewrite {rewrite_round}] No results found")
             break
 
-        # Step 3: Format results for evaluation
         formatted = _format_results(all_results)
-        print(f"[Agentic RAG Round {round_num}] Retrieved {len(all_results)} sections")
-
-        # Step 4: Evaluate sufficiency
-        eval_result = _evaluate(llm, user_query, formatted)
-        sufficient = eval_result.get("sufficient", False)
-        reason = eval_result.get("reason", "")
-        new_queries = eval_result.get("new_queries", [])
-
-        print(f"[Agentic RAG Round {round_num}] Evaluation: sufficient={sufficient}, reason={reason}")
-
-        if sufficient:
+        print(f"[Agentic RAG Rewrite {rewrite_round}] Retrieved {len(all_results)} sections")
+        if _skip_eval:
             result["context"] = _build_context_string(all_results)
             result["sufficient"] = True
             break
 
-        # Not sufficient — try again with new queries
-        if new_queries and round_num < max_rounds:
-            current_query = " ".join(new_queries)
-            print(f"[Agentic RAG Round {round_num}] New queries for next round: {current_query}")
-        else:
-            # Last round or no new queries — use what we have anyway
+        # 最多两次改写；每次改写结果足够就立刻停止。
+        result["planner_llm_calls"] += 1
+        eval_result = _evaluate(llm, user_query, formatted)
+        if eval_result.get("sufficient", False) or rewrite_round >= max(0, max_rounds):
             result["context"] = _build_context_string(all_results)
-            result["sufficient"] = len(all_results) > 0
+            result["sufficient"] = True
             break
+        next_queries = eval_result.get("new_queries") or []
 
     return result
+
+
+def _retrieve_queries(queries: List[str], result: Dict[str, any]) -> List[dict]:
+    """Retrieve each query, deduplicate by section, and preserve the best scored hits."""
+    all_results = []
+    seen_titles = set()
+    for q in queries:
+        result["queries_tried"].append(q)
+        hits = _backend_retrieve(q, top_k=3)
+        for h in hits:
+            key = (h["title"], h["source"])
+            if key not in seen_titles:
+                seen_titles.add(key)
+                all_results.append(h)
+    all_results.sort(key=lambda x: x["score"], reverse=True)
+    selected = all_results[:5]
+    _remember_hits(result, selected)
+    return selected
+
+
+def _remember_hits(result: Dict[str, any], hits: List[dict]) -> None:
+    """Keep a compact, deduplicated copy of retrieval hits for observability."""
+    stored = result.setdefault("hits", [])
+    seen = {(h.get("title"), h.get("source")) for h in stored if isinstance(h, dict)}
+    for h in hits:
+        if not isinstance(h, dict):
+            continue
+        key = (h.get("title"), h.get("source"))
+        if key in seen:
+            continue
+        seen.add(key)
+        stored.append({
+            "title": h.get("title", ""),
+            "source": h.get("source", ""),
+            "score": float(h.get("score") or 0.0),
+            "text": str(h.get("text") or "")[:800],
+        })
 
 
 # ---------------------------------------------------------------------------
@@ -134,9 +210,14 @@ def agentic_rag(user_query: str, max_rounds: int = 2) -> Dict[str, any]:
 def _rewrite_query(llm, query: str) -> List[str]:
     """Ask LLM to generate alternative search queries."""
     try:
+        # 修复：LLMClient.chat(messages, temperature=..., max_tokens=...) 没有
+        # system 位置参数；旧写法把 REWRITE_PROMPT 传给了 temperature，又与
+        # temperature=0.5 关键字冲突 → TypeError。system prompt 应放进 messages。
         text = llm.chat(
-            [{"role": "user", "content": f"用户问题：{query}\n请生成搜索查询词。"}],
-            REWRITE_PROMPT,
+            [
+                {"role": "system", "content": REWRITE_PROMPT},
+                {"role": "user", "content": f"用户问题：{query}\n请生成搜索查询词。"},
+            ],
             max_tokens=128,
             temperature=0.5,
         )
@@ -202,7 +283,7 @@ def _truncate(text: str, max_len: int) -> str:
 
 def _fallback_queries(query: str) -> List[str]:
     """Generate search query variants without LLM — used when rewrite fails.
-    
+
     Strips common stop words and generates keyword combinations.
     This is better than naive truncation because it preserves semantic keywords.
     """
@@ -211,17 +292,23 @@ def _fallback_queries(query: str) -> List[str]:
                   '与', '及', '这', '那', '吧', '吗', '呢', '啊', '哦',
                   '什么', '怎么', '如何', '可以', '能够', '请问', '一下',
                   '一下下', '帮我', '我想', '我要', '能不能', '有没有'}
-    
-    # Extract keywords by removing stop words
-    keywords = [w for w in query if w not in STOP_WORDS and len(w.strip()) > 0]
-    core = ''.join(keywords)
-    
+
+    # 修复：旧版 `for w in query` 逐字符遍历，多字停用词（如"什么"）永远
+    # 匹配不上，还会误删正常词里的单字（如"的哥"→"哥"）。改为按词遍历：
+    # 先按长度降序把停用词整体剔除，再拼回核心关键词。
+    import re as _re
+    core = query
+    for word in sorted(STOP_WORDS, key=len, reverse=True):
+        core = core.replace(word, ' ')
+    tokens = [t for t in _re.split(r'\s+', core) if t.strip()]
+    core = ''.join(tokens)
+
     queries = [query]  # Always include original
     if core and core != query:
         queries.append(core)  # Core keywords without stop words
     if len(query) > 4:
         queries.append(_truncate(query, 4))  # Short version
-    
+
     # Deduplicate while preserving order
     seen = set()
     result = []
@@ -229,5 +316,5 @@ def _fallback_queries(query: str) -> List[str]:
         if q not in seen:
             seen.add(q)
             result.append(q)
-    
+
     return result[:3]
