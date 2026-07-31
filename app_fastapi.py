@@ -214,6 +214,7 @@ async def lifespan(app: FastAPI):
         # No Redis: use a simple file-based lock that works on Windows too
         lock_path = os.path.join(os.environ.get("TEMP", "/tmp"), "langgraph_schema_init.lock")
         got_lock = False
+        _LOCK_STALE_SECONDS = 120  # break locks older than this (crashed worker)
         for _ in range(600):  # wait up to 60s
             try:
                 # O_CREAT|O_EXCL is atomic on Windows too
@@ -222,6 +223,19 @@ async def lifespan(app: FastAPI):
                 got_lock = True
                 break
             except FileExistsError:
+                # Stale-lock detection: if the lock file is older than
+                # _LOCK_STALE_SECONDS, a previous worker likely crashed.
+                # Break the lock to avoid blocking startup for 60s.
+                try:
+                    lock_age = time.time() - os.path.getmtime(lock_path)
+                    if lock_age > _LOCK_STALE_SECONDS:
+                        logger.warning(
+                            "Breaking stale schema-init lock (age=%.0fs > %ds)",
+                            lock_age, _LOCK_STALE_SECONDS)
+                        os.unlink(lock_path)
+                        continue
+                except OSError:
+                    pass
                 await asyncio.sleep(0.1)
         if got_lock:
             try:

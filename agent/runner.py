@@ -570,10 +570,19 @@ def _get_graph_sync() -> Any:
 
 
 async def prewarm() -> bool:
-    """Lifespan startup: ensure graph is compiled and checkpointer ready."""
-    graph = _get_graph_sync()
-    logger.info("graph prewarm: ok (PostgreSQL checkpointer)")
-    return True
+    """Lifespan startup: ensure graph is compiled and checkpointer ready.
+
+    Returns False (instead of blocking or crashing) when PostgreSQL is
+    unavailable so that health/readiness endpoints and unit tests can
+    still run against the FastAPI lifespan without a live database.
+    """
+    try:
+        graph = _get_graph_sync()
+        logger.info("graph prewarm: ok (PostgreSQL checkpointer)")
+        return True
+    except Exception as exc:
+        logger.warning("graph prewarm: unavailable (%s)", exc)
+        return False
 
 
 async def shutdown() -> None:
