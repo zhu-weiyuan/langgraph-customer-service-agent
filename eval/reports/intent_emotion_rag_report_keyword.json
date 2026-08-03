@@ -1,0 +1,2544 @@
+{
+  "generated_at": "2026-07-30T23:19:15+0800",
+  "dataset": "C:\\Users\\Administrator\\.openclaw\\workspace\\langgraph-customer-service-agent\\eval\\intent_emotion_rag_dataset.jsonl",
+  "dataset_size": 45,
+  "backend_requested": "pgvector",
+  "emotion_mode": "keyword",
+  "emotion_source_counts": {
+    "neutral-fallback": 41,
+    "keyword": 4
+  },
+  "intent": {
+    "n": 45,
+    "accuracy": 0.7333,
+    "correct": 33,
+    "macro_f1": 0.6126,
+    "by_label": {
+      "chat": {
+        "support": 7,
+        "precision": 0.8571,
+        "recall": 0.8571,
+        "f1": 0.8571
+      },
+      "complaint": {
+        "support": 8,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "consult": {
+        "support": 24,
+        "precision": 0.6765,
+        "recall": 0.9583,
+        "f1": 0.7931
+      },
+      "ending": {
+        "support": 6,
+        "precision": 1.0,
+        "recall": 0.6667,
+        "f1": 0.8
+      }
+    },
+    "confusion_matrix": {
+      "chat": {
+        "chat": 6,
+        "consult": 1
+      },
+      "complaint": {
+        "consult": 8
+      },
+      "consult": {
+        "consult": 23,
+        "chat": 1
+      },
+      "ending": {
+        "ending": 4,
+        "consult": 2
+      }
+    }
+  },
+  "emotion": {
+    "n": 45,
+    "accuracy": 0.5556,
+    "correct": 25,
+    "macro_f1": 0.326,
+    "by_label": {
+      "angry": {
+        "support": 6,
+        "precision": 1.0,
+        "recall": 0.1667,
+        "f1": 0.2857
+      },
+      "anxious": {
+        "support": 7,
+        "precision": 1.0,
+        "recall": 0.2857,
+        "f1": 0.4444
+      },
+      "happy": {
+        "support": 8,
+        "precision": 1.0,
+        "recall": 0.125,
+        "f1": 0.2222
+      },
+      "neutral": {
+        "support": 21,
+        "precision": 0.5122,
+        "recall": 1.0,
+        "f1": 0.6774
+      },
+      "sad": {
+        "support": 3,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      }
+    },
+    "confusion_matrix": {
+      "angry": {
+        "neutral": 5,
+        "angry": 1
+      },
+      "anxious": {
+        "anxious": 2,
+        "neutral": 5
+      },
+      "happy": {
+        "neutral": 7,
+        "happy": 1
+      },
+      "neutral": {
+        "neutral": 21
+      },
+      "sad": {
+        "neutral": 3
+      }
+    }
+  },
+  "rag": {
+    "n": 45,
+    "positive_cases": 32,
+    "positive_hit_rate_at_1": 0.9062,
+    "positive_hit_rate_at_3": 1.0,
+    "positive_hit_rate_at_5": 1.0,
+    "mrr_on_positive_cases": 0.9531,
+    "negative_cases": 13,
+    "false_positive_rate": 0.8462,
+    "false_positives": 11,
+    "binary_accuracy": 0.7556,
+    "retrieval_errors": 0,
+    "avg_latency_ms": 727.6
+  },
+  "details": [
+    {
+      "id": "eval-001",
+      "query": "你好",
+      "category": "闲聊",
+      "expected_intent": "chat",
+      "predicted_intent": "chat",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 5,
+      "rag_ms": 5280.3,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 1.198982,
+          "snippet": "- 杂音、电流声:先检查固件更新;将音箱远离微波炉、无线充电器等干扰源;更换插座排除电源纹波 - 大音量破音:X-100 功率较小,长期最大音量播放重低音易破音,建议音量不超过 80%;X-200/X-300 Pro 出现破音多为扬声器受损,联系售后检测 - 播放卡顿、断断续续:多为网络带宽不足,测试家中下行速度(在线音乐建议 ≥4Mbps);蓝牙模式卡顿则缩短手机与音箱距离(10 米内) - 单声道输出属正常现象,X-100/X-200 为全频单元设计;X-300 Pro "
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 1.198982,
+          "snippet": "| 套餐 | 价格 | 存储 | 摄像头回放 | 其他权益 | |------|------|------|-----------|----------| | 免费版 | ¥0 | 5GB | 3 天滚动 | 基础功能 | | 家庭版 | ¥18/月 或 ¥180/年 | 50GB | 30 天 | 家庭共享 6 人、优先客服 | | 专业版 | ¥38/月 或 ¥380/年 | 500GB | 90 天 | 专属客服、开放平台 API 权限 |  年付相当于 10 个月价格"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 1.198981,
+          "snippet": "X-200 定价 ¥399,是销量最高的主力型号。扬声器:2.25 英寸全频单元 + 被动辐射器,额定功率 15W;麦克风:6 麦阵列,远场拾音距离达 5 米;连接:WiFi 6(802.11ax,兼容 2.4GHz/5GHz)+ 蓝牙 5.2;接口:3.5mm 音频输出、USB-C 供电(15W);功耗:15W;尺寸:110×110×150mm,重量 780g;颜色:曜石黑、云朵白、雾霾蓝。整机保修 1 年,主要部件保修 2 年。  ## 智能音箱 X-300 Pro(旗舰"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "# 物流与配送说明  ## 配送范围  - 全国配送:覆盖中国大陆所有省市区,港澳台地区经转运发货 - 海外配送:支持美国、日本、韩国、新加坡、马来西亚等 20+ 国家,通过 DHL / 顺丰国际发货 - 暂不配送:中国大陆的少数高海拔无人区乡镇(下单时地址校验会提示) - 海外订单关税:商品价格不含目的国关税,如产生由收件人承担  ## 配送方式与运费  | 配送方式 | 时效 | 运费 | 适用地区 | |---------|------|------|---------"
+        }
+      ]
+    },
+    {
+      "id": "eval-002",
+      "query": "你是谁",
+      "category": "闲聊",
+      "expected_intent": "chat",
+      "predicted_intent": "chat",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 5,
+      "rag_ms": 2504.1,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.198982,
+          "snippet": "## 晒单返利与社区激励  确认收货后 30 天内在 App\"社区\"发布带图评价得 50 积分/单;被官方加精的深度体验帖额外得 500 积分;上传自动化场景模板被他人使用超 100 次,得\"场景达人\"徽章 + 1000 积分。社区内容须真实原创,搬运或刷量将扣回积分并取消活动资格。积分价值:100 积分 = ¥1。  ## 价保与活动价说明  官网 7 天价保(详见《计费与发票说明》):下单 7 天内同商品官网降价可补差,但秒杀价、清仓价、用券后价不参与。大促预售:定金支付"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.198982,
+          "snippet": "以旧换新抵扣可与 1 张优惠券、积分抵扣同时使用,三者叠加后订单实付不得低于新品价格的 30%(低于时系统自动限制积分抵扣额)。换新订单支持 7 天无理由退货:退货时退还实付金额,旧机抵扣额以等值余额返还(旧机不退回,因已进入环保拆解流程)——对旧机有留恋的用户请谨慎使用换新。换新订单同样累计积分与会员等级(按实付金额)。  ## 新用户专享  新注册账号 7 天内可领\"新人礼包\":满 ¥199 减 ¥20 优惠券 ×1、云服务家庭版 1 个月体验券 ×1(需手动激活,体验期"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.198982,
+          "snippet": "# 优惠活动与会员权益  ## 会员等级体系  按历史累计实付金额划分四级,升级即时生效,等级不降级(终身累计):  | 等级 | 门槛(累计消费) | 核心权益 | |------|------------------|----------| | 普通会员 | 注册即是 | 积分累计(1 元 = 1 积分)、生日 ¥10 券 | | 银卡会员 | 满 ¥1000 | 积分 1.2 倍、专属客服通道、生日 ¥20 券 | | 金卡会员 | 满 ¥5000 | 积分 1.5 倍"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.198982,
+          "snippet": "| 套餐 | 价格 | 存储 | 摄像头回放 | 其他权益 | |------|------|------|-----------|----------| | 免费版 | ¥0 | 5GB | 3 天滚动 | 基础功能 | | 家庭版 | ¥18/月 或 ¥180/年 | 50GB | 30 天 | 家庭共享 6 人、优先客服 | | 专业版 | ¥38/月 或 ¥380/年 | 500GB | 90 天 | 专属客服、开放平台 API 权限 |  年付相当于 10 个月价格"
+        }
+      ]
+    },
+    {
+      "id": "eval-003",
+      "query": "在吗",
+      "category": "闲聊",
+      "expected_intent": "chat",
+      "predicted_intent": "chat",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 5,
+      "rag_ms": 2395.2,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.198982,
+          "snippet": "保修期内硬件故障,中国大陆全境支持免费上门取件、修复后免费寄回(顺丰上门,预约后 1-2 天内取件)。用户需配合:寄出前解绑设备并尽量恢复出厂设置;保留原包装或妥善包装(无包装可要求快递员提供纸箱,费用我方承担)。保外维修同样可用上门取送,但来回运费实收(约 ¥25),与维修费一并结算。  ## 保修排除情况  以下情况不在免费保修范围内(可转有偿维修):  - 人为损坏:摔落、进水、挤压、私自拆解、使用非原装电源适配器导致的损坏 - 非官方渠道购买的整机或使用非官方配件引发"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "- 确认账号密码正确;多次失败被临时锁定的,等待 30 分钟后重试 - 官网服务状态页(status.smartlinktech.com)可查看云服务是否在维护;计划维护提前 48 小时公告 - 公司/校园网络可能屏蔽非标端口,切换手机流量测试 - 海外访问延迟高属正常(服务器在国内) - 报 E026(云服务不可达)且状态页正常时,多为本地 DNS 问题,可将 DNS 改为 223.5.5.5 后重试  ## 云存储空间不足  App\"我的\"→\"云服务\"可查看已用空间明细("
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "插座指示灯亮、App 显示在线,但接的电器不工作:1) 确认 App/语音已将插座置于\"开\"状态;2) 检查电器自身开关;3) 负载超过 2500W/10A 时插座过载保护自动断开(App 会推送过载告警,报 E018),移除大功率电器后在 App 中手动恢复;4) 能耗统计显示 0W 但电器在工作,重启插座后数据恢复上报。电暖器、电热水器等大功率设备请核对功率后再接入。  ## 窗帘电机问题  - 不动作:检查电源;确认已与网关配对(离线时 App 置灰);行程未设置时电机"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "# 物流与配送说明  ## 配送范围  - 全国配送:覆盖中国大陆所有省市区,港澳台地区经转运发货 - 海外配送:支持美国、日本、韩国、新加坡、马来西亚等 20+ 国家,通过 DHL / 顺丰国际发货 - 暂不配送:中国大陆的少数高海拔无人区乡镇(下单时地址校验会提示) - 海外订单关税:商品价格不含目的国关税,如产生由收件人承担  ## 配送方式与运费  | 配送方式 | 时效 | 运费 | 适用地区 | |---------|------|------|---------"
+        }
+      ]
+    },
+    {
+      "id": "eval-004",
+      "query": "讲个笑话吧",
+      "category": "闲聊",
+      "expected_intent": "chat",
+      "predicted_intent": "chat",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 5,
+      "rag_ms": 2602.6,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "以下情形无需继续自查,建议直接申请售后(App\"我的\"→\"售后报修\"或在线客服):指示灯完全不亮且换线换插座无效;扬声器物理破音(E004);麦克风阵列故障(E003);设备进水、外壳开裂;网关反复重启(E013);错误码手册中标注\"需报修\"的所有情形。保修期内免费维修并支持全国免费上门取送;保修范围与期限见《保修与售后服务政策》,维修周期一般 3-5 个工作日。 "
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "插座指示灯亮、App 显示在线,但接的电器不工作:1) 确认 App/语音已将插座置于\"开\"状态;2) 检查电器自身开关;3) 负载超过 2500W/10A 时插座过载保护自动断开(App 会推送过载告警,报 E018),移除大功率电器后在 App 中手动恢复;4) 能耗统计显示 0W 但电器在工作,重启插座后数据恢复上报。电暖器、电热水器等大功率设备请核对功率后再接入。  ## 窗帘电机问题  - 不动作:检查电源;确认已与网关配对(离线时 App 置灰);行程未设置时电机"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.198981,
+          "snippet": "| 套餐 | 价格 | 存储 | 摄像头回放 | 其他权益 | |------|------|------|-----------|----------| | 免费版 | ¥0 | 5GB | 3 天滚动 | 基础功能 | | 家庭版 | ¥18/月 或 ¥180/年 | 50GB | 30 天 | 家庭共享 6 人、优先客服 | | 专业版 | ¥38/月 或 ¥380/年 | 500GB | 90 天 | 专属客服、开放平台 API 权限 |  年付相当于 10 个月价格"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.198981,
+          "snippet": "## 忘记密码怎么办  App 登录页点击\"忘记密码\",通过注册手机号接收短信验证码重置;手机号不可用时可用绑定邮箱重置。连续输错密码 5 次账号将临时锁定 30 分钟。手机号和邮箱都无法使用时,联系客服人工申诉(需提供购买凭证与身份信息,审核 3 个工作日)。详见《账号与安全》。  ## 可以在一个家里用多个账号吗  推荐做法是\"家庭共享\":主账号在 App\"家庭管理\"中邀请成员(免费版 2 人、家庭版 6 人、专业版 10 人),成员用自己的账号即可查看和控制设备,无需共"
+        }
+      ]
+    },
+    {
+      "id": "eval-005",
+      "query": "今天天气怎么样",
+      "category": "闲聊",
+      "expected_intent": "chat",
+      "predicted_intent": "chat",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 5,
+      "rag_ms": 1874.7,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.365648,
+          "snippet": "## 忘记密码怎么办  App 登录页点击\"忘记密码\",通过注册手机号接收短信验证码重置;手机号不可用时可用绑定邮箱重置。连续输错密码 5 次账号将临时锁定 30 分钟。手机号和邮箱都无法使用时,联系客服人工申诉(需提供购买凭证与身份信息,审核 3 个工作日)。详见《账号与安全》。  ## 可以在一个家里用多个账号吗  推荐做法是\"家庭共享\":主账号在 App\"家庭管理\"中邀请成员(免费版 2 人、家庭版 6 人、专业版 10 人),成员用自己的账号即可查看和控制设备,无需共"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.365648,
+          "snippet": "语音唤醒词在本地处理,不会上传云端。对话内容默认不保存,用户可选择开启\"对话记录\"功能用于调试,开启后记录保存在云端 30 天,可随时手动删除或关闭功能。App\"隐私管理\"中可一键清空全部语音记录并撤回授权,详见《账号与安全》。  ## 智能家居数据是否安全  所有数据传输与存储使用 AES-256 加密,服务器通过等保三级认证,云服务 SLA 承诺 99.9% 可用性。智联科技不会将用户数据分享给第三方,也不会用于任何商业用途。摄像头录像仅账号本人及授权的家庭成员可查看。 "
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "主要合作快递:顺丰、京东物流、中通。发货仓按地址就近分配(上海/深圳/天津/成都四仓),快递公司由仓库按线路自动选择,暂不支持指定快递公司;需要顺丰时可下单选\"顺丰特快\"(¥25,次日达,限一二线城市)。质量问题退换货寄回可选顺丰到付(限我方提供地址)。  ## 发票随货还是电子发送  默认开具电子普通发票,不随货寄送,申请后 24 小时内发送至邮箱,可在\"发票中心\"重复下载。纸质增值税专用发票单独顺丰寄出(免邮,5-10 个工作日)。包裹内含装箱单,不含价格信息,送礼场景无"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.198982,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        }
+      ]
+    },
+    {
+      "id": "eval-006",
+      "query": "谢谢你的帮助",
+      "category": "结束对话",
+      "expected_intent": "ending",
+      "predicted_intent": "ending",
+      "intent_correct": true,
+      "expected_emotion": "happy",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 5,
+      "rag_ms": 2366.9,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.398982,
+          "snippet": "以旧换新抵扣可与 1 张优惠券、积分抵扣同时使用,三者叠加后订单实付不得低于新品价格的 30%(低于时系统自动限制积分抵扣额)。换新订单支持 7 天无理由退货:退货时退还实付金额,旧机抵扣额以等值余额返还(旧机不退回,因已进入环保拆解流程)——对旧机有留恋的用户请谨慎使用换新。换新订单同样累计积分与会员等级(按实付金额)。  ## 新用户专享  新注册账号 7 天内可领\"新人礼包\":满 ¥199 减 ¥20 优惠券 ×1、云服务家庭版 1 个月体验券 ×1(需手动激活,体验期"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.398981,
+          "snippet": "## 忘记密码怎么办  App 登录页点击\"忘记密码\",通过注册手机号接收短信验证码重置;手机号不可用时可用绑定邮箱重置。连续输错密码 5 次账号将临时锁定 30 分钟。手机号和邮箱都无法使用时,联系客服人工申诉(需提供购买凭证与身份信息,审核 3 个工作日)。详见《账号与安全》。  ## 可以在一个家里用多个账号吗  推荐做法是\"家庭共享\":主账号在 App\"家庭管理\"中邀请成员(免费版 2 人、家庭版 6 人、专业版 10 人),成员用自己的账号即可查看和控制设备,无需共"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "以下情形无需继续自查,建议直接申请售后(App\"我的\"→\"售后报修\"或在线客服):指示灯完全不亮且换线换插座无效;扬声器物理破音(E004);麦克风阵列故障(E003);设备进水、外壳开裂;网关反复重启(E013);错误码手册中标注\"需报修\"的所有情形。保修期内免费维修并支持全国免费上门取送;保修范围与期限见《保修与售后服务政策》,维修周期一般 3-5 个工作日。 "
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "# 物流与配送说明  ## 配送范围  - 全国配送:覆盖中国大陆所有省市区,港澳台地区经转运发货 - 海外配送:支持美国、日本、韩国、新加坡、马来西亚等 20+ 国家,通过 DHL / 顺丰国际发货 - 暂不配送:中国大陆的少数高海拔无人区乡镇(下单时地址校验会提示) - 海外订单关税:商品价格不含目的国关税,如产生由收件人承担  ## 配送方式与运费  | 配送方式 | 时效 | 运费 | 适用地区 | |---------|------|------|---------"
+        }
+      ]
+    },
+    {
+      "id": "eval-007",
+      "query": "再见",
+      "category": "结束对话",
+      "expected_intent": "ending",
+      "predicted_intent": "ending",
+      "intent_correct": true,
+      "expected_emotion": "happy",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 5,
+      "rag_ms": 2977.5,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "# 物流与配送说明  ## 配送范围  - 全国配送:覆盖中国大陆所有省市区,港澳台地区经转运发货 - 海外配送:支持美国、日本、韩国、新加坡、马来西亚等 20+ 国家,通过 DHL / 顺丰国际发货 - 暂不配送:中国大陆的少数高海拔无人区乡镇(下单时地址校验会提示) - 海外订单关税:商品价格不含目的国关税,如产生由收件人承担  ## 配送方式与运费  | 配送方式 | 时效 | 运费 | 适用地区 | |---------|------|------|---------"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.198982,
+          "snippet": "退款进度在 App\"我的订单\"→\"退款/售后\"中实时查看,状态依次为:已申请→审核通过→已寄回→验货中→退款中→已到账。超过 7 个工作日未到账:先核对原支付渠道账单(信用卡退款可能显示为\"退款入账\"而非消费冲正),仍未收到请联系在线客服,提供订单号与退款单号,财务将在 2 个工作日内核查回复。  ## 电商平台订单退换说明  京东、天猫、亚马逊全球购订单的退换货按下单平台的流程发起(平台\"我的订单\"→申请售后),退款路径与时效以平台规则为准;7 天无理由、15 天质量退换的"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.198982,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.198981,
+          "snippet": "## 忘记密码怎么办  App 登录页点击\"忘记密码\",通过注册手机号接收短信验证码重置;手机号不可用时可用绑定邮箱重置。连续输错密码 5 次账号将临时锁定 30 分钟。手机号和邮箱都无法使用时,联系客服人工申诉(需提供购买凭证与身份信息,审核 3 个工作日)。详见《账号与安全》。  ## 可以在一个家里用多个账号吗  推荐做法是\"家庭共享\":主账号在 App\"家庭管理\"中邀请成员(免费版 2 人、家庭版 6 人、专业版 10 人),成员用自己的账号即可查看和控制设备,无需共"
+        }
+      ]
+    },
+    {
+      "id": "eval-008",
+      "query": "好了，没事了",
+      "category": "结束对话",
+      "expected_intent": "ending",
+      "predicted_intent": "ending",
+      "intent_correct": true,
+      "expected_emotion": "happy",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 5,
+      "rag_ms": 2783.4,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.198982,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "以下情形无需继续自查,建议直接申请售后(App\"我的\"→\"售后报修\"或在线客服):指示灯完全不亮且换线换插座无效;扬声器物理破音(E004);麦克风阵列故障(E003);设备进水、外壳开裂;网关反复重启(E013);错误码手册中标注\"需报修\"的所有情形。保修期内免费维修并支持全国免费上门取送;保修范围与期限见《保修与售后服务政策》,维修周期一般 3-5 个工作日。 "
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "插座指示灯亮、App 显示在线,但接的电器不工作:1) 确认 App/语音已将插座置于\"开\"状态;2) 检查电器自身开关;3) 负载超过 2500W/10A 时插座过载保护自动断开(App 会推送过载告警,报 E018),移除大功率电器后在 App 中手动恢复;4) 能耗统计显示 0W 但电器在工作,重启插座后数据恢复上报。电暖器、电热水器等大功率设备请核对功率后再接入。  ## 窗帘电机问题  - 不动作:检查电源;确认已与网关配对(离线时 App 置灰);行程未设置时电机"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "- 杂音、电流声:先检查固件更新;将音箱远离微波炉、无线充电器等干扰源;更换插座排除电源纹波 - 大音量破音:X-100 功率较小,长期最大音量播放重低音易破音,建议音量不超过 80%;X-200/X-300 Pro 出现破音多为扬声器受损,联系售后检测 - 播放卡顿、断断续续:多为网络带宽不足,测试家中下行速度(在线音乐建议 ≥4Mbps);蓝牙模式卡顿则缩短手机与音箱距离(10 米内) - 单声道输出属正常现象,X-100/X-200 为全频单元设计;X-300 Pro "
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "# 故障排除指南  ## 通用排障流程  遇到任何设备问题,建议按顺序执行:1) 重启设备(拔插电源或长按电源键);2) 检查网络(路由器是否正常、其他设备能否上网);3) App\"设备管理\"查看设备状态与错误码(错误码含义见《错误码手册》);4) 检查固件是否为最新版本;5) 仍无效则恢复出厂设置(长按 Reset 键 10 秒);6) 联系在线客服(7×24)或热线 400-888-8888(工作日 9:00-18:00)。  ## 音箱无法开机  - 检查电源适配器是否"
+        }
+      ]
+    },
+    {
+      "id": "eval-009",
+      "query": "不用了谢谢",
+      "category": "结束对话",
+      "expected_intent": "ending",
+      "predicted_intent": "ending",
+      "intent_correct": true,
+      "expected_emotion": "happy",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 5,
+      "rag_ms": 2731.5,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "error-codes",
+          "source": "error-codes",
+          "score": 0.448981,
+          "snippet": "含义:内部温度过高,设备自动降功率或停机保护。自查:1) 移离阳光直射、暖气、功放等热源;2) 确保散热孔不被织物遮挡;3) 断电冷却 30 分钟后再开机;4) 使用原装适配器。是否需报修:环境正常仍频繁触发(每天多次)需报修检测电源模块。  ## E008 音频解码失败  含义:在线音源解码异常,表现为部分歌曲无法播放或跳歌。自查:1) 更新固件;2) 切换其他歌曲/平台测试(单曲无法播放多为平台版权变动,非故障);3) 重启音箱。是否需报修:不需要;全部音源均无法解码且固"
+        },
+        {
+          "title": "account-security",
+          "source": "account-security",
+          "score": 0.44898,
+          "snippet": "所有数据传输与存储采用 AES-256 加密;服务器通过等保三级认证;云服务 SLA 99.9%。语音唤醒词本地处理不上传;对话内容默认不保存。智联科技不会将用户数据分享给第三方或用于商业用途;摄像头视频仅账号本人及被授权的家庭成员可访问,员工无查看权限(维修调试需用户在工单中临时授权,且操作留痕)。安全漏洞报告邮箱:security@smartlinktech.com。  ## 未成年人与儿童模式  智联账号需年满 14 周岁注册;未满 14 周岁应由监护人注册并管理。音箱"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.198982,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "# 故障排除指南  ## 通用排障流程  遇到任何设备问题,建议按顺序执行:1) 重启设备(拔插电源或长按电源键);2) 检查网络(路由器是否正常、其他设备能否上网);3) App\"设备管理\"查看设备状态与错误码(错误码含义见《错误码手册》);4) 检查固件是否为最新版本;5) 仍无效则恢复出厂设置(长按 Reset 键 10 秒);6) 联系在线客服(7×24)或热线 400-888-8888(工作日 9:00-18:00)。  ## 音箱无法开机  - 检查电源适配器是否"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        }
+      ]
+    },
+    {
+      "id": "eval-010",
+      "query": "谢谢，解决了",
+      "category": "结束对话",
+      "expected_intent": "ending",
+      "predicted_intent": "consult",
+      "intent_correct": false,
+      "expected_emotion": "happy",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 5,
+      "rag_ms": 1744.2,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.198982,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "以下情形无需继续自查,建议直接申请售后(App\"我的\"→\"售后报修\"或在线客服):指示灯完全不亮且换线换插座无效;扬声器物理破音(E004);麦克风阵列故障(E003);设备进水、外壳开裂;网关反复重启(E013);错误码手册中标注\"需报修\"的所有情形。保修期内免费维修并支持全国免费上门取送;保修范围与期限见《保修与售后服务政策》,维修周期一般 3-5 个工作日。 "
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "- 杂音、电流声:先检查固件更新;将音箱远离微波炉、无线充电器等干扰源;更换插座排除电源纹波 - 大音量破音:X-100 功率较小,长期最大音量播放重低音易破音,建议音量不超过 80%;X-200/X-300 Pro 出现破音多为扬声器受损,联系售后检测 - 播放卡顿、断断续续:多为网络带宽不足,测试家中下行速度(在线音乐建议 ≥4Mbps);蓝牙模式卡顿则缩短手机与音箱距离(10 米内) - 单声道输出属正常现象,X-100/X-200 为全频单元设计;X-300 Pro "
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "# 故障排除指南  ## 通用排障流程  遇到任何设备问题,建议按顺序执行:1) 重启设备(拔插电源或长按电源键);2) 检查网络(路由器是否正常、其他设备能否上网);3) App\"设备管理\"查看设备状态与错误码(错误码含义见《错误码手册》);4) 检查固件是否为最新版本;5) 仍无效则恢复出厂设置(长按 Reset 键 10 秒);6) 联系在线客服(7×24)或热线 400-888-8888(工作日 9:00-18:00)。  ## 音箱无法开机  - 检查电源适配器是否"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        }
+      ]
+    },
+    {
+      "id": "eval-011",
+      "query": "音箱怎么连接 WiFi",
+      "category": "配网",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "WiFi",
+        "连接"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 5359.4,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.754537,
+          "snippet": "# 故障排除指南  ## 通用排障流程  遇到任何设备问题,建议按顺序执行:1) 重启设备(拔插电源或长按电源键);2) 检查网络(路由器是否正常、其他设备能否上网);3) App\"设备管理\"查看设备状态与错误码(错误码含义见《错误码手册》);4) 检查固件是否为最新版本;5) 仍无效则恢复出厂设置(长按 Reset 键 10 秒);6) 联系在线客服(7×24)或热线 400-888-8888(工作日 9:00-18:00)。  ## 音箱无法开机  - 检查电源适配器是否"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.754537,
+          "snippet": "X-200 定价 ¥399,是销量最高的主力型号。扬声器:2.25 英寸全频单元 + 被动辐射器,额定功率 15W;麦克风:6 麦阵列,远场拾音距离达 5 米;连接:WiFi 6(802.11ax,兼容 2.4GHz/5GHz)+ 蓝牙 5.2;接口:3.5mm 音频输出、USB-C 供电(15W);功耗:15W;尺寸:110×110×150mm,重量 780g;颜色:曜石黑、云朵白、雾霾蓝。整机保修 1 年,主要部件保修 2 年。  ## 智能音箱 X-300 Pro(旗舰"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.754537,
+          "snippet": "对音箱说\"进入蓝牙模式\",音箱开始广播蓝牙信号,在手机蓝牙设置中搜索\"SmartLink Speaker-XXXX\"(后四位为设备编号)配对即可。说\"退出蓝牙模式\"切回 WiFi 模式。音箱最多记忆 8 个已配对蓝牙设备,超出后自动覆盖最早记录。蓝牙模式下语音助手仍可用,但在线音乐服务暂停。X-200 及以上支持蓝牙回连:开机后自动连接最近一次配对的设备。  ## 智能音箱指示灯状态说明  - 蓝灯快闪:配网模式,等待连接 - 蓝灯慢闪:正在连接 WiFi - 白灯常亮:正常"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.754537,
+          "snippet": "# 智联科技产品知识手册  ## 产品线总览  智联科技目前在售三大产品线:智能音箱(X-100 / X-200 / X-300 Pro 三档型号)、智能家居套装(基础版 / 全屋版两档)、云服务(免费版 / 家庭版 / 专业版三档订阅)。所有硬件通过\"智联生活\"App 统一管理,App 支持 iOS 14.0+ 与 Android 8.0+。官方购买渠道:官网 www.smartlinktech.com、京东旗舰店、天猫旗舰店,部分型号在亚马逊全球购有售。客服热线 400-"
+        },
+        {
+          "title": "installation-guide",
+          "source": "installation-guide",
+          "score": 0.754537,
+          "snippet": "# 安装与配网指南  ## 安装前准备清单  1. 手机安装\"智联生活\"App(iOS 14.0+ / Android 8.0+)并注册登录 2. 确认家中 WiFi:X-100 与网关 G1 仅支持 2.4GHz;X-200/X-300 Pro/G2 Pro 支持 2.4GHz/5GHz;所有设备不支持需网页认证的 Portal 网络 3. 准备 WiFi 密码(区分大小写) 4. 手机权限:Android 需开启\"位置信息\"权限(系统要求,用于扫描设备);iOS 需允许\""
+        }
+      ]
+    },
+    {
+      "id": "eval-012",
+      "query": "蓝牙一直连不上，怎么办",
+      "category": "连接故障",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "anxious",
+      "predicted_emotion": "anxious",
+      "emotion_intensity": 3,
+      "emotion_source": "keyword",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "蓝牙",
+        "配对"
+      ],
+      "rag_rank": 2,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.6,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.398982,
+          "snippet": "# 物流与配送说明  ## 配送范围  - 全国配送:覆盖中国大陆所有省市区,港澳台地区经转运发货 - 海外配送:支持美国、日本、韩国、新加坡、马来西亚等 20+ 国家,通过 DHL / 顺丰国际发货 - 暂不配送:中国大陆的少数高海拔无人区乡镇(下单时地址校验会提示) - 海外订单关税:商品价格不含目的国关税,如产生由收件人承担  ## 配送方式与运费  | 配送方式 | 时效 | 运费 | 适用地区 | |---------|------|------|---------"
+        },
+        {
+          "title": "installation-guide",
+          "source": "installation-guide",
+          "score": 0.398981,
+          "snippet": "1. 撕开背胶前先规划位置:主体贴门框/窗框(固定侧),磁体贴门扇/窗扇(活动侧),闭合时两片间距小于 2cm 且尽量平行 2. 拉出电池绝缘片激活,指示灯慢闪进入配对模式(不闪则用卡针按重置孔 5 秒) 3. App\"添加设备\"→\"Zigbee 子设备\"→\"门窗传感器\"→选择网关→\"自动搜索\" 4. 安装面清洁干燥后再贴,低温环境建议先用手焐热背胶 5. 电池 CR2032,典型续航 12 个月,低于 20% 推送提醒(E017)  ## 温湿度/人体传感器安装  温湿度传"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.398981,
+          "snippet": "## 忘记密码怎么办  App 登录页点击\"忘记密码\",通过注册手机号接收短信验证码重置;手机号不可用时可用绑定邮箱重置。连续输错密码 5 次账号将临时锁定 30 分钟。手机号和邮箱都无法使用时,联系客服人工申诉(需提供购买凭证与身份信息,审核 3 个工作日)。详见《账号与安全》。  ## 可以在一个家里用多个账号吗  推荐做法是\"家庭共享\":主账号在 App\"家庭管理\"中邀请成员(免费版 2 人、家庭版 6 人、专业版 10 人),成员用自己的账号即可查看和控制设备,无需共"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.298982,
+          "snippet": "- 杂音、电流声:先检查固件更新;将音箱远离微波炉、无线充电器等干扰源;更换插座排除电源纹波 - 大音量破音:X-100 功率较小,长期最大音量播放重低音易破音,建议音量不超过 80%;X-200/X-300 Pro 出现破音多为扬声器受损,联系售后检测 - 播放卡顿、断断续续:多为网络带宽不足,测试家中下行速度(在线音乐建议 ≥4Mbps);蓝牙模式卡顿则缩短手机与音箱距离(10 米内) - 单声道输出属正常现象,X-100/X-200 为全频单元设计;X-300 Pro "
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.298982,
+          "snippet": "# 故障排除指南  ## 通用排障流程  遇到任何设备问题,建议按顺序执行:1) 重启设备(拔插电源或长按电源键);2) 检查网络(路由器是否正常、其他设备能否上网);3) App\"设备管理\"查看设备状态与错误码(错误码含义见《错误码手册》);4) 检查固件是否为最新版本;5) 仍无效则恢复出厂设置(长按 Reset 键 10 秒);6) 联系在线客服(7×24)或热线 400-888-8888(工作日 9:00-18:00)。  ## 音箱无法开机  - 检查电源适配器是否"
+        }
+      ]
+    },
+    {
+      "id": "eval-013",
+      "query": "我的订单到哪了",
+      "category": "物流",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "订单",
+        "物流"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.7,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 1.032315,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.698982,
+          "snippet": "# 物流与配送说明  ## 配送范围  - 全国配送:覆盖中国大陆所有省市区,港澳台地区经转运发货 - 海外配送:支持美国、日本、韩国、新加坡、马来西亚等 20+ 国家,通过 DHL / 顺丰国际发货 - 暂不配送:中国大陆的少数高海拔无人区乡镇(下单时地址校验会提示) - 海外订单关税:商品价格不含目的国关税,如产生由收件人承担  ## 配送方式与运费  | 配送方式 | 时效 | 运费 | 适用地区 | |---------|------|------|---------"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.698982,
+          "snippet": "退款进度在 App\"我的订单\"→\"退款/售后\"中实时查看,状态依次为:已申请→审核通过→已寄回→验货中→退款中→已到账。超过 7 个工作日未到账:先核对原支付渠道账单(信用卡退款可能显示为\"退款入账\"而非消费冲正),仍未收到请联系在线客服,提供订单号与退款单号,财务将在 2 个工作日内核查回复。  ## 电商平台订单退换说明  京东、天猫、亚马逊全球购订单的退换货按下单平台的流程发起(平台\"我的订单\"→申请售后),退款路径与时效以平台规则为准;7 天无理由、15 天质量退换的"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.698982,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.698981,
+          "snippet": "# 常见问题解答 (FAQ)  ## 在哪里可以购买产品  智联科技官网(www.smartlinktech.com)、京东旗舰店、天猫旗舰店均有销售,部分型号也在亚马逊全球购提供。官网与电商旗舰店价格一致:智能音箱 X-100 ¥199、X-200 ¥399、X-300 Pro ¥699;智能家居套装基础版 ¥499、全屋版 ¥1299。线下暂无直营门店,请认准官方渠道,非官方渠道购买的产品可能无法享受保修。  ## 支持哪些支付方式  官网支持微信支付、支付宝、银联卡、信"
+        }
+      ]
+    },
+    {
+      "id": "eval-014",
+      "query": "退货需要什么条件",
+      "category": "退换货",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "退货",
+        "7 天"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.3,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.484696,
+          "snippet": "- 同型号换货:免费,来回运费由我方承担(质量问题);无理由换货(如换颜色)寄回运费用户承担 - 不同型号换货:补差价或退差价,按下单时实付价与新型号现价计算 - 换货周期:整体 7-10 个工作日(寄回 2-3 天 + 验货 1-2 天 + 发出新品 2-5 天) - 换新的商品重新计算 7 天无理由与 15 天质量退换期,保修期仍自原始购买日起算  ## 套装类商品退货规则  智能家居套装(基础版 ¥499 / 全屋版 ¥1299)按整套价格销售,7 天无理由退货需整套退"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.484696,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        },
+        {
+          "title": "error-codes",
+          "source": "error-codes",
+          "score": 0.484695,
+          "snippet": "含义:下单或订阅扣款未成功。自查:1) 核对支付渠道余额/限额;2) 更换微信/支付宝/银联渠道;3) 订单 30 分钟未支付自动取消,重新下单;4) 重复扣款请勿担心,渠道会在 1-7 个工作日自动原路退回。是否需报修:不需要;重复扣款超 7 个工作日未退,凭流水号提交工单。  ## E041 优惠券不可用  含义:结算时优惠券置灰或报错。自查:1) 核对有效期与使用门槛(如满 ¥199 减 ¥20);2) 每单限用 1 张,不可叠加其他券;3) 部分券限品类(仅音箱/仅套"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.341839,
+          "snippet": "以旧换新抵扣可与 1 张优惠券、积分抵扣同时使用,三者叠加后订单实付不得低于新品价格的 30%(低于时系统自动限制积分抵扣额)。换新订单支持 7 天无理由退货:退货时退还实付金额,旧机抵扣额以等值余额返还(旧机不退回,因已进入环保拆解流程)——对旧机有留恋的用户请谨慎使用换新。换新订单同样累计积分与会员等级(按实付金额)。  ## 新用户专享  新注册账号 7 天内可领\"新人礼包\":满 ¥199 减 ¥20 优惠券 ×1、云服务家庭版 1 个月体验券 ×1(需手动激活,体验期"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.341839,
+          "snippet": "- 智能灯泡(¥49/只):E27 接口,9W,亮度 806 流明,色温 2700K-6500K 可调,支持 RGB 1600 万色,执行器类保修 1.5 年 - 智能插座(¥59/只):最大负载 2500W/10A,支持能耗统计,执行器类保修 1.5 年 - 门窗传感器(¥39/只):CR2032 纽扣电池,典型续航 12 个月,传感器类保修 1 年 - 温湿度传感器(¥49/只):CR2032 电池,精度 ±0.3℃/±3%RH,保修 1 年 - 人体传感器(¥59/只)"
+        }
+      ]
+    },
+    {
+      "id": "eval-015",
+      "query": "产品保修期多长",
+      "category": "保修售后",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "保修",
+        "2 年"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 4,
+      "rag_ms": 4.4,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.865648,
+          "snippet": "语音唤醒词在本地处理,不会上传云端。对话内容默认不保存,用户可选择开启\"对话记录\"功能用于调试,开启后记录保存在云端 30 天,可随时手动删除或关闭功能。App\"隐私管理\"中可一键清空全部语音记录并撤回授权,详见《账号与安全》。  ## 智能家居数据是否安全  所有数据传输与存储使用 AES-256 加密,服务器通过等保三级认证,云服务 SLA 承诺 99.9% 可用性。智联科技不会将用户数据分享给第三方,也不会用于任何商业用途。摄像头录像仅账号本人及授权的家庭成员可查看。 "
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.698982,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.698982,
+          "snippet": "# 保修与售后服务政策  ## 保修期限总表  | 产品/部件 | 保修期 | |-----------|--------| | 智能音箱整机(X-100/X-200/X-300 Pro) | 1 年 | | 音箱主要部件(扬声器单元、主板、电源适配器) | 2 年 | | 智能家居网关(G1/G2 Pro) | 2 年 | | 传感器类(门窗、温湿度、人体) | 1 年 | | 执行器类(智能灯泡、插座、窗帘电机) | 1.5 年 | | 电池(CR2032 等) | 不保"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.532315,
+          "snippet": "保修期内硬件故障,中国大陆全境支持免费上门取件、修复后免费寄回(顺丰上门,预约后 1-2 天内取件)。用户需配合:寄出前解绑设备并尽量恢复出厂设置;保留原包装或妥善包装(无包装可要求快递员提供纸箱,费用我方承担)。保外维修同样可用上门取送,但来回运费实收(约 ¥25),与维修费一并结算。  ## 保修排除情况  以下情况不在免费保修范围内(可转有偿维修):  - 人为损坏:摔落、进水、挤压、私自拆解、使用非原装电源适配器导致的损坏 - 非官方渠道购买的整机或使用非官方配件引发"
+        }
+      ]
+    },
+    {
+      "id": "eval-016",
+      "query": "忘记密码怎么找回",
+      "category": "账号安全",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "anxious",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "忘记密码",
+        "短信验证码"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 4.7,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.913267,
+          "snippet": "## 忘记密码怎么办  App 登录页点击\"忘记密码\",通过注册手机号接收短信验证码重置;手机号不可用时可用绑定邮箱重置。连续输错密码 5 次账号将临时锁定 30 分钟。手机号和邮箱都无法使用时,联系客服人工申诉(需提供购买凭证与身份信息,审核 3 个工作日)。详见《账号与安全》。  ## 可以在一个家里用多个账号吗  推荐做法是\"家庭共享\":主账号在 App\"家庭管理\"中邀请成员(免费版 2 人、家庭版 6 人、专业版 10 人),成员用自己的账号即可查看和控制设备,无需共"
+        },
+        {
+          "title": "account-security",
+          "source": "account-security",
+          "score": 0.770409,
+          "snippet": "# 账号与安全  ## 注册账号  \"智联生活\"App 支持手机号+短信验证码注册(中国大陆手机号),注册即自动创建智联账号,可用于官网、App 与开放平台。海外用户可用邮箱注册(功能相同,但部分内容服务受地区版权限制)。一个手机号/邮箱只能注册一个账号。注册后建议立即:1) 设置登录密码(8-20 位,须含字母与数字);2) 绑定邮箱作为备用验证方式;3) 完善收货地址与发票抬头。  ## 登录方式与登录保护  支持:短信验证码登录、密码登录、微信一键登录(需先绑定微信)。"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.627553,
+          "snippet": "插座指示灯亮、App 显示在线,但接的电器不工作:1) 确认 App/语音已将插座置于\"开\"状态;2) 检查电器自身开关;3) 负载超过 2500W/10A 时插座过载保护自动断开(App 会推送过载告警,报 E018),移除大功率电器后在 App 中手动恢复;4) 能耗统计显示 0W 但电器在工作,重启插座后数据恢复上报。电暖器、电热水器等大功率设备请核对功率后再接入。  ## 窗帘电机问题  - 不动作:检查电源;确认已与网关配对(离线时 App 置灰);行程未设置时电机"
+        },
+        {
+          "title": "error-codes",
+          "source": "error-codes",
+          "score": 0.627552,
+          "snippet": "含义:请求的时间段无录像。自查:1) 核对套餐回放期:免费版 3 天滚动、家庭版 30 天、专业版 90 天,超期录像已自动删除;2) 该时段若摄像头离线或仅开启移动侦测且无事件,则本无录像。是否需报修:不需要,属策略限制。  ## E032 家庭成员共享失败  含义:邀请家庭成员超出套餐上限或对方账号异常。自查:1) 成员上限:免费版 2 人、家庭版 6 人、专业版 10 人,超限先移除旧成员或升级套餐;2) 确认对方已注册智联账号且未在 30 天注销冷静期内。是否需报修:"
+        },
+        {
+          "title": "installation-guide",
+          "source": "installation-guide",
+          "score": 0.484696,
+          "snippet": "1. 撕开背胶前先规划位置:主体贴门框/窗框(固定侧),磁体贴门扇/窗扇(活动侧),闭合时两片间距小于 2cm 且尽量平行 2. 拉出电池绝缘片激活,指示灯慢闪进入配对模式(不闪则用卡针按重置孔 5 秒) 3. App\"添加设备\"→\"Zigbee 子设备\"→\"门窗传感器\"→选择网关→\"自动搜索\" 4. 安装面清洁干燥后再贴,低温环境建议先用手焐热背胶 5. 电池 CR2032,典型续航 12 个月,低于 20% 推送提醒(E017)  ## 温湿度/人体传感器安装  温湿度传"
+        }
+      ]
+    },
+    {
+      "id": "eval-017",
+      "query": "支持哪些支付方式",
+      "category": "支付",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "支付",
+        "微信"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.3,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 1.198981,
+          "snippet": "# 常见问题解答 (FAQ)  ## 在哪里可以购买产品  智联科技官网(www.smartlinktech.com)、京东旗舰店、天猫旗舰店均有销售,部分型号也在亚马逊全球购提供。官网与电商旗舰店价格一致:智能音箱 X-100 ¥199、X-200 ¥399、X-300 Pro ¥699;智能家居套装基础版 ¥499、全屋版 ¥1299。线下暂无直营门店,请认准官方渠道,非官方渠道购买的产品可能无法享受保修。  ## 支持哪些支付方式  官网支持微信支付、支付宝、银联卡、信"
+        },
+        {
+          "title": "billing-invoices",
+          "source": "billing-invoices",
+          "score": 0.770409,
+          "snippet": "# 计费与发票说明  ## 支付方式总览  官网/App 支持微信支付、支付宝、银联卡、信用卡;订单满 ¥3000 支持花呗/信用卡 3 期免息分期;企业采购支持对公转账(见《优惠活动与会员权益》)。云服务订阅仅支持微信、支付宝,并可开启自动续费。电商平台(京东/天猫/亚马逊全球购)订单按各平台支付方式。账户余额(退款所得)可直接抵扣任意官网订单,不可提现部分以充值记录为准——退款转入的余额可随时再提现至原支付账户。  ## 订单支付时限与自动取消  下单后 30 分钟内未完"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.627553,
+          "snippet": "小房间/预算有限选 X-100(¥199,拾音 3 米,仅 2.4GHz WiFi);客厅主力和大多数家庭选 X-200(¥399,拾音 5 米,WiFi 6,音质均衡);想要全屋智能、省掉网关的选 X-300 Pro(¥699,拾音 8 米,30W 音质,内置 Zigbee 网关可接 128 个子设备)。已有基础版/全屋版套装(自带网关)的用户选 X-100 或 X-200 即可。  ## 家居套装基础版和全屋版怎么选  基础版 ¥499 适合一居室或初次尝试:网关 G1("
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.484696,
+          "snippet": "# 物流与配送说明  ## 配送范围  - 全国配送:覆盖中国大陆所有省市区,港澳台地区经转运发货 - 海外配送:支持美国、日本、韩国、新加坡、马来西亚等 20+ 国家,通过 DHL / 顺丰国际发货 - 暂不配送:中国大陆的少数高海拔无人区乡镇(下单时地址校验会提示) - 海外订单关税:商品价格不含目的国关税,如产生由收件人承担  ## 配送方式与运费  | 配送方式 | 时效 | 运费 | 适用地区 | |---------|------|------|---------"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.484696,
+          "snippet": "| 套餐 | 价格 | 存储 | 摄像头回放 | 其他权益 | |------|------|------|-----------|----------| | 免费版 | ¥0 | 5GB | 3 天滚动 | 基础功能 | | 家庭版 | ¥18/月 或 ¥180/年 | 50GB | 30 天 | 家庭共享 6 人、优先客服 | | 专业版 | ¥38/月 或 ¥380/年 | 500GB | 90 天 | 专属客服、开放平台 API 权限 |  年付相当于 10 个月价格"
+        }
+      ]
+    },
+    {
+      "id": "eval-018",
+      "query": "怎么修改发票抬头",
+      "category": "发票",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "发票",
+        "抬头"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.1,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "billing-invoices",
+          "source": "billing-invoices",
+          "score": 0.627552,
+          "snippet": "# 计费与发票说明  ## 支付方式总览  官网/App 支持微信支付、支付宝、银联卡、信用卡;订单满 ¥3000 支持花呗/信用卡 3 期免息分期;企业采购支持对公转账(见《优惠活动与会员权益》)。云服务订阅仅支持微信、支付宝,并可开启自动续费。电商平台(京东/天猫/亚马逊全球购)订单按各平台支付方式。账户余额(退款所得)可直接抵扣任意官网订单,不可提现部分以充值记录为准——退款转入的余额可随时再提现至原支付账户。  ## 订单支付时限与自动取消  下单后 30 分钟内未完"
+        },
+        {
+          "title": "account-security",
+          "source": "account-security",
+          "score": 0.627552,
+          "snippet": "# 账号与安全  ## 注册账号  \"智联生活\"App 支持手机号+短信验证码注册(中国大陆手机号),注册即自动创建智联账号,可用于官网、App 与开放平台。海外用户可用邮箱注册(功能相同,但部分内容服务受地区版权限制)。一个手机号/邮箱只能注册一个账号。注册后建议立即:1) 设置登录密码(8-20 位,须含字母与数字);2) 绑定邮箱作为备用验证方式;3) 完善收货地址与发票抬头。  ## 登录方式与登录保护  支持:短信验证码登录、密码登录、微信一键登录(需先绑定微信)。"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.484696,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.484696,
+          "snippet": "# 物流与配送说明  ## 配送范围  - 全国配送:覆盖中国大陆所有省市区,港澳台地区经转运发货 - 海外配送:支持美国、日本、韩国、新加坡、马来西亚等 20+ 国家,通过 DHL / 顺丰国际发货 - 暂不配送:中国大陆的少数高海拔无人区乡镇(下单时地址校验会提示) - 海外订单关税:商品价格不含目的国关税,如产生由收件人承担  ## 配送方式与运费  | 配送方式 | 时效 | 运费 | 适用地区 | |---------|------|------|---------"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.484695,
+          "snippet": "## 忘记密码怎么办  App 登录页点击\"忘记密码\",通过注册手机号接收短信验证码重置;手机号不可用时可用绑定邮箱重置。连续输错密码 5 次账号将临时锁定 30 分钟。手机号和邮箱都无法使用时,联系客服人工申诉(需提供购买凭证与身份信息,审核 3 个工作日)。详见《账号与安全》。  ## 可以在一个家里用多个账号吗  推荐做法是\"家庭共享\":主账号在 App\"家庭管理\"中邀请成员(免费版 2 人、家庭版 6 人、专业版 10 人),成员用自己的账号即可查看和控制设备,无需共"
+        }
+      ]
+    },
+    {
+      "id": "eval-019",
+      "query": "网关红灯一直亮怎么办",
+      "category": "网关故障",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "anxious",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "网关",
+        "离线"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.9,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.643426,
+          "snippet": "## 忘记密码怎么办  App 登录页点击\"忘记密码\",通过注册手机号接收短信验证码重置;手机号不可用时可用绑定邮箱重置。连续输错密码 5 次账号将临时锁定 30 分钟。手机号和邮箱都无法使用时,联系客服人工申诉(需提供购买凭证与身份信息,审核 3 个工作日)。详见《账号与安全》。  ## 可以在一个家里用多个账号吗  推荐做法是\"家庭共享\":主账号在 App\"家庭管理\"中邀请成员(免费版 2 人、家庭版 6 人、专业版 10 人),成员用自己的账号即可查看和控制设备,无需共"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.421204,
+          "snippet": "- 检查网关电源与指示灯:红灯为离线,白灯正常 - G1 仅支持 2.4GHz WiFi;G2 Pro 优先使用有线网口,更稳定 - 路由器重启或改过 WiFi 密码后,网关需重新配网(长按 Reset 5 秒进入黄灯闪烁配网模式) - 频繁掉线:将网关移近路由器(3 米内),避开金属柜、微波炉;检查路由器 DHCP 地址池是否已满 - G2 Pro 断电后靠内置电池续航 4 小时,期间 App 显示\"电池供电\"而非离线 - 报 E011(网关离线)持续 10 分钟以上,按错"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.421204,
+          "snippet": "| 套餐 | 价格 | 存储 | 摄像头回放 | 其他权益 | |------|------|------|-----------|----------| | 免费版 | ¥0 | 5GB | 3 天滚动 | 基础功能 | | 家庭版 | ¥18/月 或 ¥180/年 | 50GB | 30 天 | 家庭共享 6 人、优先客服 | | 专业版 | ¥38/月 或 ¥380/年 | 500GB | 90 天 | 专属客服、开放平台 API 权限 |  年付相当于 10 个月价格"
+        },
+        {
+          "title": "installation-guide",
+          "source": "installation-guide",
+          "score": 0.421203,
+          "snippet": "1. 将 G1 插在路由器附近(建议 3 米内)通电,黄灯闪烁即配网模式;未闪烁长按 Reset 键 5 秒 2. App\"添加设备\"→\"网关\"→\"G1\",流程与音箱配网相同(仅支持 2.4GHz) 3. 完成后白灯常亮;红灯表示离线,见错误码 E011 4. 摆放:远离微波炉与金属柜,居中部署使子设备都在 10 米半径内;跨楼层建议每层一个网关 5. G1 子设备上限 64 个;更换 WiFi 密码后需重新配网  ## 网关 G2 Pro 安装与配网(含有线接入)  G2 "
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.421203,
+          "snippet": "小房间/预算有限选 X-100(¥199,拾音 3 米,仅 2.4GHz WiFi);客厅主力和大多数家庭选 X-200(¥399,拾音 5 米,WiFi 6,音质均衡);想要全屋智能、省掉网关的选 X-300 Pro(¥699,拾音 8 米,30W 音质,内置 Zigbee 网关可接 128 个子设备)。已有基础版/全屋版套装(自带网关)的用户选 X-100 或 X-200 即可。  ## 家居套装基础版和全屋版怎么选  基础版 ¥499 适合一居室或初次尝试:网关 G1("
+        }
+      ]
+    },
+    {
+      "id": "eval-020",
+      "query": "错误码 E1001 是什么意思",
+      "category": "错误码",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "E1001",
+        "错误码"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 4.6,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.698981,
+          "snippet": "X-200 定价 ¥399,是销量最高的主力型号。扬声器:2.25 英寸全频单元 + 被动辐射器,额定功率 15W;麦克风:6 麦阵列,远场拾音距离达 5 米;连接:WiFi 6(802.11ax,兼容 2.4GHz/5GHz)+ 蓝牙 5.2;接口:3.5mm 音频输出、USB-C 供电(15W);功耗:15W;尺寸:110×110×150mm,重量 780g;颜色:曜石黑、云朵白、雾霾蓝。整机保修 1 年,主要部件保修 2 年。  ## 智能音箱 X-300 Pro(旗舰"
+        },
+        {
+          "title": "installation-guide",
+          "source": "installation-guide",
+          "score": 0.615648,
+          "snippet": "1. 撕开背胶前先规划位置:主体贴门框/窗框(固定侧),磁体贴门扇/窗扇(活动侧),闭合时两片间距小于 2cm 且尽量平行 2. 拉出电池绝缘片激活,指示灯慢闪进入配对模式(不闪则用卡针按重置孔 5 秒) 3. App\"添加设备\"→\"Zigbee 子设备\"→\"门窗传感器\"→选择网关→\"自动搜索\" 4. 安装面清洁干燥后再贴,低温环境建议先用手焐热背胶 5. 电池 CR2032,典型续航 12 个月,低于 20% 推送提醒(E017)  ## 温湿度/人体传感器安装  温湿度传"
+        },
+        {
+          "title": "installation-guide",
+          "source": "installation-guide",
+          "score": 0.615648,
+          "snippet": "1. 将 G1 插在路由器附近(建议 3 米内)通电,黄灯闪烁即配网模式;未闪烁长按 Reset 键 5 秒 2. App\"添加设备\"→\"网关\"→\"G1\",流程与音箱配网相同(仅支持 2.4GHz) 3. 完成后白灯常亮;红灯表示离线,见错误码 E011 4. 摆放:远离微波炉与金属柜,居中部署使子设备都在 10 米半径内;跨楼层建议每层一个网关 5. G1 子设备上限 64 个;更换 WiFi 密码后需重新配网  ## 网关 G2 Pro 安装与配网(含有线接入)  G2 "
+        },
+        {
+          "title": "error-codes",
+          "source": "error-codes",
+          "score": 0.615647,
+          "snippet": "# 错误码手册  ## 错误码使用说明  错误码在 App 设备详情页、推送通知或工单诊断中显示,格式为 E+三位数字。分段规则:E001-E010 智能音箱,E011-E025 智能家居(网关与子设备),E026-E035 云服务与摄像头,E036-E048 App/账号/订单。每个条目包含含义、自查步骤、是否需报修。自查无效时,在 App\"售后报修\"提交工单并附上错误码,可显著加快诊断(客服远程诊断通常 5 分钟内完成)。  ## E001 音箱 WiFi 配网失败  含"
+        },
+        {
+          "title": "api-developer",
+          "source": "api-developer",
+          "score": 0.615647,
+          "snippet": "- `GET /v1/devices`:设备列表(分页,每页最大 100) - `GET /v1/devices/{id}/status`:单设备实时状态(在线状态、开关、亮度、温湿度读数等) - `POST /v1/devices/{id}/commands`:下发控制指令(开关、亮度、色温、窗帘开合度) - `POST /v1/scenes/{id}/trigger`:触发已创建的场景 - `GET /v1/events`:历史事件查询(最长回溯 90 天,与专业版回放期"
+        }
+      ]
+    },
+    {
+      "id": "eval-021",
+      "query": "音量怎么调节",
+      "category": "产品使用",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "音量",
+        "调节"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 2.2,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.598982,
+          "snippet": "同一账号下的 2-8 台音箱(型号可混搭)可组成音频组,实现全屋同步播放。设置方法:App→\"设备管理\"→\"音箱组网\"→勾选要组网的音箱→命名分组(如\"全屋\")。语音指令\"在全屋播放音乐\"即可同步播放。组网要求所有音箱连接同一局域网,同步延迟小于 100ms。不同型号音量特性不同,可在分组内为每台单独调节音量偏移。  ## 产品兼容性说明  - 第三方 Zigbee 3.0 设备:可接入 G1/G2 Pro 网关及 X-300 Pro,基础开关功能可用,高级功能(能耗统计、O"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.398982,
+          "snippet": "- 杂音、电流声:先检查固件更新;将音箱远离微波炉、无线充电器等干扰源;更换插座排除电源纹波 - 大音量破音:X-100 功率较小,长期最大音量播放重低音易破音,建议音量不超过 80%;X-200/X-300 Pro 出现破音多为扬声器受损,联系售后检测 - 播放卡顿、断断续续:多为网络带宽不足,测试家中下行速度(在线音乐建议 ≥4Mbps);蓝牙模式卡顿则缩短手机与音箱距离(10 米内) - 单声道输出属正常现象,X-100/X-200 为全频单元设计;X-300 Pro "
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.398982,
+          "snippet": "# 故障排除指南  ## 通用排障流程  遇到任何设备问题,建议按顺序执行:1) 重启设备(拔插电源或长按电源键);2) 检查网络(路由器是否正常、其他设备能否上网);3) App\"设备管理\"查看设备状态与错误码(错误码含义见《错误码手册》);4) 检查固件是否为最新版本;5) 仍无效则恢复出厂设置(长按 Reset 键 10 秒);6) 联系在线客服(7×24)或热线 400-888-8888(工作日 9:00-18:00)。  ## 音箱无法开机  - 检查电源适配器是否"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.398982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.398981,
+          "snippet": "- 智能灯泡(¥49/只):E27 接口,9W,亮度 806 流明,色温 2700K-6500K 可调,支持 RGB 1600 万色,执行器类保修 1.5 年 - 智能插座(¥59/只):最大负载 2500W/10A,支持能耗统计,执行器类保修 1.5 年 - 门窗传感器(¥39/只):CR2032 纽扣电池,典型续航 12 个月,传感器类保修 1 年 - 温湿度传感器(¥49/只):CR2032 电池,精度 ±0.3℃/±3%RH,保修 1 年 - 人体传感器(¥59/只)"
+        }
+      ]
+    },
+    {
+      "id": "eval-022",
+      "query": "会员有什么权益",
+      "category": "会员",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "会员",
+        "权益"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 2.7,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.865648,
+          "snippet": "## 晒单返利与社区激励  确认收货后 30 天内在 App\"社区\"发布带图评价得 50 积分/单;被官方加精的深度体验帖额外得 500 积分;上传自动化场景模板被他人使用超 100 次,得\"场景达人\"徽章 + 1000 积分。社区内容须真实原创,搬运或刷量将扣回积分并取消活动资格。积分价值:100 积分 = ¥1。  ## 价保与活动价说明  官网 7 天价保(详见《计费与发票说明》):下单 7 天内同商品官网降价可补差,但秒杀价、清仓价、用券后价不参与。大促预售:定金支付"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.698981,
+          "snippet": "## 忘记密码怎么办  App 登录页点击\"忘记密码\",通过注册手机号接收短信验证码重置;手机号不可用时可用绑定邮箱重置。连续输错密码 5 次账号将临时锁定 30 分钟。手机号和邮箱都无法使用时,联系客服人工申诉(需提供购买凭证与身份信息,审核 3 个工作日)。详见《账号与安全》。  ## 可以在一个家里用多个账号吗  推荐做法是\"家庭共享\":主账号在 App\"家庭管理\"中邀请成员(免费版 2 人、家庭版 6 人、专业版 10 人),成员用自己的账号即可查看和控制设备,无需共"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.698981,
+          "snippet": "# 常见问题解答 (FAQ)  ## 在哪里可以购买产品  智联科技官网(www.smartlinktech.com)、京东旗舰店、天猫旗舰店均有销售,部分型号也在亚马逊全球购提供。官网与电商旗舰店价格一致:智能音箱 X-100 ¥199、X-200 ¥399、X-300 Pro ¥699;智能家居套装基础版 ¥499、全屋版 ¥1299。线下暂无直营门店,请认准官方渠道,非官方渠道购买的产品可能无法享受保修。  ## 支持哪些支付方式  官网支持微信支付、支付宝、银联卡、信"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.532315,
+          "snippet": "保修期内硬件故障,中国大陆全境支持免费上门取件、修复后免费寄回(顺丰上门,预约后 1-2 天内取件)。用户需配合:寄出前解绑设备并尽量恢复出厂设置;保留原包装或妥善包装(无包装可要求快递员提供纸箱,费用我方承担)。保外维修同样可用上门取送,但来回运费实收(约 ¥25),与维修费一并结算。  ## 保修排除情况  以下情况不在免费保修范围内(可转有偿维修):  - 人为损坏:摔落、进水、挤压、私自拆解、使用非原装电源适配器导致的损坏 - 非官方渠道购买的整机或使用非官方配件引发"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.532315,
+          "snippet": "# 优惠活动与会员权益  ## 会员等级体系  按历史累计实付金额划分四级,升级即时生效,等级不降级(终身累计):  | 等级 | 门槛(累计消费) | 核心权益 | |------|------------------|----------| | 普通会员 | 注册即是 | 积分累计(1 元 = 1 积分)、生日 ¥10 券 | | 银卡会员 | 满 ¥1000 | 积分 1.2 倍、专属客服通道、生日 ¥20 券 | | 金卡会员 | 满 ¥5000 | 积分 1.5 倍"
+        }
+      ]
+    },
+    {
+      "id": "eval-023",
+      "query": "API 怎么调用",
+      "category": "开放平台",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "API",
+        "调用"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 2.7,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "api-developer",
+          "source": "api-developer",
+          "score": 0.698981,
+          "snippet": "- 技术支持:开放平台控制台工单(专业版用户 1 个工作日内响应)、开发者邮箱 dev@smartlinktech.com;工单请附 request_id(每个响应 Header 均返回) - 文档与变更:API 变更提前 30 天在控制台公告,废弃接口保留至少 6 个月过渡期 - 合规要求:通过 API 获取的用户数据仅限授权用途,禁止转售;摄像头视频流接口仅对签约企业开放 - 服务可用性:开放平台随云服务承诺 SLA 99.9%,维护窗口提前 48 小时公告  ## 专业"
+        },
+        {
+          "title": "api-developer",
+          "source": "api-developer",
+          "score": 0.698981,
+          "snippet": "# 开放平台与开发者指南  ## 开放平台简介  智联开放平台(open.smartlinktech.com)面向云服务专业版用户与企业合作伙伴,提供设备状态查询、设备控制、场景触发、事件订阅(Webhook)等 REST API,可将智联设备接入第三方系统(智慧酒店、办公楼宇、自研 App 等)。开通条件:云服务专业版订阅(¥38/月或 ¥380/年);企业合作伙伴可申请独立商务通道(b2b@smartlinktech.com)。个人免费版/家庭版用户无 API 权限,调用"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.532314,
+          "snippet": "# 常见问题解答 (FAQ)  ## 在哪里可以购买产品  智联科技官网(www.smartlinktech.com)、京东旗舰店、天猫旗舰店均有销售,部分型号也在亚马逊全球购提供。官网与电商旗舰店价格一致:智能音箱 X-100 ¥199、X-200 ¥399、X-300 Pro ¥699;智能家居套装基础版 ¥499、全屋版 ¥1299。线下暂无直营门店,请认准官方渠道,非官方渠道购买的产品可能无法享受保修。  ## 支持哪些支付方式  官网支持微信支付、支付宝、银联卡、信"
+        },
+        {
+          "title": "error-codes",
+          "source": "error-codes",
+          "score": 0.532314,
+          "snippet": "含义:下单或订阅扣款未成功。自查:1) 核对支付渠道余额/限额;2) 更换微信/支付宝/银联渠道;3) 订单 30 分钟未支付自动取消,重新下单;4) 重复扣款请勿担心,渠道会在 1-7 个工作日自动原路退回。是否需报修:不需要;重复扣款超 7 个工作日未退,凭流水号提交工单。  ## E041 优惠券不可用  含义:结算时优惠券置灰或报错。自查:1) 核对有效期与使用门槛(如满 ¥199 减 ¥20);2) 每单限用 1 张,不可叠加其他券;3) 部分券限品类(仅音箱/仅套"
+        },
+        {
+          "title": "api-developer",
+          "source": "api-developer",
+          "score": 0.532314,
+          "snippet": "- 401 Unauthorized:token 过期(2 小时)或格式错误;确认 Header 为 `Bearer {token}`,并实现过期自动刷新 - 403 Forbidden 常见三种:a) 账号非专业版订阅(会员到期自动降级也会触发,检查\"会员中心\");b) 访问了非本账号设备且未完成 OAuth 授权;c) 应用被禁用(违规或长期未用,控制台可见状态) - 排查顺序:先在控制台\"API 调试\"用同一 token 调 `GET /v1/devices`,能通则问"
+        }
+      ]
+    },
+    {
+      "id": "eval-024",
+      "query": "怎么申请维修",
+      "category": "保修售后",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "anxious",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "维修",
+        "保修"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 2.3,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.598982,
+          "snippet": "# 保修与售后服务政策  ## 保修期限总表  | 产品/部件 | 保修期 | |-----------|--------| | 智能音箱整机(X-100/X-200/X-300 Pro) | 1 年 | | 音箱主要部件(扬声器单元、主板、电源适配器) | 2 年 | | 智能家居网关(G1/G2 Pro) | 2 年 | | 传感器类(门窗、温湿度、人体) | 1 年 | | 执行器类(智能灯泡、插座、窗帘电机) | 1.5 年 | | 电池(CR2032 等) | 不保"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.598982,
+          "snippet": "以下情形无需继续自查,建议直接申请售后(App\"我的\"→\"售后报修\"或在线客服):指示灯完全不亮且换线换插座无效;扬声器物理破音(E004);麦克风阵列故障(E003);设备进水、外壳开裂;网关反复重启(E013);错误码手册中标注\"需报修\"的所有情形。保修期内免费维修并支持全国免费上门取送;保修范围与期限见《保修与售后服务政策》,维修周期一般 3-5 个工作日。 "
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.598982,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        },
+        {
+          "title": "billing-invoices",
+          "source": "billing-invoices",
+          "score": 0.598981,
+          "snippet": "官网订单支持 7 天价保:下单后 7 天内同商品官网降价(不含用券后价、秒杀与清仓标价),可在\"我的订单\"→\"价保申请\"补差价,原路退回。大促期间(618、双 11)价保规则以活动页说明为准,预售定金商品以尾款价参与价保。电商平台订单按平台价保规则执行。价保与退货二选一,已申请价保的订单退货按价保后金额退款。  ## 账单与消费记录查询  App\"我的\"→\"账单中心\"可查全部消费记录:硬件订单、云服务扣款、延保、维修费,支持按月导出 CSV 至邮箱。云服务每次自动扣费均有 A"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.398982,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        }
+      ]
+    },
+    {
+      "id": "eval-025",
+      "query": "这个音箱质量太差了",
+      "category": "产品投诉",
+      "expected_intent": "complaint",
+      "predicted_intent": "consult",
+      "intent_correct": false,
+      "expected_emotion": "angry",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "音箱",
+        "保修"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 4.4,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.448982,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.323982,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.323982,
+          "snippet": "- 杂音、电流声:先检查固件更新;将音箱远离微波炉、无线充电器等干扰源;更换插座排除电源纹波 - 大音量破音:X-100 功率较小,长期最大音量播放重低音易破音,建议音量不超过 80%;X-200/X-300 Pro 出现破音多为扬声器受损,联系售后检测 - 播放卡顿、断断续续:多为网络带宽不足,测试家中下行速度(在线音乐建议 ≥4Mbps);蓝牙模式卡顿则缩短手机与音箱距离(10 米内) - 单声道输出属正常现象,X-100/X-200 为全频单元设计;X-300 Pro "
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.323982,
+          "snippet": "# 故障排除指南  ## 通用排障流程  遇到任何设备问题,建议按顺序执行:1) 重启设备(拔插电源或长按电源键);2) 检查网络(路由器是否正常、其他设备能否上网);3) App\"设备管理\"查看设备状态与错误码(错误码含义见《错误码手册》);4) 检查固件是否为最新版本;5) 仍无效则恢复出厂设置(长按 Reset 键 10 秒);6) 联系在线客服(7×24)或热线 400-888-8888(工作日 9:00-18:00)。  ## 音箱无法开机  - 检查电源适配器是否"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.323982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        }
+      ]
+    },
+    {
+      "id": "eval-026",
+      "query": "我要退款，买回来就坏了",
+      "category": "退款投诉",
+      "expected_intent": "complaint",
+      "predicted_intent": "consult",
+      "intent_correct": false,
+      "expected_emotion": "angry",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "退款",
+        "退货"
+      ],
+      "rag_rank": 2,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 4.0,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.298982,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.298982,
+          "snippet": "退款进度在 App\"我的订单\"→\"退款/售后\"中实时查看,状态依次为:已申请→审核通过→已寄回→验货中→退款中→已到账。超过 7 个工作日未到账:先核对原支付渠道账单(信用卡退款可能显示为\"退款入账\"而非消费冲正),仍未收到请联系在线客服,提供订单号与退款单号,财务将在 2 个工作日内核查回复。  ## 电商平台订单退换说明  京东、天猫、亚马逊全球购订单的退换货按下单平台的流程发起(平台\"我的订单\"→申请售后),退款路径与时效以平台规则为准;7 天无理由、15 天质量退换的"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.298982,
+          "snippet": "- 同型号换货:免费,来回运费由我方承担(质量问题);无理由换货(如换颜色)寄回运费用户承担 - 不同型号换货:补差价或退差价,按下单时实付价与新型号现价计算 - 换货周期:整体 7-10 个工作日(寄回 2-3 天 + 验货 1-2 天 + 发出新品 2-5 天) - 换新的商品重新计算 7 天无理由与 15 天质量退换期,保修期仍自原始购买日起算  ## 套装类商品退货规则  智能家居套装(基础版 ¥499 / 全屋版 ¥1299)按整套价格销售,7 天无理由退货需整套退"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.298982,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.298981,
+          "snippet": "语音唤醒词在本地处理,不会上传云端。对话内容默认不保存,用户可选择开启\"对话记录\"功能用于调试,开启后记录保存在云端 30 天,可随时手动删除或关闭功能。App\"隐私管理\"中可一键清空全部语音记录并撤回授权,详见《账号与安全》。  ## 智能家居数据是否安全  所有数据传输与存储使用 AES-256 加密,服务器通过等保三级认证,云服务 SLA 承诺 99.9% 可用性。智联科技不会将用户数据分享给第三方,也不会用于任何商业用途。摄像头录像仅账号本人及授权的家庭成员可查看。 "
+        }
+      ]
+    },
+    {
+      "id": "eval-027",
+      "query": "物流拖了这么久还没发货，我很生气",
+      "category": "物流投诉",
+      "expected_intent": "complaint",
+      "predicted_intent": "consult",
+      "intent_correct": false,
+      "expected_emotion": "angry",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "物流",
+        "发货"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 4,
+      "rag_ms": 3.5,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.398982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.332315,
+          "snippet": "# 物流与配送说明  ## 配送范围  - 全国配送:覆盖中国大陆所有省市区,港澳台地区经转运发货 - 海外配送:支持美国、日本、韩国、新加坡、马来西亚等 20+ 国家,通过 DHL / 顺丰国际发货 - 暂不配送:中国大陆的少数高海拔无人区乡镇(下单时地址校验会提示) - 海外订单关税:商品价格不含目的国关税,如产生由收件人承担  ## 配送方式与运费  | 配送方式 | 时效 | 运费 | 适用地区 | |---------|------|------|---------"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.265648,
+          "snippet": "# 常见问题解答 (FAQ)  ## 在哪里可以购买产品  智联科技官网(www.smartlinktech.com)、京东旗舰店、天猫旗舰店均有销售,部分型号也在亚马逊全球购提供。官网与电商旗舰店价格一致:智能音箱 X-100 ¥199、X-200 ¥399、X-300 Pro ¥699;智能家居套装基础版 ¥499、全屋版 ¥1299。线下暂无直营门店,请认准官方渠道,非官方渠道购买的产品可能无法享受保修。  ## 支持哪些支付方式  官网支持微信支付、支付宝、银联卡、信"
+        },
+        {
+          "title": "billing-invoices",
+          "source": "billing-invoices",
+          "score": 0.265647,
+          "snippet": "# 计费与发票说明  ## 支付方式总览  官网/App 支持微信支付、支付宝、银联卡、信用卡;订单满 ¥3000 支持花呗/信用卡 3 期免息分期;企业采购支持对公转账(见《优惠活动与会员权益》)。云服务订阅仅支持微信、支付宝,并可开启自动续费。电商平台(京东/天猫/亚马逊全球购)订单按各平台支付方式。账户余额(退款所得)可直接抵扣任意官网订单,不可提现部分以充值记录为准——退款转入的余额可随时再提现至原支付账户。  ## 订单支付时限与自动取消  下单后 30 分钟内未完"
+        }
+      ]
+    },
+    {
+      "id": "eval-028",
+      "query": "太失望了，设备总是掉线",
+      "category": "故障投诉",
+      "expected_intent": "complaint",
+      "predicted_intent": "consult",
+      "intent_correct": false,
+      "expected_emotion": "sad",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "掉线",
+        "网关"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 5.4,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.398982,
+          "snippet": "- 检查网关电源与指示灯:红灯为离线,白灯正常 - G1 仅支持 2.4GHz WiFi;G2 Pro 优先使用有线网口,更稳定 - 路由器重启或改过 WiFi 密码后,网关需重新配网(长按 Reset 5 秒进入黄灯闪烁配网模式) - 频繁掉线:将网关移近路由器(3 米内),避开金属柜、微波炉;检查路由器 DHCP 地址池是否已满 - G2 Pro 断电后靠内置电池续航 4 小时,期间 App 显示\"电池供电\"而非离线 - 报 E011(网关离线)持续 10 分钟以上,按错"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.398981,
+          "snippet": "小房间/预算有限选 X-100(¥199,拾音 3 米,仅 2.4GHz WiFi);客厅主力和大多数家庭选 X-200(¥399,拾音 5 米,WiFi 6,音质均衡);想要全屋智能、省掉网关的选 X-300 Pro(¥699,拾音 8 米,30W 音质,内置 Zigbee 网关可接 128 个子设备)。已有基础版/全屋版套装(自带网关)的用户选 X-100 或 X-200 即可。  ## 家居套装基础版和全屋版怎么选  基础版 ¥499 适合一居室或初次尝试:网关 G1("
+        },
+        {
+          "title": "error-codes",
+          "source": "error-codes",
+          "score": 0.398981,
+          "snippet": "含义:60 秒内未发现待配对设备。自查:1) 按住子设备重置键约 5 秒至指示灯慢闪(快闪为按过头,重来);2) 将子设备移到网关 1 米内配对;3) 配对时关闭附近蓝牙耳机等 2.4GHz 设备;4) 确认网关 USB 天线无遮挡。是否需报修:重试 3 次仍失败且其他子设备可正常配对,该子设备可能故障,15 天内质量退换、之后按品类保修。  ## E016 子设备信号弱  含义:子设备与网关间 Zigbee 信号强度持续偏低,可能频繁掉线。自查:1) 缩短与网关距离(10 "
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.298982,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.298982,
+          "snippet": "插座指示灯亮、App 显示在线,但接的电器不工作:1) 确认 App/语音已将插座置于\"开\"状态;2) 检查电器自身开关;3) 负载超过 2500W/10A 时插座过载保护自动断开(App 会推送过载告警,报 E018),移除大功率电器后在 App 中手动恢复;4) 能耗统计显示 0W 但电器在工作,重启插座后数据恢复上报。电暖器、电热水器等大功率设备请核对功率后再接入。  ## 窗帘电机问题  - 不动作:检查电源;确认已与网关配对(离线时 App 置灰);行程未设置时电机"
+        }
+      ]
+    },
+    {
+      "id": "eval-029",
+      "query": "你们售后太坑人了，我要投诉",
+      "category": "售后投诉",
+      "expected_intent": "complaint",
+      "predicted_intent": "consult",
+      "intent_correct": false,
+      "expected_emotion": "angry",
+      "predicted_emotion": "angry",
+      "emotion_intensity": 3,
+      "emotion_source": "keyword",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "售后",
+        "投诉"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.5,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.282315,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.282315,
+          "snippet": "保修期内硬件故障,中国大陆全境支持免费上门取件、修复后免费寄回(顺丰上门,预约后 1-2 天内取件)。用户需配合:寄出前解绑设备并尽量恢复出厂设置;保留原包装或妥善包装(无包装可要求快递员提供纸箱,费用我方承担)。保外维修同样可用上门取送,但来回运费实收(约 ¥25),与维修费一并结算。  ## 保修排除情况  以下情况不在免费保修范围内(可转有偿维修):  - 人为损坏:摔落、进水、挤压、私自拆解、使用非原装电源适配器导致的损坏 - 非官方渠道购买的整机或使用非官方配件引发"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.282315,
+          "snippet": "# 保修与售后服务政策  ## 保修期限总表  | 产品/部件 | 保修期 | |-----------|--------| | 智能音箱整机(X-100/X-200/X-300 Pro) | 1 年 | | 音箱主要部件(扬声器单元、主板、电源适配器) | 2 年 | | 智能家居网关(G1/G2 Pro) | 2 年 | | 传感器类(门窗、温湿度、人体) | 1 年 | | 执行器类(智能灯泡、插座、窗帘电机) | 1.5 年 | | 电池(CR2032 等) | 不保"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.282315,
+          "snippet": "以下情形无需继续自查,建议直接申请售后(App\"我的\"→\"售后报修\"或在线客服):指示灯完全不亮且换线换插座无效;扬声器物理破音(E004);麦克风阵列故障(E003);设备进水、外壳开裂;网关反复重启(E013);错误码手册中标注\"需报修\"的所有情形。保修期内免费维修并支持全国免费上门取送;保修范围与期限见《保修与售后服务政策》,维修周期一般 3-5 个工作日。 "
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.282315,
+          "snippet": "- 杂音、电流声:先检查固件更新;将音箱远离微波炉、无线充电器等干扰源;更换插座排除电源纹波 - 大音量破音:X-100 功率较小,长期最大音量播放重低音易破音,建议音量不超过 80%;X-200/X-300 Pro 出现破音多为扬声器受损,联系售后检测 - 播放卡顿、断断续续:多为网络带宽不足,测试家中下行速度(在线音乐建议 ≥4Mbps);蓝牙模式卡顿则缩短手机与音箱距离(10 米内) - 单声道输出属正常现象,X-100/X-200 为全频单元设计;X-300 Pro "
+        }
+      ]
+    },
+    {
+      "id": "eval-030",
+      "query": "买了会员却不能用，气死我了",
+      "category": "会员投诉",
+      "expected_intent": "complaint",
+      "predicted_intent": "consult",
+      "intent_correct": false,
+      "expected_emotion": "angry",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "会员",
+        "云服务"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 4.6,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "api-developer",
+          "source": "api-developer",
+          "score": 0.365647,
+          "snippet": "- 401 Unauthorized:token 过期(2 小时)或格式错误;确认 Header 为 `Bearer {token}`,并实现过期自动刷新 - 403 Forbidden 常见三种:a) 账号非专业版订阅(会员到期自动降级也会触发,检查\"会员中心\");b) 访问了非本账号设备且未完成 OAuth 授权;c) 应用被禁用(违规或长期未用,控制台可见状态) - 排查顺序:先在控制台\"API 调试\"用同一 token 调 `GET /v1/devices`,能通则问"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.282315,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.282315,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.282315,
+          "snippet": "## 晒单返利与社区激励  确认收货后 30 天内在 App\"社区\"发布带图评价得 50 积分/单;被官方加精的深度体验帖额外得 500 积分;上传自动化场景模板被他人使用超 100 次,得\"场景达人\"徽章 + 1000 积分。社区内容须真实原创,搬运或刷量将扣回积分并取消活动资格。积分价值:100 积分 = ¥1。  ## 价保与活动价说明  官网 7 天价保(详见《计费与发票说明》):下单 7 天内同商品官网降价可补差,但秒杀价、清仓价、用券后价不参与。大促预售:定金支付"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.282315,
+          "snippet": "以旧换新抵扣可与 1 张优惠券、积分抵扣同时使用,三者叠加后订单实付不得低于新品价格的 30%(低于时系统自动限制积分抵扣额)。换新订单支持 7 天无理由退货:退货时退还实付金额,旧机抵扣额以等值余额返还(旧机不退回,因已进入环保拆解流程)——对旧机有留恋的用户请谨慎使用换新。换新订单同样累计积分与会员等级(按实付金额)。  ## 新用户专享  新注册账号 7 天内可领\"新人礼包\":满 ¥199 减 ¥20 优惠券 ×1、云服务家庭版 1 个月体验券 ×1(需手动激活,体验期"
+        }
+      ]
+    },
+    {
+      "id": "eval-031",
+      "query": "退款多久到账",
+      "category": "退款咨询",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "anxious",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "退款",
+        "到账"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.8,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.598982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.598982,
+          "snippet": "退款进度在 App\"我的订单\"→\"退款/售后\"中实时查看,状态依次为:已申请→审核通过→已寄回→验货中→退款中→已到账。超过 7 个工作日未到账:先核对原支付渠道账单(信用卡退款可能显示为\"退款入账\"而非消费冲正),仍未收到请联系在线客服,提供订单号与退款单号,财务将在 2 个工作日内核查回复。  ## 电商平台订单退换说明  京东、天猫、亚马逊全球购订单的退换货按下单平台的流程发起(平台\"我的订单\"→申请售后),退款路径与时效以平台规则为准;7 天无理由、15 天质量退换的"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.598982,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.598981,
+          "snippet": "语音唤醒词在本地处理,不会上传云端。对话内容默认不保存,用户可选择开启\"对话记录\"功能用于调试,开启后记录保存在云端 30 天,可随时手动删除或关闭功能。App\"隐私管理\"中可一键清空全部语音记录并撤回授权,详见《账号与安全》。  ## 智能家居数据是否安全  所有数据传输与存储使用 AES-256 加密,服务器通过等保三级认证,云服务 SLA 承诺 99.9% 可用性。智联科技不会将用户数据分享给第三方,也不会用于任何商业用途。摄像头录像仅账号本人及授权的家庭成员可查看。 "
+        },
+        {
+          "title": "billing-invoices",
+          "source": "billing-invoices",
+          "score": 0.598981,
+          "snippet": "官网订单支持 7 天价保:下单后 7 天内同商品官网降价(不含用券后价、秒杀与清仓标价),可在\"我的订单\"→\"价保申请\"补差价,原路退回。大促期间(618、双 11)价保规则以活动页说明为准,预售定金商品以尾款价参与价保。电商平台订单按平台价保规则执行。价保与退货二选一,已申请价保的订单退货按价保后金额退款。  ## 账单与消费记录查询  App\"我的\"→\"账单中心\"可查全部消费记录:硬件订单、云服务扣款、延保、维修费,支持按月导出 CSV 至邮箱。云服务每次自动扣费均有 A"
+        }
+      ]
+    },
+    {
+      "id": "eval-032",
+      "query": "质量问题能不能换新",
+      "category": "换新咨询",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "sad",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "质量",
+        "换新"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 4.6,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.823982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.698982,
+          "snippet": "保修期内硬件故障,中国大陆全境支持免费上门取件、修复后免费寄回(顺丰上门,预约后 1-2 天内取件)。用户需配合:寄出前解绑设备并尽量恢复出厂设置;保留原包装或妥善包装(无包装可要求快递员提供纸箱,费用我方承担)。保外维修同样可用上门取送,但来回运费实收(约 ¥25),与维修费一并结算。  ## 保修排除情况  以下情况不在免费保修范围内(可转有偿维修):  - 人为损坏:摔落、进水、挤压、私自拆解、使用非原装电源适配器导致的损坏 - 非官方渠道购买的整机或使用非官方配件引发"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.698982,
+          "snippet": "- 同型号换货:免费,来回运费由我方承担(质量问题);无理由换货(如换颜色)寄回运费用户承担 - 不同型号换货:补差价或退差价,按下单时实付价与新型号现价计算 - 换货周期:整体 7-10 个工作日(寄回 2-3 天 + 验货 1-2 天 + 发出新品 2-5 天) - 换新的商品重新计算 7 天无理由与 15 天质量退换期,保修期仍自原始购买日起算  ## 套装类商品退货规则  智能家居套装(基础版 ¥499 / 全屋版 ¥1299)按整套价格销售,7 天无理由退货需整套退"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.698982,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.698982,
+          "snippet": "## 晒单返利与社区激励  确认收货后 30 天内在 App\"社区\"发布带图评价得 50 积分/单;被官方加精的深度体验帖额外得 500 积分;上传自动化场景模板被他人使用超 100 次,得\"场景达人\"徽章 + 1000 积分。社区内容须真实原创,搬运或刷量将扣回积分并取消活动资格。积分价值:100 积分 = ¥1。  ## 价保与活动价说明  官网 7 天价保(详见《计费与发票说明》):下单 7 天内同商品官网降价可补差,但秒杀价、清仓价、用券后价不参与。大促预售:定金支付"
+        }
+      ]
+    },
+    {
+      "id": "eval-033",
+      "query": "为什么还不退款",
+      "category": "退款投诉",
+      "expected_intent": "complaint",
+      "predicted_intent": "consult",
+      "intent_correct": false,
+      "expected_emotion": "angry",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "退款",
+        "退货"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 5.0,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.532315,
+          "snippet": "保修期内硬件故障,中国大陆全境支持免费上门取件、修复后免费寄回(顺丰上门,预约后 1-2 天内取件)。用户需配合:寄出前解绑设备并尽量恢复出厂设置;保留原包装或妥善包装(无包装可要求快递员提供纸箱,费用我方承担)。保外维修同样可用上门取送,但来回运费实收(约 ¥25),与维修费一并结算。  ## 保修排除情况  以下情况不在免费保修范围内(可转有偿维修):  - 人为损坏:摔落、进水、挤压、私自拆解、使用非原装电源适配器导致的损坏 - 非官方渠道购买的整机或使用非官方配件引发"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.532315,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        },
+        {
+          "title": "billing-invoices",
+          "source": "billing-invoices",
+          "score": 0.532314,
+          "snippet": "- 免费版 ¥0(5GB);家庭版 ¥18/月或 ¥180/年(50GB);专业版 ¥38/月或 ¥380/年(500GB)。年付相当于 10 个月价格 - 订阅立即生效,按自然周期计费(如 3 月 5 日订购月付,则每月 5 日为扣费日;2 月等短月顺延至月末最后一天) - 升级套餐:立即生效,按旧套餐剩余天数比例折抵新套餐费用,差额补付 - 降级套餐:当前周期结束后生效,不产生退款(如需即时退订走退订流程) - 存储超量:到期未续费降为免费版后,超出 5GB 的数据保留 "
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.365648,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.365648,
+          "snippet": "退款进度在 App\"我的订单\"→\"退款/售后\"中实时查看,状态依次为:已申请→审核通过→已寄回→验货中→退款中→已到账。超过 7 个工作日未到账:先核对原支付渠道账单(信用卡退款可能显示为\"退款入账\"而非消费冲正),仍未收到请联系在线客服,提供订单号与退款单号,财务将在 2 个工作日内核查回复。  ## 电商平台订单退换说明  京东、天猫、亚马逊全球购订单的退换货按下单平台的流程发起(平台\"我的订单\"→申请售后),退款路径与时效以平台规则为准;7 天无理由、15 天质量退换的"
+        }
+      ]
+    },
+    {
+      "id": "eval-034",
+      "query": "花了钱却不能用，真的后悔",
+      "category": "产品投诉",
+      "expected_intent": "complaint",
+      "predicted_intent": "consult",
+      "intent_correct": false,
+      "expected_emotion": "sad",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "不能用",
+        "退款"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 2.8,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.289891,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "api-developer",
+          "source": "api-developer",
+          "score": 0.28989,
+          "snippet": "- 401 Unauthorized:token 过期(2 小时)或格式错误;确认 Header 为 `Bearer {token}`,并实现过期自动刷新 - 403 Forbidden 常见三种:a) 账号非专业版订阅(会员到期自动降级也会触发,检查\"会员中心\");b) 访问了非本账号设备且未完成 OAuth 授权;c) 应用被禁用(违规或长期未用,控制台可见状态) - 排查顺序:先在控制台\"API 调试\"用同一 token 调 `GET /v1/devices`,能通则问"
+        },
+        {
+          "title": "account-security",
+          "source": "account-security",
+          "score": 0.289889,
+          "snippet": "# 账号与安全  ## 注册账号  \"智联生活\"App 支持手机号+短信验证码注册(中国大陆手机号),注册即自动创建智联账号,可用于官网、App 与开放平台。海外用户可用邮箱注册(功能相同,但部分内容服务受地区版权限制)。一个手机号/邮箱只能注册一个账号。注册后建议立即:1) 设置登录密码(8-20 位,须含字母与数字);2) 绑定邮箱作为备用验证方式;3) 完善收货地址与发票抬头。  ## 登录方式与登录保护  支持:短信验证码登录、密码登录、微信一键登录(需先绑定微信)。"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.198982,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.198982,
+          "snippet": "- 确认账号密码正确;多次失败被临时锁定的,等待 30 分钟后重试 - 官网服务状态页(status.smartlinktech.com)可查看云服务是否在维护;计划维护提前 48 小时公告 - 公司/校园网络可能屏蔽非标端口,切换手机流量测试 - 海外访问延迟高属正常(服务器在国内) - 报 E026(云服务不可达)且状态页正常时,多为本地 DNS 问题,可将 DNS 改为 223.5.5.5 后重试  ## 云存储空间不足  App\"我的\"→\"云服务\"可查看已用空间明细("
+        }
+      ]
+    },
+    {
+      "id": "eval-035",
+      "query": "我很满意，音箱很好用",
+      "category": "正向反馈",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "happy",
+      "predicted_emotion": "happy",
+      "emotion_intensity": 4,
+      "emotion_source": "keyword",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "音箱"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.5,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.310093,
+          "snippet": "保修期内硬件故障,中国大陆全境支持免费上门取件、修复后免费寄回(顺丰上门,预约后 1-2 天内取件)。用户需配合:寄出前解绑设备并尽量恢复出厂设置;保留原包装或妥善包装(无包装可要求快递员提供纸箱,费用我方承担)。保外维修同样可用上门取送,但来回运费实收(约 ¥25),与维修费一并结算。  ## 保修排除情况  以下情况不在免费保修范围内(可转有偿维修):  - 人为损坏:摔落、进水、挤压、私自拆解、使用非原装电源适配器导致的损坏 - 非官方渠道购买的整机或使用非官方配件引发"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.310093,
+          "snippet": "- 杂音、电流声:先检查固件更新;将音箱远离微波炉、无线充电器等干扰源;更换插座排除电源纹波 - 大音量破音:X-100 功率较小,长期最大音量播放重低音易破音,建议音量不超过 80%;X-200/X-300 Pro 出现破音多为扬声器受损,联系售后检测 - 播放卡顿、断断续续:多为网络带宽不足,测试家中下行速度(在线音乐建议 ≥4Mbps);蓝牙模式卡顿则缩短手机与音箱距离(10 米内) - 单声道输出属正常现象,X-100/X-200 为全频单元设计;X-300 Pro "
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.310093,
+          "snippet": "# 故障排除指南  ## 通用排障流程  遇到任何设备问题,建议按顺序执行:1) 重启设备(拔插电源或长按电源键);2) 检查网络(路由器是否正常、其他设备能否上网);3) App\"设备管理\"查看设备状态与错误码(错误码含义见《错误码手册》);4) 检查固件是否为最新版本;5) 仍无效则恢复出厂设置(长按 Reset 键 10 秒);6) 联系在线客服(7×24)或热线 400-888-8888(工作日 9:00-18:00)。  ## 音箱无法开机  - 检查电源适配器是否"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.310093,
+          "snippet": "## 晒单返利与社区激励  确认收货后 30 天内在 App\"社区\"发布带图评价得 50 积分/单;被官方加精的深度体验帖额外得 500 积分;上传自动化场景模板被他人使用超 100 次,得\"场景达人\"徽章 + 1000 积分。社区内容须真实原创,搬运或刷量将扣回积分并取消活动资格。积分价值:100 积分 = ¥1。  ## 价保与活动价说明  官网 7 天价保(详见《计费与发票说明》):下单 7 天内同商品官网降价可补差,但秒杀价、清仓价、用券后价不参与。大促预售:定金支付"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.310093,
+          "snippet": "以旧换新抵扣可与 1 张优惠券、积分抵扣同时使用,三者叠加后订单实付不得低于新品价格的 30%(低于时系统自动限制积分抵扣额)。换新订单支持 7 天无理由退货:退货时退还实付金额,旧机抵扣额以等值余额返还(旧机不退回,因已进入环保拆解流程)——对旧机有留恋的用户请谨慎使用换新。换新订单同样累计积分与会员等级(按实付金额)。  ## 新用户专享  新注册账号 7 天内可领\"新人礼包\":满 ¥199 减 ¥20 优惠券 ×1、云服务家庭版 1 个月体验券 ×1(需手动激活,体验期"
+        }
+      ]
+    },
+    {
+      "id": "eval-036",
+      "query": "太好了，终于连上 WiFi 了",
+      "category": "正向反馈",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "happy",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "WiFi",
+        "连接"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 2.6,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.448982,
+          "snippet": "- 杂音、电流声:先检查固件更新;将音箱远离微波炉、无线充电器等干扰源;更换插座排除电源纹波 - 大音量破音:X-100 功率较小,长期最大音量播放重低音易破音,建议音量不超过 80%;X-200/X-300 Pro 出现破音多为扬声器受损,联系售后检测 - 播放卡顿、断断续续:多为网络带宽不足,测试家中下行速度(在线音乐建议 ≥4Mbps);蓝牙模式卡顿则缩短手机与音箱距离(10 米内) - 单声道输出属正常现象,X-100/X-200 为全频单元设计;X-300 Pro "
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.448982,
+          "snippet": "- 检查网关电源与指示灯:红灯为离线,白灯正常 - G1 仅支持 2.4GHz WiFi;G2 Pro 优先使用有线网口,更稳定 - 路由器重启或改过 WiFi 密码后,网关需重新配网(长按 Reset 5 秒进入黄灯闪烁配网模式) - 频繁掉线:将网关移近路由器(3 米内),避开金属柜、微波炉;检查路由器 DHCP 地址池是否已满 - G2 Pro 断电后靠内置电池续航 4 小时,期间 App 显示\"电池供电\"而非离线 - 报 E011(网关离线)持续 10 分钟以上,按错"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.448982,
+          "snippet": "# 故障排除指南  ## 通用排障流程  遇到任何设备问题,建议按顺序执行:1) 重启设备(拔插电源或长按电源键);2) 检查网络(路由器是否正常、其他设备能否上网);3) App\"设备管理\"查看设备状态与错误码(错误码含义见《错误码手册》);4) 检查固件是否为最新版本;5) 仍无效则恢复出厂设置(长按 Reset 键 10 秒);6) 联系在线客服(7×24)或热线 400-888-8888(工作日 9:00-18:00)。  ## 音箱无法开机  - 检查电源适配器是否"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.448981,
+          "snippet": "对音箱说\"进入蓝牙模式\",音箱开始广播蓝牙信号,在手机蓝牙设置中搜索\"SmartLink Speaker-XXXX\"(后四位为设备编号)配对即可。说\"退出蓝牙模式\"切回 WiFi 模式。音箱最多记忆 8 个已配对蓝牙设备,超出后自动覆盖最早记录。蓝牙模式下语音助手仍可用,但在线音乐服务暂停。X-200 及以上支持蓝牙回连:开机后自动连接最近一次配对的设备。  ## 智能音箱指示灯状态说明  - 蓝灯快闪:配网模式,等待连接 - 蓝灯慢闪:正在连接 WiFi - 白灯常亮:正常"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.448981,
+          "snippet": "X-200 定价 ¥399,是销量最高的主力型号。扬声器:2.25 英寸全频单元 + 被动辐射器,额定功率 15W;麦克风:6 麦阵列,远场拾音距离达 5 米;连接:WiFi 6(802.11ax,兼容 2.4GHz/5GHz)+ 蓝牙 5.2;接口:3.5mm 音频输出、USB-C 供电(15W);功耗:15W;尺寸:110×110×150mm,重量 780g;颜色:曜石黑、云朵白、雾霾蓝。整机保修 1 年,主要部件保修 2 年。  ## 智能音箱 X-300 Pro(旗舰"
+        }
+      ]
+    },
+    {
+      "id": "eval-037",
+      "query": "一直登录不上，急死我了",
+      "category": "账号故障",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "anxious",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "登录",
+        "账号"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.9,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "account-security",
+          "source": "account-security",
+          "score": 0.39898,
+          "snippet": "所有数据传输与存储采用 AES-256 加密;服务器通过等保三级认证;云服务 SLA 99.9%。语音唤醒词本地处理不上传;对话内容默认不保存。智联科技不会将用户数据分享给第三方或用于商业用途;摄像头视频仅账号本人及被授权的家庭成员可访问,员工无查看权限(维修调试需用户在工单中临时授权,且操作留痕)。安全漏洞报告邮箱:security@smartlinktech.com。  ## 未成年人与儿童模式  智联账号需年满 14 周岁注册;未满 14 周岁应由监护人注册并管理。音箱"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.298982,
+          "snippet": "插座指示灯亮、App 显示在线,但接的电器不工作:1) 确认 App/语音已将插座置于\"开\"状态;2) 检查电器自身开关;3) 负载超过 2500W/10A 时插座过载保护自动断开(App 会推送过载告警,报 E018),移除大功率电器后在 App 中手动恢复;4) 能耗统计显示 0W 但电器在工作,重启插座后数据恢复上报。电暖器、电热水器等大功率设备请核对功率后再接入。  ## 窗帘电机问题  - 不动作:检查电源;确认已与网关配对(离线时 App 置灰);行程未设置时电机"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.298981,
+          "snippet": "| 套餐 | 价格 | 存储 | 摄像头回放 | 其他权益 | |------|------|------|-----------|----------| | 免费版 | ¥0 | 5GB | 3 天滚动 | 基础功能 | | 家庭版 | ¥18/月 或 ¥180/年 | 50GB | 30 天 | 家庭共享 6 人、优先客服 | | 专业版 | ¥38/月 或 ¥380/年 | 500GB | 90 天 | 专属客服、开放平台 API 权限 |  年付相当于 10 个月价格"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.298981,
+          "snippet": "语音唤醒词在本地处理,不会上传云端。对话内容默认不保存,用户可选择开启\"对话记录\"功能用于调试,开启后记录保存在云端 30 天,可随时手动删除或关闭功能。App\"隐私管理\"中可一键清空全部语音记录并撤回授权,详见《账号与安全》。  ## 智能家居数据是否安全  所有数据传输与存储使用 AES-256 加密,服务器通过等保三级认证,云服务 SLA 承诺 99.9% 可用性。智联科技不会将用户数据分享给第三方,也不会用于任何商业用途。摄像头录像仅账号本人及授权的家庭成员可查看。 "
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.298981,
+          "snippet": "# 常见问题解答 (FAQ)  ## 在哪里可以购买产品  智联科技官网(www.smartlinktech.com)、京东旗舰店、天猫旗舰店均有销售,部分型号也在亚马逊全球购提供。官网与电商旗舰店价格一致:智能音箱 X-100 ¥199、X-200 ¥399、X-300 Pro ¥699;智能家居套装基础版 ¥499、全屋版 ¥1299。线下暂无直营门店,请认准官方渠道,非官方渠道购买的产品可能无法享受保修。  ## 支持哪些支付方式  官网支持微信支付、支付宝、银联卡、信"
+        }
+      ]
+    },
+    {
+      "id": "eval-038",
+      "query": "智能灯怎么配对网关",
+      "category": "设备配网",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "网关",
+        "配对"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.6,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.698982,
+          "snippet": "- 检查网关电源与指示灯:红灯为离线,白灯正常 - G1 仅支持 2.4GHz WiFi;G2 Pro 优先使用有线网口,更稳定 - 路由器重启或改过 WiFi 密码后,网关需重新配网(长按 Reset 5 秒进入黄灯闪烁配网模式) - 频繁掉线:将网关移近路由器(3 米内),避开金属柜、微波炉;检查路由器 DHCP 地址池是否已满 - G2 Pro 断电后靠内置电池续航 4 小时,期间 App 显示\"电池供电\"而非离线 - 报 E011(网关离线)持续 10 分钟以上,按错"
+        },
+        {
+          "title": "installation-guide",
+          "source": "installation-guide",
+          "score": 0.698981,
+          "snippet": "1. 将 G1 插在路由器附近(建议 3 米内)通电,黄灯闪烁即配网模式;未闪烁长按 Reset 键 5 秒 2. App\"添加设备\"→\"网关\"→\"G1\",流程与音箱配网相同(仅支持 2.4GHz) 3. 完成后白灯常亮;红灯表示离线,见错误码 E011 4. 摆放:远离微波炉与金属柜,居中部署使子设备都在 10 米半径内;跨楼层建议每层一个网关 5. G1 子设备上限 64 个;更换 WiFi 密码后需重新配网  ## 网关 G2 Pro 安装与配网(含有线接入)  G2 "
+        },
+        {
+          "title": "error-codes",
+          "source": "error-codes",
+          "score": 0.698981,
+          "snippet": "含义:60 秒内未发现待配对设备。自查:1) 按住子设备重置键约 5 秒至指示灯慢闪(快闪为按过头,重来);2) 将子设备移到网关 1 米内配对;3) 配对时关闭附近蓝牙耳机等 2.4GHz 设备;4) 确认网关 USB 天线无遮挡。是否需报修:重试 3 次仍失败且其他子设备可正常配对,该子设备可能故障,15 天内质量退换、之后按品类保修。  ## E016 子设备信号弱  含义:子设备与网关间 Zigbee 信号强度持续偏低,可能频繁掉线。自查:1) 缩短与网关距离(10 "
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.573982,
+          "snippet": "# 保修与售后服务政策  ## 保修期限总表  | 产品/部件 | 保修期 | |-----------|--------| | 智能音箱整机(X-100/X-200/X-300 Pro) | 1 年 | | 音箱主要部件(扬声器单元、主板、电源适配器) | 2 年 | | 智能家居网关(G1/G2 Pro) | 2 年 | | 传感器类(门窗、温湿度、人体) | 1 年 | | 执行器类(智能灯泡、插座、窗帘电机) | 1.5 年 | | 电池(CR2032 等) | 不保"
+        },
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.573981,
+          "snippet": "对音箱说\"进入蓝牙模式\",音箱开始广播蓝牙信号,在手机蓝牙设置中搜索\"SmartLink Speaker-XXXX\"(后四位为设备编号)配对即可。说\"退出蓝牙模式\"切回 WiFi 模式。音箱最多记忆 8 个已配对蓝牙设备,超出后自动覆盖最早记录。蓝牙模式下语音助手仍可用,但在线音乐服务暂停。X-200 及以上支持蓝牙回连:开机后自动连接最近一次配对的设备。  ## 智能音箱指示灯状态说明  - 蓝灯快闪:配网模式,等待连接 - 蓝灯慢闪:正在连接 WiFi - 白灯常亮:正常"
+        }
+      ]
+    },
+    {
+      "id": "eval-039",
+      "query": "今天天气不错",
+      "category": "闲聊",
+      "expected_intent": "chat",
+      "predicted_intent": "chat",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 0,
+      "rag_ms": 1.5,
+      "rag_error": null,
+      "top_results": []
+    },
+    {
+      "id": "eval-040",
+      "query": "帮我写一首诗",
+      "category": "闲聊",
+      "expected_intent": "chat",
+      "predicted_intent": "consult",
+      "intent_correct": false,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 5,
+      "rag_ms": 2.7,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "product-manual",
+          "source": "product-manual",
+          "score": 0.398981,
+          "snippet": "| 套餐 | 价格 | 存储 | 摄像头回放 | 其他权益 | |------|------|------|-----------|----------| | 免费版 | ¥0 | 5GB | 3 天滚动 | 基础功能 | | 家庭版 | ¥18/月 或 ¥180/年 | 50GB | 30 天 | 家庭共享 6 人、优先客服 | | 专业版 | ¥38/月 或 ¥380/年 | 500GB | 90 天 | 专属客服、开放平台 API 权限 |  年付相当于 10 个月价格"
+        },
+        {
+          "title": "account-security",
+          "source": "account-security",
+          "score": 0.39898,
+          "snippet": "所有数据传输与存储采用 AES-256 加密;服务器通过等保三级认证;云服务 SLA 99.9%。语音唤醒词本地处理不上传;对话内容默认不保存。智联科技不会将用户数据分享给第三方或用于商业用途;摄像头视频仅账号本人及被授权的家庭成员可访问,员工无查看权限(维修调试需用户在工单中临时授权,且操作留痕)。安全漏洞报告邮箱:security@smartlinktech.com。  ## 未成年人与儿童模式  智联账号需年满 14 周岁注册;未满 14 周岁应由监护人注册并管理。音箱"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.198982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.198982,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.198982,
+          "snippet": "## 晒单返利与社区激励  确认收货后 30 天内在 App\"社区\"发布带图评价得 50 积分/单;被官方加精的深度体验帖额外得 500 积分;上传自动化场景模板被他人使用超 100 次,得\"场景达人\"徽章 + 1000 积分。社区内容须真实原创,搬运或刷量将扣回积分并取消活动资格。积分价值:100 积分 = ¥1。  ## 价保与活动价说明  官网 7 天价保(详见《计费与发票说明》):下单 7 天内同商品官网降价可补差,但秒杀价、清仓价、用券后价不参与。大促预售:定金支付"
+        }
+      ]
+    },
+    {
+      "id": "eval-041",
+      "query": "谢谢",
+      "category": "结束对话",
+      "expected_intent": "ending",
+      "predicted_intent": "consult",
+      "intent_correct": false,
+      "expected_emotion": "happy",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": false,
+      "emotion_error": null,
+      "rag_expected": false,
+      "expected_doc_keywords": [],
+      "rag_rank": 0,
+      "rag_hit": false,
+      "rag_result_count": 0,
+      "rag_ms": 1.0,
+      "rag_error": null,
+      "top_results": []
+    },
+    {
+      "id": "eval-042",
+      "query": "你好，我的订单还没发货",
+      "category": "多意图",
+      "expected_intent": "consult",
+      "predicted_intent": "chat",
+      "intent_correct": false,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "订单",
+        "发货"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 4.5,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.698982,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.598982,
+          "snippet": "# 物流与配送说明  ## 配送范围  - 全国配送:覆盖中国大陆所有省市区,港澳台地区经转运发货 - 海外配送:支持美国、日本、韩国、新加坡、马来西亚等 20+ 国家,通过 DHL / 顺丰国际发货 - 暂不配送:中国大陆的少数高海拔无人区乡镇(下单时地址校验会提示) - 海外订单关税:商品价格不含目的国关税,如产生由收件人承担  ## 配送方式与运费  | 配送方式 | 时效 | 运费 | 适用地区 | |---------|------|------|---------"
+        },
+        {
+          "title": "billing-invoices",
+          "source": "billing-invoices",
+          "score": 0.598981,
+          "snippet": "# 计费与发票说明  ## 支付方式总览  官网/App 支持微信支付、支付宝、银联卡、信用卡;订单满 ¥3000 支持花呗/信用卡 3 期免息分期;企业采购支持对公转账(见《优惠活动与会员权益》)。云服务订阅仅支持微信、支付宝,并可开启自动续费。电商平台(京东/天猫/亚马逊全球购)订单按各平台支付方式。账户余额(退款所得)可直接抵扣任意官网订单,不可提现部分以充值记录为准——退款转入的余额可随时再提现至原支付账户。  ## 订单支付时限与自动取消  下单后 30 分钟内未完"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.498982,
+          "snippet": "退款进度在 App\"我的订单\"→\"退款/售后\"中实时查看,状态依次为:已申请→审核通过→已寄回→验货中→退款中→已到账。超过 7 个工作日未到账:先核对原支付渠道账单(信用卡退款可能显示为\"退款入账\"而非消费冲正),仍未收到请联系在线客服,提供订单号与退款单号,财务将在 2 个工作日内核查回复。  ## 电商平台订单退换说明  京东、天猫、亚马逊全球购订单的退换货按下单平台的流程发起(平台\"我的订单\"→申请售后),退款路径与时效以平台规则为准;7 天无理由、15 天质量退换的"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.498982,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        }
+      ]
+    },
+    {
+      "id": "eval-043",
+      "query": "我想退货，但先问一下流程",
+      "category": "多意图",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "退货",
+        "流程"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.7,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.3808,
+          "snippet": "退款进度在 App\"我的订单\"→\"退款/售后\"中实时查看,状态依次为:已申请→审核通过→已寄回→验货中→退款中→已到账。超过 7 个工作日未到账:先核对原支付渠道账单(信用卡退款可能显示为\"退款入账\"而非消费冲正),仍未收到请联系在线客服,提供订单号与退款单号,财务将在 2 个工作日内核查回复。  ## 电商平台订单退换说明  京东、天猫、亚马逊全球购订单的退换货按下单平台的流程发起(平台\"我的订单\"→申请售后),退款路径与时效以平台规则为准;7 天无理由、15 天质量退换的"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.3808,
+          "snippet": "- 同型号换货:免费,来回运费由我方承担(质量问题);无理由换货(如换颜色)寄回运费用户承担 - 不同型号换货:补差价或退差价,按下单时实付价与新型号现价计算 - 换货周期:整体 7-10 个工作日(寄回 2-3 天 + 验货 1-2 天 + 发出新品 2-5 天) - 换新的商品重新计算 7 天无理由与 15 天质量退换期,保修期仍自原始购买日起算  ## 套装类商品退货规则  智能家居套装(基础版 ¥499 / 全屋版 ¥1299)按整套价格销售,7 天无理由退货需整套退"
+        },
+        {
+          "title": "returns-refunds",
+          "source": "returns-refunds",
+          "score": 0.3808,
+          "snippet": "# 退换货政策  ## 退货政策总览  - 7 天无理由退货:自签收之日起 7 天内,商品未使用、包装完整可申请无理由退货,退回运费由用户承担 - 15 天质量问题退换:签收后 15 天内出现质量问题,可免费退货或换货,运费由我方承担 - 超过 15 天的质量问题:进入保修流程(音箱整机 1 年、网关 2 年等),只修不退换,详见《保修与售后服务政策》 - 云服务订阅:支持随时退订,按剩余天数比例退款 - 退款时效:仓库验货通过后 3 个工作日内发起退款,原路退回 1-7 个"
+        },
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.3808,
+          "snippet": "以旧换新抵扣可与 1 张优惠券、积分抵扣同时使用,三者叠加后订单实付不得低于新品价格的 30%(低于时系统自动限制积分抵扣额)。换新订单支持 7 天无理由退货:退货时退还实付金额,旧机抵扣额以等值余额返还(旧机不退回,因已进入环保拆解流程)——对旧机有留恋的用户请谨慎使用换新。换新订单同样累计积分与会员等级(按实付金额)。  ## 新用户专享  新注册账号 7 天内可领\"新人礼包\":满 ¥199 减 ¥20 优惠券 ×1、云服务家庭版 1 个月体验券 ×1(需手动激活,体验期"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.289891,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        }
+      ]
+    },
+    {
+      "id": "eval-044",
+      "query": "设备坏了怎么办",
+      "category": "故障咨询",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "anxious",
+      "predicted_emotion": "anxious",
+      "emotion_intensity": 3,
+      "emotion_source": "keyword",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "故障",
+        "维修"
+      ],
+      "rag_rank": 1,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.9,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "account-security",
+          "source": "account-security",
+          "score": 0.865647,
+          "snippet": "所有数据传输与存储采用 AES-256 加密;服务器通过等保三级认证;云服务 SLA 99.9%。语音唤醒词本地处理不上传;对话内容默认不保存。智联科技不会将用户数据分享给第三方或用于商业用途;摄像头视频仅账号本人及被授权的家庭成员可访问,员工无查看权限(维修调试需用户在工单中临时授权,且操作留痕)。安全漏洞报告邮箱:security@smartlinktech.com。  ## 未成年人与儿童模式  智联账号需年满 14 周岁注册;未满 14 周岁应由监护人注册并管理。音箱"
+        },
+        {
+          "title": "installation-guide",
+          "source": "installation-guide",
+          "score": 0.698981,
+          "snippet": "1. 撕开背胶前先规划位置:主体贴门框/窗框(固定侧),磁体贴门扇/窗扇(活动侧),闭合时两片间距小于 2cm 且尽量平行 2. 拉出电池绝缘片激活,指示灯慢闪进入配对模式(不闪则用卡针按重置孔 5 秒) 3. App\"添加设备\"→\"Zigbee 子设备\"→\"门窗传感器\"→选择网关→\"自动搜索\" 4. 安装面清洁干燥后再贴,低温环境建议先用手焐热背胶 5. 电池 CR2032,典型续航 12 个月,低于 20% 推送提醒(E017)  ## 温湿度/人体传感器安装  温湿度传"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.698981,
+          "snippet": "## 忘记密码怎么办  App 登录页点击\"忘记密码\",通过注册手机号接收短信验证码重置;手机号不可用时可用绑定邮箱重置。连续输错密码 5 次账号将临时锁定 30 分钟。手机号和邮箱都无法使用时,联系客服人工申诉(需提供购买凭证与身份信息,审核 3 个工作日)。详见《账号与安全》。  ## 可以在一个家里用多个账号吗  推荐做法是\"家庭共享\":主账号在 App\"家庭管理\"中邀请成员(免费版 2 人、家庭版 6 人、专业版 10 人),成员用自己的账号即可查看和控制设备,无需共"
+        },
+        {
+          "title": "warranty-service",
+          "source": "warranty-service",
+          "score": 0.532315,
+          "snippet": "整机停产后,智联科技承诺继续提供维修配件至少 3 年。停产型号信息与配件供应状态可在官网\"服务支持\"→\"停产产品公告\"查询。停产且无配件时,保修期内设备按\"换修与换新判定标准\"置换现售型号。用户自行购买的第三方配件(非官方电源、灯泡驱动等)引发的故障不在保修范围。  ## 保修凭证与异地保修  保修凭证:官网/电商订单记录、发票任一即可,App 绑定设备时订单会自动关联,报修时通常无需再提供。异地保修:全国联保,购买地与报修地不同不影响权益,上门取送覆盖中国大陆全境。赠品同样"
+        },
+        {
+          "title": "troubleshooting",
+          "source": "troubleshooting",
+          "score": 0.365649,
+          "snippet": "插座指示灯亮、App 显示在线,但接的电器不工作:1) 确认 App/语音已将插座置于\"开\"状态;2) 检查电器自身开关;3) 负载超过 2500W/10A 时插座过载保护自动断开(App 会推送过载告警,报 E018),移除大功率电器后在 App 中手动恢复;4) 能耗统计显示 0W 但电器在工作,重启插座后数据恢复上报。电暖器、电热水器等大功率设备请核对功率后再接入。  ## 窗帘电机问题  - 不动作:检查电源;确认已与网关配对(离线时 App 置灰);行程未设置时电机"
+        }
+      ]
+    },
+    {
+      "id": "eval-045",
+      "query": "我只是想问问你们有什么产品",
+      "category": "产品咨询",
+      "expected_intent": "consult",
+      "predicted_intent": "consult",
+      "intent_correct": true,
+      "expected_emotion": "neutral",
+      "predicted_emotion": "neutral",
+      "emotion_intensity": 1,
+      "emotion_source": "neutral-fallback",
+      "emotion_correct": true,
+      "emotion_error": null,
+      "rag_expected": true,
+      "expected_doc_keywords": [
+        "产品"
+      ],
+      "rag_rank": 2,
+      "rag_hit": true,
+      "rag_result_count": 5,
+      "rag_ms": 3.0,
+      "rag_error": null,
+      "top_results": [
+        {
+          "title": "promotions-membership",
+          "source": "promotions-membership",
+          "score": 0.365648,
+          "snippet": "## 晒单返利与社区激励  确认收货后 30 天内在 App\"社区\"发布带图评价得 50 积分/单;被官方加精的深度体验帖额外得 500 积分;上传自动化场景模板被他人使用超 100 次,得\"场景达人\"徽章 + 1000 积分。社区内容须真实原创,搬运或刷量将扣回积分并取消活动资格。积分价值:100 积分 = ¥1。  ## 价保与活动价说明  官网 7 天价保(详见《计费与发票说明》):下单 7 天内同商品官网降价可补差,但秒杀价、清仓价、用券后价不参与。大促预售:定金支付"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.365648,
+          "snippet": "## 忘记密码怎么办  App 登录页点击\"忘记密码\",通过注册手机号接收短信验证码重置;手机号不可用时可用绑定邮箱重置。连续输错密码 5 次账号将临时锁定 30 分钟。手机号和邮箱都无法使用时,联系客服人工申诉(需提供购买凭证与身份信息,审核 3 个工作日)。详见《账号与安全》。  ## 可以在一个家里用多个账号吗  推荐做法是\"家庭共享\":主账号在 App\"家庭管理\"中邀请成员(免费版 2 人、家庭版 6 人、专业版 10 人),成员用自己的账号即可查看和控制设备,无需共"
+        },
+        {
+          "title": "shipping-logistics",
+          "source": "shipping-logistics",
+          "score": 0.282315,
+          "snippet": "签收前建议当场检查外包装;发现明显破损、变形、水渍请当面拒收并拍照留证,24 小时内联系客服,我们免费补发。已签收后开箱发现商品损坏,属于 15 天质量退换范围,拍照联系客服按质量问题流程处理(运费我方承担)。快递放代收点/驿站视同签收,7 天无理由退货期自驿站签收之日起算,请及时取件。  ## 收货时效与代签规则  快递员通常派送 2 次,联系不上收件人时包裹存放网点或驿站 3 天,逾期退回发货仓。因拒收或超期退回产生的二次发货,无理由情形下运费由用户承担。他人代签(家人、"
+        },
+        {
+          "title": "installation-guide",
+          "source": "installation-guide",
+          "score": 0.282315,
+          "snippet": "全屋版(¥1299,含 13 个设备)推荐部署顺序:1) 先装网关 G2 Pro(优先有线,居中位置);2) 逐个房间配对灯泡与插座(配对时设备可先集中在网关旁 1 米内完成,再安装到位);3) 传感器最后安装并按房间命名;4) 命名规范:\"房间+设备\"(如\"主卧灯\"\"客厅插座 1\"),避免同音字;5) 最后创建场景(回家/离家/睡眠模式)并逐一试跑。单次配对一个设备,不要同时把多个设备置于配对模式,防止串扰。  ## 安装服务与付费上门  智联产品均为免工具/低门槛安装,普"
+        },
+        {
+          "title": "faq",
+          "source": "faq",
+          "score": 0.282314,
+          "snippet": "小房间/预算有限选 X-100(¥199,拾音 3 米,仅 2.4GHz WiFi);客厅主力和大多数家庭选 X-200(¥399,拾音 5 米,WiFi 6,音质均衡);想要全屋智能、省掉网关的选 X-300 Pro(¥699,拾音 8 米,30W 音质,内置 Zigbee 网关可接 128 个子设备)。已有基础版/全屋版套装(自带网关)的用户选 X-100 或 X-200 即可。  ## 家居套装基础版和全屋版怎么选  基础版 ¥499 适合一居室或初次尝试:网关 G1("
+        }
+      ]
+    }
+  ],
+  "rag_runtime": {
+    "backend": "pgvector",
+    "embedding_fallback": true,
+    "note": "embedding unavailable 时使用 PostgreSQL tsvector/关键词检索"
+  }
+}

@@ -1,0 +1,797 @@
+"""
+节点函数 - LangGraph 智能客服 Agent (本地 LLM via llama.cpp)
+
+新流程：
+1. 用户提问 → bot 回复（不问满意度）
+2. 用户继续问 → bot 继续回答
+3. 用户表示结束（"再见"、"谢谢"、"好了"）→ 才问满意度
+4. 满意 → 结束语；不满意 → 重试或转人工
+"""
+
+import time
+import logging
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from collections import deque
+from contextlib import suppress
+from typing import Dict, Any, List, Optional
+from langchain_core.messages import HumanMessage, AIMessage
+
+logger = logging.getLogger("agent.nodes")
+
+# Bound by runner.run_stream() for the graph worker that owns this request.
+# Only reply generation writes token events; the runner forwards them immediately as SSE.
+_stream_queue = None
+_stream_queue_local = threading.local()
+
+
+def _active_stream_queue():
+    return getattr(_stream_queue_local, "queue", None) or _stream_queue
+
+
+def _emit_stream_event(event: Dict[str, Any]) -> None:
+    stream_queue = _active_stream_queue()
+    if stream_queue is not None:
+        with suppress(Exception):
+            stream_queue.put(dict(event))
+
+
+def _emit_stream_progress(stage: str) -> None:
+    _emit_stream_event({"progress": stage})
+
+
+# ── Token 预算管理 ────────────────────────────────────────
+MAX_INPUT_TOKENS = 120_000     # 模型上下文上限（留余量）
+RESERVED_OUTPUT_TOKENS = 512   # 预留给输出的 Token
+MAX_SYSTEM_PROMPT_CHARS = 8000 # System prompt 最大字符数
+
+# Token 估算系数（中文约 1.5 tokens/字，英文约 1.3 tokens/词）
+CHINESE_TOKEN_RATIO = 1.5
+ENGLISH_TOKEN_RATIO = 1.3
+
+# ============================================================
+# History Recall Query Detection (JavaGuide Context Engineering)
+# ============================================================
+
+def _is_history_recall_query(user_message: str) -> bool:
+    """判断用户是否在询问之前的对话内容（历史回忆类查询）。
+    
+    这类查询应该跳过 RAG，直接从 conversation history 中查找答案。
+    
+    Args:
+        user_message: 用户消息内容
+        
+    Returns:
+        True if the query is asking about previous conversation content
+        
+    Examples:
+        >>> _is_history_recall_query("我刚才问你的订单问题")
+        True
+        >>> _is_history_recall_query("你刚才说了什么？")
+        True
+        >>> _is_history_recall_query("订单物流什么时候到？")
+        False
+    """
+    # Time-reference keywords indicating past conversation
+    time_keywords = [
+        '刚才', '刚刚', '之前', '之前说的', '之前我问的', '上次', '上回',
+        '你说的', '你刚说', '你之前说', '你说过', '我记得', '记得吗',
+        '失忆', '忘了', '忘记了', '不记得', '想不起来',
+    ]
+    
+    # Memory-reference patterns
+    memory_patterns = [
+        ('刚才', True), ('刚刚', True), ('之前', True), ('之前说', True),
+        ('之前问', True), ('上次', True), ('上回', True), ('你说的', True),
+        ('你刚说', True), ('你之前说', True), ('你说过', True), ('我记得', True),
+        ('记得吗', True), ('失忆', True), ('忘了吗', True), ('忘记了', True),
+    ]
+    
+    message_lower = user_message.lower()
+    
+    # Check for explicit time/memory references
+    for keyword in time_keywords:
+        if keyword in message_lower:
+            # Additional check: should be a question or recall request
+            question_indicators = ['什么', '哪', '哪些', '谁', '为什么', '怎么', '吗', '呢', '？', '?']
+            has_question = any(ind in message_lower for ind in question_indicators)
+            
+            # If contains time reference and appears to be asking something, it's likely a history recall
+            if has_question or len(user_message) < 30:  # Short queries are often follow-ups
+                return True
+    
+    # Pattern matching for common recall phrases
+    for pattern, is_recall in memory_patterns:
+        if pattern in message_lower:
+            return is_recall
+    
+    return False
+
+# ============================================================
+# Node timing middleware (LangGraph best practice: monitor node latency)
+# ============================================================
+
+_node_timings: Dict[str, deque] = {}  # bounded samples per node
+
+
+def _time_node(node_name: str):
+    """Context manager that tracks execution time per node.
+
+    Usage:
+        with _time_node('identify_intent'):
+            ...  # node logic
+    """
+    import contextlib
+    @contextlib.contextmanager
+    def timer():
+        t0 = time.time()
+        try:
+            yield
+        finally:
+            elapsed = time.time() - t0
+            _node_timings.setdefault(node_name, deque(maxlen=1000)).append(elapsed)
+            count = len(_node_timings[node_name])
+            avg = sum(_node_timings[node_name]) / count
+            logger.info("node=%s elapsed_ms=%.0f avg_ms=%.0f count=%s", node_name, elapsed * 1000, avg * 1000, count)
+            if record_node_duration is not None:
+                with suppress(Exception):
+                    record_node_duration(node_name, elapsed)
+    return timer()
+
+
+def get_node_timings() -> Dict[str, Dict[str, float]]:
+    """Return aggregated timing stats for all nodes."""
+    stats = {}
+    for name, times in _node_timings.items():
+        stats[name] = {
+            'count': len(times),
+            'avg_ms': sum(times) / len(times) * 1000,
+            'max_ms': max(times) * 1000,
+            'min_ms': min(times) * 1000,
+        }
+    return stats
+
+
+def reset_node_timings() -> None:
+    """Clear all timing data."""
+    _node_timings.clear()
+
+# RAG integration (legacy)
+from .rag import build_context as rag_build_context
+# Agentic RAG — LLM-driven retrieval loop
+from .agentic_rag import agentic_rag
+
+# Sentiment analysis integration
+from .sentiment import analyze as sentiment_analyze, get_tone_adjustment
+
+# Multi-turn memory
+from .memory import (
+    save_conversation,
+    build_memory_context,
+    mark_resolved,
+)
+
+# Dialogue summary
+from .summary import generate_summary, format_ticket
+
+from .llm_client import get_llm_client
+from .llm_gateway import GatewayRequest, get_llm_gateway, get_gateway_context
+try:
+    from .metrics import record_rag_query, record_node_duration
+except Exception:  # metrics must never make chat unavailable
+    record_rag_query = None
+    record_node_duration = None
+
+# Context Compaction — 对话历史压缩（替代简单截断）
+from .context_compaction import get_compactor
+
+# Security: prompt injection defense
+from .security.prompt_guard import reinforce_system_prompt
+
+# Base system prompt (without security layer)
+_BASE_SYSTEM_PROMPT = """你是一个专业的智能客服助手，服务于"智联科技"公司。
+公司产品：智能音箱、智能家居套装、云服务。
+
+你的职责：
+1. 友好地回答用户关于产品的咨询
+2. 处理用户投诉，保持耐心和同理心
+3. 如果是闲聊，礼貌回应并引导到产品话题
+
+回复要求：
+- 用中文回复
+- 语气自然、亲切，像一个真人客服
+- 根据用户的问题给出有针对性的回答，不要模板化
+- 如果用户投诉，先道歉再解决问题
+- 如果不确定，诚实说不知道，不要编造信息
+- 优先使用下方参考资料中的信息回答产品相关问题"""
+
+# Security-hardened system prompt with anti-injection instructions
+SYSTEM_PROMPT = reinforce_system_prompt(_BASE_SYSTEM_PROMPT)
+
+# RAG-enhanced system prompt template (uses hardened base)
+RAG_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT + """
+
+{rag_context}
+以上资料由 Agentic RAG 系统智能检索而来，已针对你的问题进行了多轮优化。
+请基于以上参考资料回答用户问题。如果参考资料中没有相关信息，诚实说明你不确定。"""
+
+
+def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT,
+              max_tokens: int = 512, *, stream: bool = False) -> str:
+    """Call the model gateway and forward every provider token in stream mode."""
+    full_messages: List[dict] = []
+    if system:
+        full_messages.append({"role": "system", "content": system})
+    full_messages.extend(messages or [])
+    scoped = get_gateway_context()
+    request = GatewayRequest(
+        messages=full_messages,
+        scene=str(scoped.get("scene") or "chat"),
+        tenant_id=str(scoped.get("tenant_id") or "default"),
+        user_id=scoped.get("user_id"),
+        trace_id=str(scoped.get("trace_id") or ""),
+        idempotency_key=scoped.get("idempotency_key"),
+        max_output_tokens=max_tokens,
+        metadata={"prompt_version": "chat-v1"},
+    )
+    gateway = get_llm_gateway()
+    if not stream:
+        return gateway.chat_sync(request).content
+    _emit_stream_progress("generating")
+    parts: List[str] = []
+    for token in gateway.stream_sync(request):
+        token = str(token or "")
+        if not token:
+            continue
+        parts.append(token)
+        _emit_stream_event({"token": token})
+    return "".join(parts)
+
+
+def _call_llm_json(messages: List[dict], system: str, max_tokens: int = 256) -> dict:
+    """调用 LLM 并解析 JSON 响应。"""
+    result = get_llm_client().chat_json(messages, system, max_tokens=max_tokens)
+    if not result:
+        return {"intent": "consult"}
+    return result
+
+
+# ============================================================
+# 意图识别（包含对话结束检测）
+# ============================================================
+
+INTENT_SYSTEM = """你是一个意图分类器。分析用户消息，判断其意图。
+
+返回严格的 JSON 格式（不要任何其他文字）：
+{"intent": "类型", "ending": false}
+
+意图类型：
+- "consult"：产品咨询、功能询问、技术支持
+- "complaint"：投诉、抱怨、退款、退货、差评
+- "chat"：打招呼、闲聊（如"你好"、"hi"、"在吗"）
+- "ending"：用户想结束对话（"再见"、"谢谢"、"好了"、"没问题了"、"bye"、"thanks"、"that's all"）
+
+"ending" 字段只有在 intent 为 "ending" 时才为 true，否则为 false。
+注意："谢谢"单独出现 = ending；"谢谢但是..." = 不是 ending（还有问题）。"""
+
+
+def identify_intent(state: Dict[str, Any]) -> Dict[str, Any]:
+    """意图识别节点 — 使用本地 LLM 进行意图分类 + 情感分析。"""
+    with _time_node('identify_intent'):
+        return _identify_intent_inner(state)
+
+
+def _identify_intent_inner(state: Dict[str, Any]) -> Dict[str, Any]:
+    messages = state.get('messages', [])
+
+    user_message = ''
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            user_message = msg.content
+            break
+
+    if not user_message:
+        return {'intent': 'consult', 'ending': False, 'emotion': 'neutral', 'emotion_intensity': 1}
+
+    # Intent classification
+    result = _call_llm_json(
+        [{"role": "user", "content": user_message}],
+        INTENT_SYSTEM
+    )
+
+    intent = result.get('intent', 'consult')
+    ending = result.get('ending', False)
+
+    # Sentiment analysis (lightweight — cached per message)
+    sentiment = sentiment_analyze(user_message, cache_key=state.get('session_id', '') + user_message[:30])
+    emotion = sentiment.get('emotion', 'neutral')
+    intensity = sentiment.get('intensity', 1)
+
+    print(f"[意图识别] '{user_message}' → {intent}, 结束={ending}")
+    if emotion != 'neutral':
+        print(f"[情感分析] {emotion} (强度 {intensity}/5)")
+
+    return {
+        'intent': intent,
+        'ending': ending,
+        'emotion': emotion,
+        'emotion_intensity': intensity,
+    }
+
+
+# ============================================================
+# 回复生成
+# ============================================================
+
+def estimate_tokens(text: str) -> int:
+    """粗略估算文本的 Token 数量。
+
+    中文约 1.5 tokens/字，英文约 1.3 tokens/词。
+    这是估算值，不精确但足够用于预算控制。
+    """
+    import re
+    chinese_chars = len(re.findall(r'[一-鿿]', text))
+    english_words = len(re.findall(r'[a-zA-Z]+', text))
+    other_chars = len(text) - chinese_chars - len(re.findall(r'[a-zA-Z]+', text))
+
+    tokens = (
+        chinese_chars * CHINESE_TOKEN_RATIO +
+        english_words * ENGLISH_TOKEN_RATIO +
+        other_chars * 0.5  # 标点/数字等按 0.5 估算
+    )
+    return int(tokens)
+
+
+def estimate_total_tokens(messages: List, system_prompt: str) -> Dict[str, Any]:
+    """估算整个请求的 Token 用量。
+
+    Returns:
+        {
+            'system_tokens': int,
+            'messages_tokens': int,
+            'total': int,
+            'within_budget': bool,
+            'remaining_for_output': int,
+        }
+    """
+    system_tokens = estimate_tokens(system_prompt)
+
+    messages_tokens = 0
+    for msg in messages:
+        content = msg.content if hasattr(msg, 'content') else str(msg.get('content', ''))
+        messages_tokens += estimate_tokens(content)
+
+    total = system_tokens + messages_tokens
+    remaining = MAX_INPUT_TOKENS - total - RESERVED_OUTPUT_TOKENS
+
+    return {
+        'system_tokens': system_tokens,
+        'messages_tokens': messages_tokens,
+        'total': total,
+        'within_budget': total <= MAX_INPUT_TOKENS - RESERVED_OUTPUT_TOKENS,
+        'remaining_for_output': remaining,
+    }
+
+
+def _trim_messages(messages: List, keep_last: int = 10) -> List:
+    """Trim message list to prevent unbounded growth in checkpointer state.
+
+    LangGraph best practice (docs.langchain.com/oss/python/langgraph/add-memory):
+    Long conversations pose a challenge — full history may not fit inside an LLM's
+    context window, and most LLMs perform poorly over long contexts. This function
+    keeps the last N message pairs (user+assistant), preserving recency while
+    reducing state bloat in checkpoints.
+
+    Args:
+        messages: Full message list from state
+        keep_last: Number of recent message pairs to keep (default 10 = 20 messages)
+
+    Returns:
+        Trimmed message list
+    """
+    if len(messages) <= keep_last * 2:
+        return messages
+    # Keep the last N pairs — preserves the most recent conversation context
+    return messages[-keep_last * 2:]
+
+
+def _trim_messages_by_tokens(messages: List, max_tokens: int) -> List:
+    """按 Token 预算裁剪消息，从最旧的开始删。
+
+    Args:
+        messages: 完整消息列表
+        max_tokens: 最大允许的 Token 数
+
+    Returns:
+        裁剪后的消息列表（保证总 Token <= max_tokens）
+    """
+    if not messages:
+        return messages
+
+    # 先估算总量
+    total = sum(
+        estimate_tokens(msg.content if hasattr(msg, 'content') else str(msg.get('content', '')))
+        for msg in messages
+    )
+
+    if total <= max_tokens:
+        return messages
+
+    # 从最旧的开始删，直到满足预算
+    trimmed = list(messages)
+    while len(trimmed) > 2 and total > max_tokens:
+        removed = trimmed.pop(0)
+        removed_tokens = estimate_tokens(
+            removed.content if hasattr(removed, 'content') else str(removed.get('content', ''))
+        )
+        total -= removed_tokens
+
+    logger.info(f"[Token Trim] {len(messages)} -> {len(trimmed)} messages ({total} tokens <= {max_tokens})")
+    return trimmed
+
+
+# ============================================================
+# Shared reply context builder (used by both graph nodes and streaming API)
+# ============================================================
+
+from .context_assembler import ContextAssembler
+
+def build_reply_context(
+    messages: List,
+    intent: str = 'consult',
+    user_query: str = '',
+    session_id: str = '',
+    emotion: str = 'neutral',
+    emotion_intensity: int = 1,
+    retry_count: int = 0,
+    state: dict = None,
+    user_id: str = '',
+    need_rag: Optional[bool] = None,
+    registry=None,
+) -> Dict[str, Any]:
+    """Build context for reply generation (shared between graph node and streaming API).
+
+    Token 预算管理流程：
+    1. Context Compaction — 如果对话过长，用 LLM 压缩早期消息为摘要
+    2. 估算当前消息 + system prompt 的总 Token
+    3. 如果超出预算，按 Token 裁剪（从最旧的消息开始删）
+    4. 确保预留 RESERVED_OUTPUT_TOKENS 给模型输出
+
+    Returns a dict with:
+      - context_messages: compacted conversation history as dicts
+      - system_prompt: full system prompt with RAG + memory + tone adjustment + compaction summary
+      - rag_info: Agentic RAG result dict or None
+      - latest_user: last user message text
+      - token_budget: Token 预算信息（用于可观测性）
+      - compaction: Context Compaction 结果
+    """
+    # ── Step 1: Context Compaction ──────────────────────────────
+    _emit_stream_progress("assembling_context")
+    compactor = get_compactor()
+    compaction = compactor.maybe_compact(messages, session_id=session_id)
+
+    if compaction.compacted:
+        print(f"[Compaction] {compaction.old_count} → {compaction.new_count} messages, "
+              f"saved ~{compaction.tokens_saved} tokens")
+    elif compaction.summary:
+        print(f"[Compaction] Using cached summary ({len(compaction.summary)} chars)")
+
+    trimmed = compaction.messages
+    context_messages = []
+    for msg in trimmed:
+        if isinstance(msg, HumanMessage):
+            context_messages.append({"role": "user", "content": msg.content})
+        elif isinstance(msg, AIMessage):
+            context_messages.append({"role": "assistant", "content": msg.content})
+
+    # Extract latest user message
+    latest_user = user_query
+    if not latest_user:
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                latest_user = msg.content
+                break
+
+    # --- Agentic RAG: LLM-driven retrieval with adaptive re-search ---
+    rag_context = ""
+    rag_info = None
+    effective_need_rag = (intent == 'consult') if need_rag is None else bool(need_rag)
+    if effective_need_rag and latest_user:
+        _emit_stream_progress("retrieving_knowledge")
+        rag_info = agentic_rag(latest_user, max_rounds=2)
+        if record_rag_query is not None:
+            with suppress(Exception):
+                record_rag_query(bool(rag_info.get('hits') or rag_info.get('context')))
+        rag_context = rag_info.get('context', '')
+        if rag_context:
+            sections = rag_context.count('###')
+            print(f"[Agentic RAG] {sections} 条知识, {rag_info['rounds']} 轮检索, "
+                  f"sufficient={rag_info['sufficient']}, queries={rag_info['queries_tried']}")
+        else:
+            print(f"[Agentic RAG] 未找到相关知识")
+
+    # Use ContextAssembler to manage full component integration
+    assembler = ContextAssembler(registry=registry)
+    
+    # Prepare state-like structure for assembler input
+    assembler_state = {
+        "messages": trimmed,
+        "task_goal": "Provide helpful customer support",  # Could be dynamic
+        "constraints": [],  # e.g. compliance rules
+        "memory_summary": build_memory_context(user_id or session_id) if (user_id or session_id) else None,
+        "rag_results": [rag_info] if rag_info and rag_info.get('sufficient') else [],
+        "available_tools": []  # No tools currently used in this agent
+    }
+    
+    # Assemble final context using the progressive assembly pipeline
+    bundle = assembler.assemble(
+        state=assembler_state,
+        user_message=latest_user,
+        session_id=session_id
+    )
+    
+    # Extract structured components from bundle
+    context_messages = bundle.messages[1:]  # Exclude first system message
+    system_prompt = bundle.messages[0]["content"]
+    tool_schema = list(bundle.tool_schema)
+
+    # Apply the sentiment-aware tone guidance after the shared context
+    # assembler has built the system prompt.  This keeps the rule in one
+    # place for both the normal graph path and the SSE path; previously
+    # get_tone_adjustment was imported but never applied, so angry/anxious
+    # turns silently used the neutral tone.
+    tone_adjustment = get_tone_adjustment(
+        emotion or "neutral", int(emotion_intensity or 1)
+    )
+    if tone_adjustment:
+        system_prompt += tone_adjustment
+
+    if effective_need_rag and not rag_context:
+        system_prompt += (
+            "\n\n## \u77e5\u8bc6\u5e93\u8bc1\u636e\u72b6\u6001\n"
+            "\u5f53\u524d\u672a\u68c0\u7d22\u5230\u8db3\u591f\u7684\u77e5\u8bc6\u5e93\u8bc1\u636e\u3002\u4e0d\u5f97\u6839\u636e\u5e38\u8bc6\u3001\u731c\u6d4b\u6216\u8bad\u7ec3\u8bb0\u5fc6\u7f16\u9020\u4ea7\u54c1\u4e8b\u5b9e\uff1b"
+            "\u8bf7\u660e\u786e\u8bf4\u660e\u6682\u672a\u627e\u5230\u76f8\u5173\u8d44\u6599\uff0c\u5e76\u5efa\u8bae\u7528\u6237\u63d0\u4f9b\u578b\u53f7\u6216\u8f6c\u4eba\u5de5\u3002"
+        )
+
+    rag_label = f"agentic({rag_info['rounds']}轮)" if rag_info and rag_info.get('queries_tried') else ('yes' if rag_context else 'no')
+    print(f"[Reply Context] intent={intent}, retry={retry_count}, rag={rag_label}")
+
+    # ── Token 预算管理 ────────────────────────────────────────
+    token_budget = estimate_total_tokens(context_messages, system_prompt)
+    # Surface the assembler's authoritative allocation metadata alongside the
+    # legacy total/remaining fields used by the LLM gateway.
+    token_budget.update({
+        key: bundle.metadata[key]
+        for key in ("utilization", "token_estimate", "target_range",
+                    "degraded", "prompt_version")
+        if key in bundle.metadata
+    })
+    print(f"[Token Budget] total={token_budget['total']} (system={token_budget['system_tokens']}, msgs={token_budget['messages_tokens']}), remaining={token_budget['remaining_for_output']}")
+
+    # 如果超出预算，按 Token 裁剪
+    if not token_budget['within_budget']:
+        max_msg_tokens = MAX_INPUT_TOKENS - token_budget['system_tokens'] - RESERVED_OUTPUT_TOKENS
+        context_messages = _trim_messages_by_tokens(context_messages, max_msg_tokens)
+        token_budget = estimate_total_tokens(context_messages, system_prompt)  # 重新估算
+        print(f"[Token Budget] After trim: total={token_budget['total']}, remaining={token_budget['remaining_for_output']}")
+
+    return {
+        'context_messages': context_messages,
+        'system_prompt': system_prompt,
+        'rag_info': rag_info,
+        'latest_user': latest_user,
+        'token_budget': token_budget,
+        'compaction': compaction,
+        'tool_schema': tool_schema,
+    }
+
+
+def generate_reply(state: Dict[str, Any]) -> Dict[str, Any]:
+    """生成回复节点 — 使用本地 LLM + RAG 生成自然对话回复。"""
+    with _time_node('generate_reply'):
+        return _generate_reply_inner(state)
+
+
+def _generate_reply_inner(state: Dict[str, Any]) -> Dict[str, Any]:
+    intent = state.get('intent', 'consult')
+    retry_count = state.get('retry_count', 0)
+    messages = state.get('messages', [])
+    session_id = state.get('session_id', '')
+    emotion = state.get('emotion', 'neutral')
+    emotion_intensity = state.get('emotion_intensity', 1)
+
+    ctx = build_reply_context(
+        messages=messages,
+        intent=intent,
+        session_id=session_id,
+        emotion=emotion,
+        emotion_intensity=emotion_intensity,
+        retry_count=retry_count,
+        user_id=state.get('user_id', '') or '',
+    )
+
+    reply = _call_llm(ctx['context_messages'], ctx['system_prompt'], max_tokens=512, stream=True)
+    if not reply or not reply.strip():
+        reply = "抱歉，我现在无法生成回复，请稍后再试。"
+    ai_message = AIMessage(content=reply)
+
+    # Save to memory
+    if session_id and ctx['latest_user']:
+        save_conversation(
+            session_id=session_id,
+            user_message=ctx['latest_user'],
+            bot_reply=reply,
+            intent=intent,
+            emotion=emotion,
+            emotion_intensity=emotion_intensity,
+            user_id=state.get('user_id', '') or None,
+        )
+
+    # Conversation persistence is synchronous. Derived memory indexing is
+    # best-effort and cannot make an acknowledged chat disappear after refresh.
+    _schedule_long_term_memory_extraction(
+        state.get('user_id', '') or session_id, ctx['latest_user'], session_id
+    )
+
+    return {'messages': [ai_message], 'bot_reply': reply}
+
+
+# ============================================================
+# 满意度检查（仅在对话结束时调用）
+# ============================================================
+
+
+# Derived long-term-memory indexing runs after persistence, outside the token path.
+_memory_extract_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="memory-extract")
+_memory_extract_slots = threading.BoundedSemaphore(value=8)
+
+
+def _extract_long_term_memory_async(user_id: str, user_message: str, session_id: str) -> None:
+    try:
+        from .user_memory import extract_from_message
+        extract_from_message(user_id=user_id, user_message=user_message, source_session=session_id)
+    except Exception:
+        logger.warning("long-term memory indexing failed: session=%s", session_id, exc_info=True)
+    finally:
+        _memory_extract_slots.release()
+
+
+def _schedule_long_term_memory_extraction(user_id: str, user_message: str, session_id: str) -> None:
+    if not (user_id and user_message and session_id):
+        return
+    if not _memory_extract_slots.acquire(blocking=False):
+        logger.warning("long-term memory indexing queue full: session=%s", session_id)
+        return
+    try:
+        _memory_extract_executor.submit(_extract_long_term_memory_async, user_id, user_message, session_id)
+    except Exception:
+        _memory_extract_slots.release()
+        logger.warning("failed to schedule long-term memory indexing: session=%s", session_id, exc_info=True)
+
+def check_satisfaction(state: Dict[str, Any]) -> Dict[str, Any]:
+    """满意度检查节点 — 使用 LLM 生成自然的满意度询问。"""
+    prompt = _call_llm(
+        [{"role": "user", "content": "请自然地询问用户是否满意刚才的服务，简短友好"}],
+        SYSTEM_PROMPT + "\n只生成满意度询问的话，不要回复其他内容。",
+        max_tokens=80
+    )
+
+    ai_message = AIMessage(content=prompt)
+    print(f"[满意度检查] 询问用户")
+    return {'messages': [ai_message]}
+
+
+# ============================================================
+# 处理满意度反馈
+# ============================================================
+
+SATISFACTION_SYSTEM = """你是一个满意度判断器。根据用户回复判断是否满意。
+
+返回严格的 JSON（不要其他文字）：
+{"satisfied": true} 或 {"satisfied": false}
+
+规则：
+- "满意"、"好"、"可以"、"OK"、"谢谢" → true
+- "不满意"、"不好"、"不行"、"一般"、继续抱怨 → false
+- 如果用户提出了新问题（不是回答满意度）→ false"""
+
+
+def process_satisfaction(state: Dict[str, Any]) -> Dict[str, Any]:
+    """处理满意度反馈节点 — 使用 LLM 判断用户是否满意。"""
+    messages = state.get('messages', [])
+    retry_count = state.get('retry_count', 0)
+
+    user_message = ''
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            user_message = msg.content
+            break
+
+    if not user_message:
+        return {'satisfaction': None, 'retry_count': retry_count}
+
+    judge_result = _call_llm_json(
+        [{"role": "user", "content": f"用户回复：{user_message}\n判断用户对服务是否满意。"}],
+        SATISFACTION_SYSTEM
+    )
+
+    satisfaction = judge_result.get('satisfied', False)
+    new_retry = retry_count + (0 if satisfaction else 1)
+    print(f"[处理满意度] '{user_message}' → 满意={satisfaction}, 重试={new_retry}")
+    return {'satisfaction': satisfaction, 'retry_count': new_retry}
+
+
+# ============================================================
+# 转人工
+# ============================================================
+
+def escalate_to_human(state: Dict[str, Any]) -> Dict[str, Any]:
+    """转人工节点 — 使用 interrupt 挂起等待人工介入。"""
+    from langgraph.types import interrupt
+
+    session_id = state.get('session_id', 'unknown')
+    intent = state.get('intent', 'unknown')
+    retry_count = state.get('retry_count', 0)
+
+    print(f"[转人工] 问题升级！session={session_id}, intent={intent}, retries={retry_count}")
+
+    human_response = interrupt({
+        "type": "human_intervention_required",
+        "message": "需要人工客服介入处理",
+        "session_id": session_id,
+        "context": {
+            "intent": intent,
+            "retry_count": retry_count,
+            "last_user_message": [m.content for m in state.get('messages', []) if isinstance(m, HumanMessage)][-1] if state.get('messages') else None
+        }
+    })
+
+    if human_response:
+        return {
+            'messages': [AIMessage(content=f"[人工客服]: {human_response}")],
+            'escalate': False
+        }
+    return {'escalate': True}
+
+
+# ============================================================
+# 结束对话
+# ============================================================
+
+def finalize(state: Dict[str, Any]) -> Dict[str, Any]:
+    """结束对话节点 — 使用 LLM 生成自然的结束语 + 生成工单摘要。"""
+    session_id = state.get('session_id', '')
+    messages = state.get('messages', [])
+    satisfaction = state.get('satisfaction')
+    emotion = state.get('emotion', 'neutral')
+    emotion_intensity = state.get('emotion_intensity', 1)
+
+    closing = _call_llm(
+        [{"role": "user", "content": "请自然地结束这次客服对话，表达感谢和祝福"}],
+        SYSTEM_PROMPT + "\n只生成结束语，简短温暖。",
+        max_tokens=100
+    )
+
+    ai_message = AIMessage(content=closing)
+
+    # Generate ticket summary
+    if session_id and len(messages) >= 2:
+        try:
+            ticket = generate_summary(
+                messages=messages,
+                emotion=emotion,
+                emotion_intensity=emotion_intensity,
+                satisfaction=satisfaction,
+            )
+            print(format_ticket(ticket))
+            from .memory import save_ticket
+            save_ticket(ticket)
+        except Exception as e:
+            print(f"[工单生成失败] {e}")
+
+    # Mark all issues as resolved when session ends positively
+    if session_id:
+        mark_resolved(session_id)
+
+    print(f"[结束对话] 服务完成")
+    return {'messages': [ai_message]}

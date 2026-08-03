@@ -1,0 +1,70 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+*.err.log
+*.out.log
+*.stderr.log
+*.stdout.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Linting
+.ruff_cache/
+
+# Generated output
+*.csv
+*.jsonl
+_tmp_*
+*_result*.json
+*_result*.csv
+pytest_output.txt
+root_files.txt
+tests_files.txt
+
+# Backup files
+*.bak
+
+# Docker runtime
+docker-compose.override.yml
+
+# ChromaDB
+chroma_db/
+
+# Node (frontend)
+frontend/node_modules/
+frontend/dist/

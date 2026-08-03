@@ -1,0 +1,18 @@
+# Grafana dashboard provisioning
+# Loads dashboards from /var/lib/grafana/dashboards.
+# NOTE: add this mount to docker-compose (grafana service):
+#   - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+apiVersion: 1
+
+providers:
+  - name: agent-dashboards
+    orgId: 1
+    folder: "LangGraph Agent"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

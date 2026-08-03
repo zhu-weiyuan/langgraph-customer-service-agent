@@ -1,0 +1,51 @@
+# Prometheus alerting rules for langgraph-customer-service-agent
+# Referenced by monitoring/prometheus.yml (rule_files).
+# NOTE: also mount this file in docker-compose (prometheus service):
+#   - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+
+groups:
+  - name: agent-slo
+    rules:
+      # 1. 高错误率: 5xx 占比 > 5% (5m 窗口)
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total[5m])), 1e-9) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 5xx error rate above 5%"
+          description: "5xx ratio is {{ $value | humanizePercentage }} over the last 5m."
+
+      # 2. 高 P95 延迟: P95 > 5s (5m 窗口)
+      - alert: HighP95Latency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP P95 latency above 5s"
+          description: "P95 latency is {{ $value | humanizeDuration }} over the last 5m."
+
+      # 3. 熔断器打开: circuit_breaker_state == 2 (open)
+      - alert: CircuitBreakerOpen
+        expr: max by (name) (circuit_breaker_state) == 2
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker {{ $labels.name }} is OPEN"
+          description: "Downstream dependency {{ $labels.name }} is failing; requests are being short-circuited."
+
+      # 4. 预算耗尽: 当日 LLM 成本 (元) 超过预算 (默认 100 元/日, 按需调整)
+      - alert: LLMDailyBudgetExhausted
+        expr: sum(increase(llm_cost_yuan_total[24h])) > 100
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "LLM daily budget exhausted"
+          description: "LLM spend over the last 24h is {{ $value }} yuan (budget: 100)."

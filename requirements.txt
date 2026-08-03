@@ -1,0 +1,47 @@
+# LangGraph 智能客服 Agent - 依赖列表
+
+# LangGraph 核心库
+langgraph>=1.0.0
+langchain-core>=1.0.0
+
+# SQLite Checkpointer（持久化状态存储）
+langgraph-checkpoint-sqlite>=3.0.0
+
+# PostgreSQL Checkpointer（替代 SQLite，生产环境推荐）
+langgraph-checkpoint-postgres>=3.0.0
+psycopg[binary]>=3.0.0
+psycopg-pool>=3.2.0
+
+# 可选：如果需要真实 LLM 集成，取消注释以下依赖
+# openai>=1.0.0
+# langchain-openai>=0.2.0
+# anthropic>=0.30.0
+# langchain-anthropic>=0.3.0
+
+# 向量检索（RAG 语义搜索）
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+
+# 中文分词（BM25 关键词检索）
+jieba>=0.42.0
+
+# Web 服务（FastAPI 应用）
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+prometheus-client>=0.20.0
+
+# 异步 SQLite（checkpointer / 存储）
+aiosqlite>=0.19.0
+
+# 缓存
+redis>=5.0.0
+
+# HTTP 客户端
+requests>=2.31.0
+httpx>=0.27.0
+
+# 认证
+PyJWT>=2.8.0
+
+# 环境变量加载
+python-dotenv>=1.0.0

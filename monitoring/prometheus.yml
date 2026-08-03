@@ -1,0 +1,37 @@
+# Prometheus configuration for langgraph-customer-service-agent
+# Mounted by docker-compose.prod.yml at /etc/prometheus/prometheus.yml
+# (service name in compose: customer-service, app port 7860, metrics path /api/metrics)
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    service: langgraph-customer-service-agent
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  # Application metrics (FastAPI /api/metrics, Prometheus text format)
+  - job_name: app
+    metrics_path: /api/metrics
+    static_configs:
+      - targets:
+          - customer-service:7860
+        labels:
+          component: app
+
+  # Prometheus self-monitoring
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - localhost:9090
+
+  # Optional: Redis exporter (uncomment after adding
+  # oliver006/redis_exporter service to docker-compose, port 9121)
+  # - job_name: redis
+  #   static_configs:
+  #     - targets:
+  #         - redis-exporter:9121
+  #       labels:
+  #         component: redis
