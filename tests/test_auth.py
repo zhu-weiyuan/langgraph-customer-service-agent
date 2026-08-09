@@ -1,10 +1,8 @@
 """Tests for API authentication middleware."""
 
 import os
-import sys
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, r"C:\Users\Administrator\.openclaw\workspace\langgraph-customer-service-agent")
 
 from agent.auth import AuthMiddleware
 
@@ -125,3 +123,61 @@ def test_validate_key_whitespace_handling():
         assert AuthMiddleware._validate_key("key1") == True
         assert AuthMiddleware._validate_key("key2") == True
         assert AuthMiddleware._validate_key(" key1 ") == False
+
+
+# ── JWT secret strength validation ────────────────────────────────────
+
+
+def test_weak_secret_rejected_in_production():
+    """Short JWT_SECRET should be rejected when APP_ENV=production."""
+    from agent.auth import _jwt_secret
+    with patch.dict(os.environ, {"JWT_SECRET": "short", "APP_ENV": "production"}):
+        try:
+            _jwt_secret()
+            raise AssertionError("Expected ValueError for weak secret in production")
+        except ValueError as e:
+            assert "at least 32 bytes" in str(e)
+
+
+def test_weak_secret_allowed_in_development():
+    """Short JWT_SECRET should be allowed when APP_ENV is not production."""
+    from agent.auth import _jwt_secret
+    with patch.dict(os.environ, {"JWT_SECRET": "short", "APP_ENV": "development"}):
+        assert _jwt_secret() == "short"
+
+
+def test_empty_secret_returns_empty():
+    """Empty JWT_SECRET should return empty string (checked downstream)."""
+    from agent.auth import _jwt_secret
+    with patch.dict(os.environ, {"JWT_SECRET": "", "APP_ENV": "production"}):
+        assert _jwt_secret() == ""
+
+
+def test_long_secret_accepted_in_production():
+    """Secret >= 32 bytes should be accepted in production."""
+    from agent.auth import _jwt_secret
+    long_secret = "a" * 32
+    with patch.dict(os.environ, {"JWT_SECRET": long_secret, "APP_ENV": "production"}):
+        assert _jwt_secret() == long_secret
+
+
+def test_placeholder_rejected_in_production():
+    """Known placeholder secrets should be rejected in production."""
+    from agent.auth import _jwt_secret
+    with patch.dict(os.environ, {"JWT_SECRET": "change-me", "APP_ENV": "production"}):
+        try:
+            _jwt_secret()
+            raise AssertionError("Expected ValueError for placeholder secret")
+        except ValueError as e:
+            assert "placeholder" in str(e).lower()
+
+
+def test_create_token_weak_secret_rejected():
+    """create_access_token should fail with weak secret in production."""
+    from agent.auth import create_access_token
+    with patch.dict(os.environ, {"JWT_SECRET": "a", "APP_ENV": "production"}):
+        try:
+            create_access_token(subject="user1")
+            raise AssertionError("Expected ValueError for weak secret")
+        except ValueError as e:
+            assert "at least 32 bytes" in str(e)

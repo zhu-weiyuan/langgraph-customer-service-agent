@@ -20,13 +20,26 @@ import hashlib
 import hmac
 import json
 import os
+import secrets
 import time
 import urllib.parse
 from typing import Optional
 
 
+JWT_SECRET_MIN_BYTES = 32  # 256 bits — OWASP minimum for HMAC-SHA256
+
+
 def _jwt_secret() -> str:
-    return os.getenv("JWT_SECRET", "").strip()
+    secret = os.getenv("JWT_SECRET", "").strip()
+    if secret:
+        _reject_production_placeholder(secret)
+        environment = os.getenv("APP_ENV", "").strip().lower()
+        if environment in {"prod", "production"} and len(secret.encode("utf-8")) < JWT_SECRET_MIN_BYTES:
+            raise ValueError(
+                f"JWT_SECRET must be at least {JWT_SECRET_MIN_BYTES} bytes in production "
+                f"(got {len(secret.encode('utf-8'))} bytes). Use: python -c 'import secrets; print(secrets.token_urlsafe(48))'"
+            )
+    return secret
 
 
 def _jwt_ttl() -> int:
@@ -39,6 +52,46 @@ def _jwt_ttl() -> int:
     except ValueError:
         return 3600
 
+
+
+
+def _refresh_token_ttl() -> int:
+    """Return the browser refresh-session lifetime in seconds."""
+    try:
+        return max(60, int(os.getenv("JWT_REFRESH_TTL_SECONDS", str(60 * 60 * 24 * 14))))
+    except (TypeError, ValueError):
+        return 60 * 60 * 24 * 14
+
+
+def _refresh_token_pepper() -> str:
+    """Use a server-side pepper so a DB dump cannot be replayed as tokens."""
+    pepper = os.getenv("REFRESH_TOKEN_PEPPER", "").strip() or _jwt_secret()
+    if not pepper:
+        raise ValueError("JWT_SECRET or REFRESH_TOKEN_PEPPER is required for refresh tokens")
+    _reject_production_placeholder(pepper)
+    return pepper
+
+
+def refresh_token_ttl_seconds() -> int:
+    """Public refresh-token TTL helper used by the HTTP and persistence layers."""
+    return _refresh_token_ttl()
+
+
+def create_refresh_token() -> str:
+    """Create a high-entropy opaque refresh token; it is never a JWT."""
+    _refresh_token_pepper()  # fail closed when server-side protection is absent
+    return secrets.token_urlsafe(48)
+
+
+def hash_refresh_token(token: str) -> str:
+    """Return a keyed one-way hash suitable for PostgreSQL storage."""
+    if not token:
+        raise ValueError("refresh token must not be empty")
+    return hmac.new(
+        _refresh_token_pepper().encode("utf-8"),
+        token.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
 
 def _reject_production_placeholder(secret: str) -> None:
     """Reject example secrets when the application is running in production."""
@@ -342,7 +395,8 @@ class AuthMiddleware:
         # path 可能是完整 URL（app_fastapi 传 str(request.url)），统一取 path 部分
         pure_path = urllib.parse.urlparse(path).path or path
         public_paths = ["/", "/index.html", "/health", "/api/health", "/api/ready", "/healthz", "/api/metrics",
-                        "/api/auth/login", "/api/auth/register", "/api/auth/token"]
+                        "/api/auth/login", "/api/auth/register", "/api/auth/token",
+                        "/api/auth/refresh", "/api/auth/logout", "/api/auth/me"]
         return pure_path in public_paths or pure_path.startswith("/static/")
 
 

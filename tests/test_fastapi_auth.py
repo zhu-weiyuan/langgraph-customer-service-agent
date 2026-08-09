@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+
 @pytest.fixture
 def client(monkeypatch):
     monkeypatch.setenv("API_KEYS", "bootstrap-key")
@@ -12,11 +13,13 @@ def client(monkeypatch):
     return TestClient(app_fastapi.app)
 
 
+@pytest.mark.integration
 def test_protected_fastapi_route_requires_auth(client):
     response = client.get("/api/session/user-any")
     assert response.status_code == 401
 
 
+@pytest.mark.integration
 def test_token_exchange_and_cross_user_session_denial(client):
     response = client.post(
         "/api/auth/token",
@@ -33,9 +36,23 @@ def test_token_exchange_and_cross_user_session_denial(client):
     assert response.status_code == 403
 
 
+@pytest.mark.integration
 def test_invalid_bootstrap_key_is_rejected(client):
     response = client.post(
         "/api/auth/token",
         json={"api_key": "wrong-key", "subject": "alice"},
     )
+    assert response.status_code == 401
+
+
+@pytest.mark.integration
+def test_production_rejects_browser_controlled_user_header(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("API_KEYS", "")
+    monkeypatch.setenv("JWT_SECRET", "x" * 32)
+    monkeypatch.setenv("AUTH_ALLOW_HEADER_FALLBACK", "1")  # must still be ignored
+    import app_fastapi
+
+    with TestClient(app_fastapi.app) as client:
+        response = client.get("/api/sessions", headers={"X-User-Id": "victim"})
     assert response.status_code == 401
