@@ -34,8 +34,14 @@ function onNewSession() {
 
 /** Called after a successful login (from LoginModal) or a restored session. */
 async function afterAuth() {
-  await ui.verifyMe()
-  await store.bootstrap()
+  if (await ui.verifyMe()) {
+    await store.bootstrap()
+    return
+  }
+  // Never bootstrap as an anonymous user after authentication failed; that
+  // would make PostgreSQL-backed history appear to have disappeared.
+  ui.clearAuth()
+  ui.toast('error', '?????????????')
 }
 
 function onLogout() {
@@ -54,16 +60,11 @@ function onKeydown(event: KeyboardEvent) {
 onMounted(() => {
   ui.startHealthPolling()
   window.addEventListener('keydown', onKeydown)
-  // Restore identity before loading user-scoped sessions. Anonymous bootstrap
-  // would race login and can overwrite the authenticated history.
-  if (ui.restoreAuth()) {
-    // Verify first, then load sessions/memory.  Running these in parallel
-    // allowed an expired JWT to race bootstrap and made history appear empty.
-    void (async () => {
-      await ui.verifyMe()
-      await store.bootstrap()
-    })()
-  }
+  // The HttpOnly refresh cookie is the source of truth. Do this even if the
+  // browser has no localStorage/cookie display hints, otherwise a valid server
+  // session cannot restore PostgreSQL conversation history after a hard reload.
+  ui.restoreAuth()
+  void afterAuth()
 })
 
 onBeforeUnmount(() => {

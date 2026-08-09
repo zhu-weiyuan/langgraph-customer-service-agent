@@ -45,7 +45,7 @@ from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
 from pydantic import BaseModel, Field
 
 # 鈹€鈹€ agent 灞傦紙鍏ㄩ儴 import 瀹夊叏锛氫笁鏂逛緷璧栧唴閮ㄥ畧鍗級鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-from agent import runner
+from agent import refresh_tokens, runner
 from agent.auth import AuthMiddleware
 from agent.http_helpers import (FEEDBACK_DDL, FEEDBACK_INSERT, RATINGS_DDL,
                                 RATINGS_INSERT, REACTIONS_DDL, REACTIONS_INSERT,
@@ -452,38 +452,107 @@ app.add_middleware(
 # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 
 
-# Browser login fallback cookie. The Vue app still sends X-User-Id when it can,
-# but some local browser shells can lose JS storage on refresh. A first-party
-# cookie lets the backend recover the stable PostgreSQL/pgvector user id instead
-# of falling back to anon-<ip>.
+# Browser authentication uses a short-lived access JWT plus a rotating opaque
+# refresh token.  The raw refresh token is written only to this HttpOnly cookie;
+# PostgreSQL receives a keyed hash, never the raw credential.
+AUTH_REFRESH_COOKIE = "aster_refresh_token"
+AUTH_REFRESH_COOKIE_PATH = "/api/auth"
+# Deprecated pre-refresh cookie names are cleared on the next successful auth
+# response so they cannot remain an implicit production identity source.
 AUTH_USER_COOKIE = "aster_user_id"
 AUTH_NAME_COOKIE = "aster_username"
-AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 
 
-def _safe_cookie_value(value: str, limit: int = 128) -> str:
-    return (value or "").strip()[:limit]
+def _auth_env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _set_auth_cookies(response: Response, user_id: str, username: str = "") -> None:
-    uid = _safe_cookie_value(user_id)
-    name = _safe_cookie_value(username or uid)
-    if not uid:
-        return
-    cookie_kwargs = {
-        "max_age": AUTH_COOKIE_MAX_AGE,
-        "path": "/",
-        "samesite": "lax",
-        "secure": False,
-        "httponly": False,
+def _is_production() -> bool:
+    return os.getenv("APP_ENV", "").strip().lower() in {"prod", "production"}
+
+
+def _allow_header_identity_fallback() -> bool:
+    # A browser-controlled header is never an identity credential in
+    # production, even if an unsafe environment override is present.
+    if _is_production():
+        return False
+    return _auth_env_bool("AUTH_ALLOW_HEADER_FALLBACK", True)
+
+
+def _auth_cookie_secure() -> bool:
+    # Production refresh sessions always require HTTPS. Local http://localhost
+    # can explicitly use an insecure cookie for development only.
+    if _is_production():
+        return True
+    return _auth_env_bool("AUTH_COOKIE_SECURE", False)
+
+
+def _is_production_public_endpoint(path: str) -> bool:
+    """Return whether a path may be accessed without a browser access JWT."""
+    public_paths = {
+        "/", "/index.html", "/health", "/healthz", "/readyz",
+        "/api/health", "/api/ready", "/api/metrics",
+        "/api/auth/login", "/api/auth/register", "/api/auth/token",
+        "/api/auth/refresh", "/api/auth/logout", "/api/auth/me",
     }
-    response.set_cookie(AUTH_USER_COOKIE, uid, **cookie_kwargs)
-    response.set_cookie(AUTH_NAME_COOKIE, name, **cookie_kwargs)
+    return path in public_paths or path.startswith("/static/")
+
+
+def _refresh_cookie_samesite() -> str:
+    value = os.getenv("AUTH_COOKIE_SAMESITE", "lax").strip().lower()
+    return value if value in {"lax", "strict", "none"} else "lax"
+
+
+def _set_auth_cookies(response: Response, refresh_token: str) -> None:
+    if not refresh_token:
+        return
+    response.set_cookie(
+        AUTH_REFRESH_COOKIE,
+        refresh_token,
+        max_age=refresh_tokens.refresh_token_ttl_seconds(),
+        path=AUTH_REFRESH_COOKIE_PATH,
+        samesite=_refresh_cookie_samesite(),
+        secure=_auth_cookie_secure(),
+        httponly=True,
+    )
+    # Remove legacy browser-readable identity cookies after a successful login.
+    response.delete_cookie(AUTH_USER_COOKIE, path="/", samesite="lax")
+    response.delete_cookie(AUTH_NAME_COOKIE, path="/", samesite="lax")
 
 
 def _clear_auth_cookies(response: Response) -> None:
+    response.delete_cookie(
+        AUTH_REFRESH_COOKIE,
+        path=AUTH_REFRESH_COOKIE_PATH,
+        samesite=_refresh_cookie_samesite(),
+        secure=_auth_cookie_secure(),
+        httponly=True,
+    )
     response.delete_cookie(AUTH_USER_COOKIE, path="/", samesite="lax")
     response.delete_cookie(AUTH_NAME_COOKIE, path="/", samesite="lax")
+
+
+def _refresh_origin_is_allowed(request: Request) -> bool:
+    """Reject cross-site browser refreshes when an Origin header is supplied."""
+    if not _is_production():
+        return True
+    origin = (request.headers.get("origin") or "").strip().rstrip("/")
+    if not origin:
+        # Non-browser same-origin requests often omit Origin. SameSite cookies
+        # still protect normal browser cross-site POSTs.
+        return True
+    configured = {
+        item.strip().rstrip("/")
+        for item in os.getenv("AUTH_TRUSTED_ORIGINS", "").split(",")
+        if item.strip()
+    }
+    if not configured:
+        host = (request.headers.get("host") or "").strip()
+        configured = {f"https://{host}"} if host else set()
+    return origin in configured
 
 
 @app.middleware("http")
@@ -554,6 +623,14 @@ async def authenticate_request(request: Request, call_next):
     if auth_header.startswith("Bearer "):
         jwt_claims = AuthMiddleware._decode_jwt(auth_header[7:].strip())
 
+    # Browser/API business routes are JWT-protected in production regardless
+    # of whether the legacy API_KEYS switch is configured. This prevents a
+    # missing API_KEYS value from silently exposing user-scoped PostgreSQL data.
+    if _is_production() and not _is_production_public_endpoint(request.url.path):
+        if not (jwt_claims and jwt_claims.get("sub")):
+            return JSONResponse(status_code=401, content={
+                "error": "Unauthorized: Bearer access token is required"})
+
     if not AuthMiddleware.is_public_endpoint(request.url.path):
         ctx = type("AuthContext", (), {
             "headers": request.headers, "path": str(request.url)})()
@@ -564,8 +641,9 @@ async def authenticate_request(request: Request, call_next):
         request.state.auth_tenant_id = ctx.auth_tenant_id
         request.state.auth_scheme = ctx.auth_scheme
 
-    # Resolve the stable user id for PostgreSQL/pgvector ownership:
-    # valid JWT > X-User-Id > login cookie > anonymous IP hash.
+    # Resolve the stable user id for PostgreSQL/pgvector ownership. Production
+    # only trusts a verified JWT; X-User-Id is an explicit local-development
+    # compatibility switch and never a trusted browser identity in production.
     if jwt_claims and jwt_claims.get("sub"):
         request.state.user_id = str(jwt_claims["sub"])[:128]
         request.state.auth_tenant_id = str(
@@ -573,20 +651,18 @@ async def authenticate_request(request: Request, call_next):
         if not request.state.auth_scheme:
             request.state.auth_scheme = "jwt"
             request.state.auth_subject = request.state.user_id
-    else:
+    elif _allow_header_identity_fallback():
         header_uid = (request.headers.get("X-User-Id", "") or "").strip()
-        cookie_uid = (request.cookies.get(AUTH_USER_COOKIE, "") or "").strip()
         if header_uid:
             request.state.user_id = header_uid[:128]
-        elif cookie_uid:
-            request.state.user_id = cookie_uid[:128]
-            if not request.state.auth_scheme:
-                request.state.auth_scheme = "cookie"
-            if not request.state.auth_subject:
-                request.state.auth_subject = request.state.user_id
+            request.state.auth_scheme = request.state.auth_scheme or "header-fallback"
+            request.state.auth_subject = request.state.auth_subject or request.state.user_id
         else:
             ip = _client_ip(request)
             request.state.user_id = f"anon-{hashlib.sha1(ip.encode()).hexdigest()[:16]}"
+    else:
+        ip = _client_ip(request)
+        request.state.user_id = f"anon-{hashlib.sha1(ip.encode()).hexdigest()[:16]}"
     return await call_next(request)
 
 
@@ -650,7 +726,7 @@ class FeedbackRequest(BaseModel):
     session_id: str = ""
     query: str = ""
     answer: str = ""
-    rating: int = 0
+    rating: int = Field(default=0, ge=0, le=5)
     comment: str = ""
 
 
@@ -1452,8 +1528,8 @@ def _issue_user_token(user_id: str, tenant_id: str) -> Optional[str]:
 
 
 @app.post("/api/auth/register")
-async def auth_register(data: RegisterRequest):
-    """?????username ? user_id???????? created=False?"""
+async def auth_register(data: RegisterRequest, request: Request):
+    """创建用户；若 username/user_id 已存在，则返回 created=False。"""
     from agent import memory
     user_id = data.username.strip()
     tenant_id = data.tenant_id.strip() or "default"
@@ -1464,11 +1540,21 @@ async def auth_register(data: RegisterRequest):
     payload = {"ok": True, "user_id": user_id, "created": res["created"],
                "access_token": token, "token_type": "bearer"}
     response = JSONResponse(payload)
-    _set_auth_cookies(response, user_id, data.display_name or user_id)
+    if token:
+        grant = await asyncio.to_thread(
+            refresh_tokens.issue_refresh_token,
+            user_id,
+            tenant_id,
+            user_agent=request.headers.get("user-agent", ""),
+            client_ip=_client_ip(request),
+        )
+        _set_auth_cookies(response, grant.token)
+    else:
+        _clear_auth_cookies(response)
     return response
 
 @app.post("/api/auth/login")
-async def auth_login(data: LoginRequest):
+async def auth_login(data: LoginRequest, request: Request):
     """杞婚噺鐧诲綍锛歶sername 鍗?user_id銆?
 
     - users 琛ㄦ湁 password_hash 鈫?鏍￠獙瀵嗙爜锛?
@@ -1495,12 +1581,70 @@ async def auth_login(data: LoginRequest):
                "access_token": token, "token_type": "bearer",
                "session_id": f"user-{hashlib.sha256(user_id.encode()).hexdigest()[:24]}"}
     response = JSONResponse(payload)
-    _set_auth_cookies(response, user_id, user_id)
+    if token:
+        grant = await asyncio.to_thread(
+            refresh_tokens.issue_refresh_token,
+            user_id,
+            tenant_id,
+            user_agent=request.headers.get("user-agent", ""),
+            client_ip=_client_ip(request),
+        )
+        _set_auth_cookies(response, grant.token)
+    else:
+        _clear_auth_cookies(response)
+    return response
+
+
+@app.post("/api/auth/refresh")
+async def auth_refresh(request: Request):
+    if not _refresh_origin_is_allowed(request):
+        raise HTTPException(status_code=403, detail="Untrusted refresh origin")
+    raw_token = request.cookies.get(AUTH_REFRESH_COOKIE, "")
+    if not raw_token:
+        raise HTTPException(status_code=401, detail="Refresh session is missing or expired")
+    try:
+        grant = await asyncio.to_thread(
+            refresh_tokens.rotate_refresh_token,
+            raw_token,
+            user_agent=request.headers.get("user-agent", ""),
+            client_ip=_client_ip(request),
+        )
+    except ValueError as exc:
+        # JWT_SECRET/pepper configuration errors are server problems, not login
+        # failures. Do not rotate further credentials in this state.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    if grant is None:
+        response = JSONResponse(
+            status_code=401,
+            content={"error": "Refresh session is missing, expired, or revoked"},
+        )
+        _clear_auth_cookies(response)
+        return response
+    token = _issue_user_token(grant.user_id, grant.tenant_id)
+    if not token:
+        await asyncio.to_thread(refresh_tokens.revoke_refresh_token, grant.token)
+        raise HTTPException(status_code=503, detail="Access-token signing is unavailable")
+    response = JSONResponse({
+        "ok": True,
+        "user_id": grant.user_id,
+        "tenant_id": grant.tenant_id,
+        "access_token": token,
+        "token_type": "bearer",
+    })
+    _set_auth_cookies(response, grant.token)
     return response
 
 
 @app.post("/api/auth/logout")
-async def auth_logout():
+async def auth_logout(request: Request):
+    raw_token = request.cookies.get(AUTH_REFRESH_COOKIE, "")
+    if raw_token:
+        try:
+            await asyncio.to_thread(refresh_tokens.revoke_refresh_token, raw_token)
+        except Exception:
+            # Logout must still clear the browser credential if PostgreSQL is
+            # temporarily unavailable; the token remains short-lived server-side.
+            logger.warning("refresh-token revoke failed during logout", exc_info=True)
     response = JSONResponse({"ok": True})
     _clear_auth_cookies(response)
     return response

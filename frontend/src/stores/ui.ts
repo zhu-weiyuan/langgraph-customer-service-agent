@@ -3,6 +3,7 @@ import {
   ApiError,
   fetchHealth,
   fetchMe,
+  refreshSession,
   login as apiLogin,
   register as apiRegister,
   logout as apiLogout,
@@ -33,7 +34,6 @@ let toastSeq = 0
 // PostgreSQL still has the new messages.
 const LS_USER = 'aster.auth.user_id'
 const LS_NAME = 'aster.auth.username'
-const LS_TOKEN = 'aster.auth.token'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 
 function cookieGet(key: string): string | null {
@@ -148,8 +148,8 @@ export const useUiStore = defineStore('ui', {
     _persistAuth() {
       lsSet(LS_USER, this.auth.userId)
       lsSet(LS_NAME, this.auth.username)
-      if (this.auth.token) lsSet(LS_TOKEN, this.auth.token)
-      else lsRemove(LS_TOKEN)
+      // Access JWTs intentionally stay in memory. Page reload obtains a fresh
+      // one through the HttpOnly rotating refresh cookie instead of localStorage.
     },
 
     _setLoggedIn(userId: string, username: string, token: string | null) {
@@ -168,7 +168,7 @@ export const useUiStore = defineStore('ui', {
     restoreAuth(): boolean {
       const userId = lsGet(LS_USER)
       if (!userId) return false
-      this._setLoggedIn(userId, lsGet(LS_NAME) ?? userId, lsGet(LS_TOKEN))
+      this._setLoggedIn(userId, lsGet(LS_NAME) ?? userId, null)
       return true
     },
 
@@ -202,51 +202,52 @@ export const useUiStore = defineStore('ui', {
       }
     },
 
-    logout() {
-      void apiLogout().catch(() => undefined)
+    /** Clear only browser-visible auth state; the server cookie is handled separately. */
+    clearAuth() {
       this.auth = { userId: '', username: '', token: null, isLoggedIn: false }
       this.memoryOpen = false
       this.sidebarOpen = false
       setAuthIdentity(null)
       lsRemove(LS_USER)
       lsRemove(LS_NAME)
-      lsRemove(LS_TOKEN)
-      this.toast('info', '已登出')
+    },
+
+    logout() {
+      // Revoke the server session and clear local state immediately so no
+      // user-scoped data remains visible while logout is in flight.
+      void apiLogout().catch(() => undefined)
+      this.clearAuth()
+      this.toast('info', '???')
     },
 
     /**
-     * Verify a restored identity before loading user-scoped data.
-     *
-     * A JWT can outlive the browser tab and become stale after a server
-     * restart or secret rotation.  Keep the stable local user id (the API
-     * key injected by the local proxy still authenticates the request), but
-     * stop sending an expired JWT so it cannot win identity resolution.
+     * Establish and verify the current browser session before user-scoped data
+     * is loaded. Access JWTs are memory-only, so a page reload first exchanges
+     * the HttpOnly rotating refresh cookie for a fresh access token.
      */
     async verifyMe(): Promise<boolean> {
       try {
+        if (!this.auth.token) {
+          const refreshed = await refreshSession()
+          if (!refreshed) return false
+          this.auth.userId = refreshed.user_id
+          this.auth.username = this.auth.username || refreshed.user_id
+          this.auth.token = refreshed.access_token
+          this.auth.isLoggedIn = true
+          this._syncClientAuth()
+          this._persistAuth()
+        }
+
         const me = await fetchMe()
-        // This public endpoint can still return the X-User-Id after a stored
-        // bearer token expires. Drop that stale token before bootstrapping.
-        if (this.auth.token && me.auth_scheme !== 'jwt') {
-          this.auth.token = null
-          this._syncClientAuth()
-          this._persistAuth()
-          this.toast('info', '\u767b\u5f55\u51ed\u8bc1\u5df2\u66f4\u65b0\uff0c\u5df2\u6062\u590d\u672c\u5730\u8d26\u53f7\u8eab\u4efd')
-        }
+        if (!me.authenticated || me.auth_scheme !== 'jwt') return false
+
+        this.auth.userId = me.user_id
+        this.auth.username = this.auth.username || me.user_id
+        this.auth.isLoggedIn = true
+        this._syncClientAuth()
+        this._persistAuth()
         return true
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401 && this.auth.token) {
-          this.auth.token = null
-          this._syncClientAuth()
-          this._persistAuth()
-          this.toast('info', '\u767b\u5f55\u51ed\u8bc1\u5df2\u66f4\u65b0\uff0c\u5df2\u6062\u590d\u672c\u5730\u8d26\u53f7\u8eab\u4efd')
-          try {
-            await fetchMe()
-            return true
-          } catch {
-            // Do not log the user out if the local backend is temporarily down.
-          }
-        }
+      } catch {
         return false
       }
     },
