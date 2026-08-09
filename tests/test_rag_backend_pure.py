@@ -238,11 +238,16 @@ class TestEmbeddingClient(unittest.TestCase):
         self.assertIn("401", str(ctx.exception))
 
     def test_from_env_strict_and_lenient(self):
-        env = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
+        # Exclude ALL embedding-related API key vars so from_env() sees none;
+        # previous test imports may have loaded .env setting EMBEDDING_API_KEY
+        # or MY_AGENT_API_KEY into os.environ.
+        _key_vars = {"OPENAI_API_KEY", "EMBEDDING_API_KEY", "MY_AGENT_API_KEY"}
+        env = {k: v for k, v in os.environ.items() if k not in _key_vars}
         with mock.patch.dict(os.environ, env, clear=True):
             self.assertIsNone(EmbeddingClient.from_env(strict=False))
             with self.assertRaises(ValueError) as ctx:
                 EmbeddingClient.from_env(strict=True)
+            # Error message lists the primary key variable
             self.assertIn("OPENAI_API_KEY", str(ctx.exception))
         # Clear process-level embedding settings loaded from the project .env;
         # this case specifically verifies the OPENAI_BASE_URL fallback.
@@ -312,19 +317,19 @@ class TestPgVectorKeywordFallback(unittest.TestCase):
             raise TimeoutError("embedding timeout")
 
         store = PgHybridStore("postgresql://unused", embed_fn=broken_embed)
-        expected = [{"id": "c1", "content": "WiFi ??", "score": 1.0}]
+        expected = [{"id": "c1", "content": "WiFi 连接失败", "score": 1.0}]
         store.keyword_search = mock.Mock(return_value=expected)
         store._embedding_failure_cooldown = 60.0
 
-        self.assertEqual(store.hybrid_search("???? WiFi", top_k=3), expected)
-        self.assertEqual(store.hybrid_search("???? WiFi", top_k=3), expected)
+        self.assertEqual(store.hybrid_search("智能门锁 WiFi", top_k=3), expected)
+        self.assertEqual(store.hybrid_search("智能门锁 WiFi", top_k=3), expected)
         self.assertEqual(calls, ["embed"])
         self.assertEqual(store.keyword_search.call_count, 2)
 
     def test_empty_embedding_never_reaches_vector_sql(self):
         store = PgHybridStore("postgresql://unused", embed_fn=lambda _q: [])
         store.keyword_search = mock.Mock(return_value=[{"id": "c2"}])
-        self.assertEqual(store.hybrid_search("??? E018", top_k=3), [{"id": "c2"}])
+        self.assertEqual(store.hybrid_search("故障码 E018", top_k=3), [{"id": "c2"}])
         store.keyword_search.assert_called_once()
 
 

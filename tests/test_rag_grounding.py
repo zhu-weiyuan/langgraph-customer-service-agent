@@ -1,7 +1,15 @@
 from unittest.mock import patch
 
+import pytest
 from agent.agentic_rag import agentic_rag
 from agent.nodes import build_reply_context
+from agent.prompt_registry import PromptRegistry
+
+
+@pytest.fixture
+def _mem_registry():
+    """In-memory PromptRegistry immune to DATABASE_URL pollution."""
+    return PromptRegistry(db_path=":memory:")
 
 
 def test_agentic_rag_fails_closed_when_evidence_is_insufficient():
@@ -39,7 +47,7 @@ def test_agentic_rag_rejects_related_results_without_the_requested_object():
     assert result["context"] == ""
 
 
-def test_context_requires_explicit_knowledge_evidence_when_rag_is_empty():
+def test_context_requires_explicit_knowledge_evidence_when_rag_is_empty(_mem_registry):
     with patch("agent.nodes.agentic_rag", return_value={
         "context": "", "rounds": 1, "queries_tried": ["空调温度控制"], "sufficient": False,
     }):
@@ -48,6 +56,7 @@ def test_context_requires_explicit_knowledge_evidence_when_rag_is_empty():
             intent="consult",
             user_query="可以远程把空调调到26度吗？",
             need_rag=True,
+            registry=_mem_registry,
         )
 
     assert "知识库证据状态" in result["system_prompt"]

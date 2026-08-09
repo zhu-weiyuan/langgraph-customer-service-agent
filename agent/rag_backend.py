@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 import unicodedata
 from typing import Any, Callable, Dict, List, Optional
 
@@ -64,6 +65,7 @@ _cache: Dict[str, Any] = {
     "pg_store": None,
     "parent_map": None,
     "pg_reranker": None,
+    "search_cache": {},  # query-key -> (expire_ts, results)
 }
 
 
@@ -74,6 +76,7 @@ def reset_cache() -> None:
         "pg_store": None,
         "parent_map": None,
         "pg_reranker": None,
+        "search_cache": {},
     })
 
 
@@ -131,6 +134,16 @@ def _get_pg_search_fn() -> Callable[[str, int], List[dict]]:
     reranker = _cache["pg_reranker"]
 
     def search(query: str, top_k: int) -> List[dict]:
+        # TTL cache: identical queries within RAG_SEARCH_CACHE_TTL reuse results
+        try:
+            ttl = max(0.0, float(os.getenv("RAG_SEARCH_CACHE_TTL", "60")))
+        except ValueError:
+            ttl = 60.0
+        cache_key = f"{top_k}:{query}"
+        if ttl > 0:
+            cached = _cache["search_cache"].get(cache_key)
+            if cached and cached[0] > time.time():
+                return [dict(c) for c in cached[1]]
         hits = store.hybrid_search(query, top_k=max(top_k * 4, 20))
         if _cache["parent_map"] is None:
             try:
@@ -166,8 +179,45 @@ def _get_pg_search_fn() -> Callable[[str, int], List[dict]]:
                 if float(item.get("lexical_overlap", 0.0) or 0.0) >= min_overlap
             ]
 
+        # ── rerank 分数阈值（RAG_MIN_RERANK_SCORE）──────────────────────
+        # 低分候选基本是噪声（见真实评估：0.3 以下多为 ✗），但保证至少
+        # RAG_MIN_RESULTS 条进上下文，避免上下文过短导致回答质量崩塌。
+        try:
+            min_rerank = max(
+                0.0, float(os.getenv("RAG_MIN_RERANK_SCORE", "0.05"))
+            )
+        except ValueError:
+            min_rerank = 0.05
+        try:
+            min_results = max(1, int(os.getenv("RAG_MIN_RESULTS", "3")))
+        except ValueError:
+            min_results = 3
+        if min_rerank and reranked:
+            kept = [
+                item for item in reranked
+                if float(item.get("rerank_score", 0.0) or 0.0) >= min_rerank
+            ]
+            if len(kept) < min_results:
+                # 分数阈值砍太狠：从被过滤的候选中按分数补足到 min_results
+                kept_ids = {id(it) for it in kept}
+                dropped = sorted(
+                    [item for item in reranked if id(item) not in kept_ids],
+                    key=lambda it: float(it.get("rerank_score", 0.0) or 0.0),
+                    reverse=True,
+                )
+                kept = kept + dropped[: min_results - len(kept)]
+            reranked = kept
+
         mapped = map_children_to_parents(reranked, _cache["parent_map"])
-        return [HybridRetriever._normalize(r) for r in mapped[:top_k]]
+        results = [HybridRetriever._normalize(r) for r in mapped[:top_k]]
+        if ttl > 0:
+            _cache["search_cache"][cache_key] = (time.time() + ttl, [dict(r) for r in results])
+            if len(_cache["search_cache"]) > 512:
+                _cache["search_cache"] = {
+                    k: v for k, v in _cache["search_cache"].items()
+                    if v[0] > time.time()
+                }
+        return results
     return search
 
 
