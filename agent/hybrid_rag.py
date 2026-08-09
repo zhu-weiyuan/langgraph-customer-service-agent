@@ -367,9 +367,9 @@ class RuleReranker(Reranker):
         base = float(result.get("score", 0.0) or 0.0)
         # Preserve the retrieval signal.  The old 1e-6 tie-breaker effectively
         # discarded pgvector/RRF relevance and let generic question-word
-        # overlap (for example ?????) outrank the actually relevant section.
-        # A configurable weight keeps the rule reranker useful for both the
-        # pgvector RRF score (~0.01?0.05) and direct vector scores (~0?1).
+        # overlap（例如“怎么”“是否”）排到真正相关的知识段之前。
+        # 可配置权重使规则重排同时适用于 pgvector/RRF 分数（约 0.01–0.05）
+        # 和直接向量检索分数（约 0–1）。
         try:
             base_weight = max(0.0, float(os.getenv("RAG_RERANK_BASE_WEIGHT", "10")))
         except (TypeError, ValueError):

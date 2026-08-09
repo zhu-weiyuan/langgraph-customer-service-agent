@@ -100,6 +100,14 @@ class AllModelsFailedError(GatewayError):
     """Fallback 链全部失败。"""
 
 
+class RateLimitExceeded(GatewayError):
+    """网关级固定窗口限流触发。携带 retry_after 让调用方可退避重试。"""
+
+    def __init__(self, message: str, retry_after: float = 0.0):
+        super().__init__(message)
+        self.retry_after = max(0.0, float(retry_after))
+
+
 # ─────────────────────────────────────────────────────
 # 数据模型
 # ─────────────────────────────────────────────────────
@@ -892,11 +900,10 @@ class LLMGateway:
                 contents.append({"role": role, "parts": [{"text": str(m.get("content", ""))}]})
             return {"contents": contents, "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens}}
         payload = {"model": model.model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
-        # llama.cpp ???? chat template ???? <think>???????
-        # ??????????????????? reasoning_content ? SSE
-        # ???????? content ???????????????????????
-        # ????????????????????? token ?????????
-        # ???????????? LOCAL_LLM_ENABLE_THINKING=1 ???
+        # llama.cpp 的聊天模板可能生成内部 <think> 推理内容。
+        # 流式响应会把它放在 reasoning_content，而不是普通 SSE content 中。
+        # 默认关闭思考模式，避免推理 token 被拼接到用户可见的回复。
+        # 只有前端明确支持展示该通道时，才设置 LOCAL_LLM_ENABLE_THINKING=1。
         provider = (model.provider or "").strip().lower()
         local_provider = provider in {"llamacpp", "llama.cpp", "local", "local_llm"}
         thinking_enabled = os.getenv("LOCAL_LLM_ENABLE_THINKING", "0").strip().lower() in {"1", "true", "yes", "on"}
@@ -1202,8 +1209,13 @@ class LLMGateway:
             while len(self._idempotency) > self._idempotency_max:
                 self._idempotency.popitem(last=False)
 
-    def _check_rate_limit(self, tenant_id: str, user_id: Optional[str]) -> bool:
-        """Process-local fixed-window guard for direct gateway callers."""
+    def _check_rate_limit(self, tenant_id: str, user_id: Optional[str]) -> Optional[float]:
+        """Process-local fixed-window guard for direct gateway callers.
+
+        Returns:
+            None when the request is allowed.
+            A positive float (seconds until the window resets) when denied.
+        """
         key = (tenant_id or "anonymous", user_id or "anonymous")
         now = time.monotonic()
         with self._lock:
@@ -1211,9 +1223,10 @@ class LLMGateway:
             if now - started >= self._rate_limit_window:
                 count, started = 0, now
             if count >= self._rate_limit_limit:
-                return False
+                retry_after = max(0.0, self._rate_limit_window - (now - started))
+                return retry_after
             self._rate_limit_counts[key] = (count + 1, started)
-            return True
+            return None
 
     def get_rate_limit_info(self) -> Dict[str, Any]:
         now = time.monotonic()
@@ -1266,14 +1279,18 @@ class LLMGateway:
             return resp
 
         # ── Step 1: 路由（先路由，缓存 key 需要 model_id）──
-        if not self._check_rate_limit(req.tenant_id, req.user_id):
-            self._log_attempt(req, status="rate_limited", route_reason="gateway_rate_limit")
+        retry_after = self._check_rate_limit(req.tenant_id, req.user_id)
+        if retry_after is not None:
+            self._log_attempt(req, status="rate_limited", route_reason="gateway_rate_limit",
+                              retry_after=retry_after)
             try:
                 from .metrics import metrics
                 metrics.record_rate_limit_event("gateway")
             except Exception:
                 pass
-            raise GatewayError("LLM gateway rate limit exceeded")
+            raise RateLimitExceeded(
+                f"LLM gateway rate limit exceeded; retry after {retry_after:.1f}s",
+                retry_after=retry_after)
 
         candidates = self._route(req.scene, req.tenant_id, req.language, req.context_tokens)
         if req.preferred_model and req.preferred_model in self._models:
@@ -1502,12 +1519,16 @@ class LLMGateway:
                     yield {"token": piece}
             yield {"done": True, "response": replay}
             return
-        if not self._check_rate_limit(req.tenant_id, req.user_id):
-            self._log_attempt(req, status="rate_limited", route_reason="gateway_rate_limit")
+        retry_after = self._check_rate_limit(req.tenant_id, req.user_id)
+        if retry_after is not None:
+            self._log_attempt(req, status="rate_limited", route_reason="gateway_rate_limit",
+                              retry_after=retry_after)
             with contextlib.suppress(Exception):
                 from .metrics import metrics
                 metrics.record_rate_limit_event("gateway")
-            raise GatewayError("LLM gateway rate limit exceeded")
+            raise RateLimitExceeded(
+                f"LLM gateway rate limit exceeded; retry after {retry_after:.1f}s",
+                retry_after=retry_after)
 
         candidates = self._route(req.scene, req.tenant_id, req.language, req.context_tokens)
         if req.preferred_model and req.preferred_model in self._models:

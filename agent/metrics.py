@@ -413,10 +413,6 @@ class Metrics:
     def get_metrics(self) -> str:
         return self.render()[0]
 
-        self._inc(self.http_requests_total, 1, str(method).upper(), endpoint, str(status))
-        self._observe(self.http_request_duration_seconds, duration_seconds,
-                      str(method).upper(), endpoint)
-
     def record_llm_tokens(self, model: str, scene: str, direction: str, count: int) -> None:
         """direction: 'input' | 'output'"""
         self._inc(self.llm_tokens_total, max(0, int(count)), model, scene, direction)

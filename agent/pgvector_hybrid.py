@@ -224,8 +224,8 @@ class PgHybridStore:
         self.embed_fn = embed_fn
         self.dim = dim
         self._conn = None
-        # ?? embedding ?????????????????????
-        # ???????? PostgreSQL ???????? SQLite/TF-IDF?
+        # Embedding 服务短暂失败时，不应让已经可用的关键词 RAG 一并不可用。
+        # 失败后进入冷却期，避免重复请求风暴，并回退到 PostgreSQL 关键词检索。
         try:
             self._embedding_failure_cooldown = max(
                 0.0, float(os.getenv("RAG_EMBEDDING_FAILURE_COOLDOWN_SECONDS", "60")))
@@ -342,7 +342,7 @@ class PgHybridStore:
     # -- read path --
 
     def _query_embedding(self, query: str) -> Optional[List[float]]:
-        """???????????????????????? PG ??????"""
+        """安全获取查询向量；失败时回退到 PostgreSQL 关键词检索。"""
         if self.embed_fn is None:
             return None
         now = time.monotonic()

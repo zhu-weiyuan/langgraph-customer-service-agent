@@ -162,7 +162,7 @@ def touch_session(user_id: str, session_id: str,
                  title=CASE WHEN sessions.title IS NULL OR sessions.title=''
                             THEN EXCLUDED.title ELSE sessions.title END,
                  last_active=EXCLUDED.last_active""",
-            (session_id, user_id, title or "???", now, now))
+            (session_id, user_id, title or "新会话", now, now))
 
 
 def list_user_sessions(user_id: str, limit: int = 50) -> List[Dict[str, Any]]:

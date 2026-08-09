@@ -64,7 +64,7 @@ class TestTokenEstimator(unittest.TestCase):
     def test_estimate_tokens_falls_back_to_heuristic(self):
         # Force the optional encoder into its degraded state so this test is
         # deterministic even when tiktoken is installed locally.
-        text = "??order??123???fix?"
+        text = "订单 order-123 需要修复"
         with mock.patch.object(token_estimator, "_ENCODER", False):
             self.assertEqual(estimate_tokens(text), _heuristic_estimate(text))
             self.assertGreater(estimate_tokens(text), 0)

@@ -37,7 +37,7 @@ def test_assemble_with_full_components():
 def test_budget_truncation_behavior():
     # Test that allocator respects token budget
     allocator = TokenBudgetAllocator(context_window=1000, reserved_output=256)
-    assembler = ContextAssembler(allocator=allocator)
+    assembler = ContextAssembler(registry=MockPromptRegistry(), allocator=allocator)
     
     # Create oversized state
     long_text = "word " * 400  # ~600 tokens
@@ -68,7 +68,7 @@ def test_budget_truncation_behavior():
 def test_priority_ordering_correctness():
     # Test that pieces are selected by priority, not just size
     allocator = TokenBudgetAllocator(context_window=500, reserved_output=128)
-    assembler = ContextAssembler(allocator=allocator)
+    assembler = ContextAssembler(registry=MockPromptRegistry(), allocator=allocator)
     
     state = {
         "task_goal": "URGENT: Handle refund request immediately",
@@ -101,7 +101,7 @@ def test_priority_ordering_correctness():
 def test_rag_score_weighting():
     # Test that rag_results with relevance scores are weighted properly
     allocator = TokenBudgetAllocator(context_window=1000, reserved_output=256)
-    assembler = ContextAssembler(allocator=allocator)
+    assembler = ContextAssembler(registry=MockPromptRegistry(), allocator=allocator)
     
     state = {
         "task_goal": "Answer question accurately",
@@ -137,6 +137,12 @@ class MockPromptRegistry:
     
     def get(self, name):
         return self._versions.get(name)
+
+    def get_active(self, name, tenant=None, session_seed=None, *, env="prod", log_run=False):
+        return self._versions.get(name)
+
+    def record_run(self, pv, session_id=""):
+        pass
 
 class MockPromptVersion:
     name = "system"

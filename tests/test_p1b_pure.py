@@ -533,5 +533,56 @@ class TestChatSync(unittest.TestCase):
         self.assertEqual(resp.content, "同步OK")
 
 
+class TestGatewayRateLimitExceeded(unittest.IsolatedAsyncioTestCase):
+    """Verify _check_rate_limit returns retry_after and chat() raises RateLimitExceeded."""
+
+    def _make(self, limit=2, window=60.0):
+        """Gateway with a tiny rate-limit window for testing."""
+        gateway, client = make_gateway([ok_response("should not reach")])
+        gateway._rate_limit_limit = limit
+        gateway._rate_limit_window = window
+        return gateway
+
+    async def test_check_rate_limit_returns_none_when_allowed(self):
+        gw_inst = self._make(limit=3)
+        result = gw_inst._check_rate_limit("t1", "u1")
+        self.assertIsNone(result)
+
+    async def test_check_rate_limit_returns_retry_after_when_denied(self):
+        gw_inst = self._make(limit=2, window=30.0)
+        gw_inst._check_rate_limit("t1", "u1")  # count=1
+        gw_inst._check_rate_limit("t1", "u1")  # count=2, now at limit
+        retry_after = gw_inst._check_rate_limit("t1", "u1")  # denied
+        self.assertIsNotNone(retry_after)
+        self.assertGreater(retry_after, 0.0)
+        self.assertLessEqual(retry_after, 30.0)
+
+    async def test_chat_raises_rate_limit_exceeded_with_retry_after(self):
+        gw_inst = self._make(limit=1, window=45.0)
+        # Consume the single allowed request
+        gw_inst._check_rate_limit("t1", "u1")
+        # Second call should raise RateLimitExceeded
+        with self.assertRaises(gw.RateLimitExceeded) as ctx:
+            await gw_inst.chat(gw.GatewayRequest(messages=MSGS, tenant_id="t1", user_id="u1"))
+        self.assertGreater(ctx.exception.retry_after, 0.0)
+        self.assertIn("retry after", str(ctx.exception))
+
+    async def test_rate_limit_exceeded_is_gateway_error(self):
+        """RateLimitExceeded is a subclass of GatewayError for backward compat."""
+        self.assertTrue(issubclass(gw.RateLimitExceeded, gw.GatewayError))
+
+    async def test_window_reset_allows_requests(self):
+        gw_inst = self._make(limit=1, window=1.0)
+        gw_inst._check_rate_limit("t1", "u1")  # count=1
+        retry_after = gw_inst._check_rate_limit("t1", "u1")  # denied
+        self.assertIsNotNone(retry_after)
+        # Simulate window expiry by backdating the window start
+        key = ("t1", "u1")
+        count, started = gw_inst._rate_limit_counts.get(key, (0, 0.0))
+        gw_inst._rate_limit_counts[key] = (count, started - 2.0)
+        result = gw_inst._check_rate_limit("t1", "u1")
+        self.assertIsNone(result)  # Allowed after window reset
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

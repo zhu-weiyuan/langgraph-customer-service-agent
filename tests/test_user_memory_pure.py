@@ -69,7 +69,7 @@ def _temp_db():
 
 
 def _cleanup_test_memories(*user_ids):
-    """???????????????????? PostgreSQL ???"""
+    """清理测试用户在 PostgreSQL 中写入的长期记忆。"""
     dsn = os.environ.get("PG_DSN") or os.environ.get("DATABASE_URL")
     if not dsn:
         return
@@ -79,7 +79,7 @@ def _cleanup_test_memories(*user_ids):
             conn.execute("DELETE FROM user_memories WHERE user_id = ANY(%s)",
                          (list(user_ids),))
     except Exception:
-        # ?????????????????????????
+        # 清理失败不能遮蔽主断言：测试仍可在 SQLite 回退路径中运行。
         pass
 
 
@@ -188,12 +188,12 @@ class TestUserIsolation(unittest.TestCase):
         self.assertEqual(len(self.store.list_memories("alice")), 0)
 
     def test_include_deleted_is_explicit(self):
-        mid = self.store.add_memory("alice", "?????", kind="fact")
+        mid = self.store.add_memory("alice", "测试偏好", kind="fact")
         self.assertTrue(self.store.delete_memory("alice", mid))
         self.assertEqual(self.store.list_memories("alice"), [])
         deleted = self.store.list_memories("alice", include_deleted=True)
         self.assertEqual(len(deleted), 1)
-        self.assertEqual(deleted[0]["content"], "?????")
+        self.assertEqual(deleted[0]["content"], "测试偏好")
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -450,6 +450,117 @@ class TestMigration(unittest.TestCase):
             self.assertIn("user_id", self._cols(conn, "conversation_history"))
         finally:
             conn.close()
+
+
+class TestSupersede(unittest.TestCase):
+    """Tests for the supersede mechanism (same-kind conflict detection)."""
+
+    def setUp(self):
+        self._tmpdir = tempfile.mkdtemp()
+        self.db_path = os.path.join(self._tmpdir, "test_supersede.db")
+        # Use onehot embed so identical text = cosine 1, different = cosine 0
+        self.store = MemoryStore(
+            db_path=self.db_path,
+            embed_fn=_onehot_embed_factory(["北京", "上海", "事实"]),
+        )
+
+    def test_same_topic_supersedes_old(self):
+        """New fact with high similarity supersedes older same-kind fact."""
+        id1 = self.store.add_memory("u1", "我住在北京", kind="fact",
+                                   source_session="s1")
+        self.assertIsNotNone(id1)
+        # Same content, different source_session -> different dedup_key -> inserted
+        id2 = self.store.add_memory("u1", "我住在北京", kind="fact",
+                                   source_session="s2")
+        self.assertIsNotNone(id2)
+        # Recall should only return the newer one
+        results = self.store.recall("u1", "北京")
+        contents = [r["content"] for r in results]
+        self.assertEqual(contents, ["我住在北京"])
+        # list_memories excludes superseded (user-facing view)
+        all_mem = self.store.list_memories("u1")
+        self.assertEqual(len(all_mem), 1)
+        self.assertEqual(all_mem[0]["content"], "我住在北京")
+
+    def test_different_kind_not_superseded(self):
+        """Facts and preferences don't supersede each other."""
+        self.store.add_memory("u1", "我住在北京", kind="fact",
+                               source_session="s1")
+        self.store.add_memory("u1", "我住在北京", kind="preference",
+                               source_session="s2")
+        results = self.store.recall("u1", "北京")
+        contents = [r["content"] for r in results]
+        # Both should be recalled (different kinds)
+        self.assertEqual(len(contents), 2)
+
+    def test_low_similarity_not_superseded(self):
+        """Low-similarity memories coexist without superseding."""
+        self.store.add_memory("u1", "我住在北京", kind="fact",
+                               source_session="s1")
+        self.store.add_memory("u1", "我喜欢上海", kind="fact",
+                               source_session="s2")
+        results = self.store.recall("u1", "北京")
+        contents = [r["content"] for r in results]
+        # Both should be recalled (different content -> low similarity)
+        self.assertEqual(len(contents), 2)
+
+    def test_different_tenants_not_superseded(self):
+        """Memories in different tenants don't supersede each other."""
+        self.store.add_memory("u1", "租户A事实", tenant_id="A")
+        self.store.add_memory("u1", "租户B事实", tenant_id="B")
+        a = self.store.recall("u1", "事实", tenant_id="A", top_k=10)
+        self.assertEqual([h["content"] for h in a], ["租户A事实"])
+        b = self.store.recall("u1", "事实", tenant_id="B", top_k=10)
+        self.assertEqual([h["content"] for h in b], ["租户B事实"])
+
+    def test_already_superseded_not_superseded_again(self):
+        """Already-superseded memories are not processed again."""
+        id1 = self.store.add_memory("u1", "我住在北京", kind="fact",
+                                   source_session="s1")
+        id2 = self.store.add_memory("u1", "我住在北京", kind="fact",
+                                   source_session="s2")
+        # Third insert - id1 is already superseded, should not error
+        id3 = self.store.add_memory("u1", "我住在北京", kind="fact",
+                                   source_session="s3")
+        self.assertIsNotNone(id3)
+        results = self.store.recall("u1", "北京")
+        self.assertEqual(len(results), 1)
+
+    def test_recall_excludes_superseded(self):
+        """Superseded memories are excluded from recall."""
+        id1 = self.store.add_memory("u1", "事实A", kind="fact",
+                                   source_session="s1")
+        id2 = self.store.add_memory("u1", "事实A", kind="fact",
+                                   source_session="s2")  # supersedes id1
+        results = self.store.recall("u1", "事实")
+        # Only the newer one should be recalled
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["id"], id2)
+
+    def test_backward_compat_old_table_without_superseded_at(self):
+        """ALTER TABLE migration adds superseded_at to old tables."""
+        # Create a table with the old schema (no superseded_at)
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_memories (
+                id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+                tenant_id TEXT NOT NULL DEFAULT 'default',
+                content TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'fact',
+                embedding TEXT, importance REAL NOT NULL DEFAULT 0.5,
+                created_at TEXT NOT NULL, expires_at TEXT,
+                source_session TEXT, dedup_key TEXT UNIQUE,
+                embedding_error TEXT, is_deleted INTEGER NOT NULL DEFAULT 0
+            )""")
+        conn.execute("INSERT INTO user_memories (id, user_id, content, kind, created_at, dedup_key) VALUES ('old1', 'u1', 'old fact', 'fact', '2026-01-01T00:00:00', 'dk1')")
+        conn.commit()
+        conn.close()
+        # Re-open - _init_sqlite should add superseded_at via ALTER TABLE
+        store = MemoryStore(db_path=self.db_path,
+                            embed_fn=_onehot_embed_factory(["事实"]))
+        # Should be able to add and recall without error
+        store.add_memory("u1", "new fact", kind="fact")
+        results = store.recall("u1", "事实")
+        self.assertGreaterEqual(len(results), 1)
 
 
 if __name__ == "__main__":

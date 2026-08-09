@@ -215,6 +215,15 @@ RAG_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT + """
 以上资料由 Agentic RAG 系统智能检索而来，已针对你的问题进行了多轮优化。
 请基于以上参考资料回答用户问题。如果参考资料中没有相关信息，诚实说明你不确定。"""
 
+# 引用纪律：防幻觉 + 防错引（Faithfulness / Citation Accuracy 加固）
+RAG_SYSTEM_PROMPT_TEMPLATE += """
+
+引用纪律（必须遵守）：
+- 回答中的每个事实点都必须能在上方参考资料中找到依据，禁止补充资料之外的信息
+- 引用编号 [n] 必须对应上方编号为 n 的那条资料，且只引用你实际用到的资料
+- 如果某条资料与问题无关或你未使用它，不要引用它
+- 不确定或资料缺失时，直接说"这个我暂时无法确认"，不要编造"""
+
 
 def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT,
               max_tokens: int = 512, *, stream: bool = False) -> str:

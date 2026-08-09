@@ -181,6 +181,7 @@ def init_runtime_schema() -> None:
         ROOT / "migrations" / "001_hybrid_rag.sql",
         ROOT / "migrations" / "002_runtime_postgres.sql",
         ROOT / "migrations" / "003_complete_postgres_runtime.sql",
+        ROOT / "migrations" / "004_refresh_tokens.sql",
     ]
     with connection() as conn:
         for path in migration_files:

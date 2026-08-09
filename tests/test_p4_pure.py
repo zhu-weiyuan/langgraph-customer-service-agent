@@ -115,6 +115,33 @@ class TestFeedbackStore(unittest.TestCase):
         self.assertNotIn("13812345678", row["query"])
         self.assertNotIn("someone@example.com", row["comment"])
 
+    def test_rating_out_of_range_rejected_by_record_feedback(self):
+        """record_feedback must reject ratings outside 0-5 (defense-in-depth)."""
+        # Valid range: 0-5 should work (low ratings stored)
+        self.assertIsNotNone(self.store.record_feedback("s10", "q", "a", 0, "bad"))
+        self.assertIsNotNone(self.store.record_feedback("s10", "q", "a", 5, "great"))
+        # Out of range: rejected
+        self.assertIsNone(self.store.record_feedback("s10", "q", "a", -1, "bad"))
+        self.assertIsNone(self.store.record_feedback("s10", "q", "a", 6, "bad"))
+        self.assertIsNone(self.store.record_feedback("s10", "q", "a", 999, "bad"))
+        self.assertIsNone(self.store.record_feedback("s10", "q", "a", -5, "bad"))
+        # Only valid ratings counted
+        stats = self.store.stats()
+        self.assertEqual(stats["total"], 2)
+
+    def test_rating_out_of_range_rejected_by_record_rating(self):
+        """record_rating must reject stars outside 0-5 (defense-in-depth)."""
+        # Valid range
+        self.assertIsNotNone(self.store.record_rating("s11", 0))
+        self.assertIsNotNone(self.store.record_rating("s11", 1))
+        self.assertIsNotNone(self.store.record_rating("s11", 2))
+        # Out of range: rejected
+        self.assertIsNone(self.store.record_rating("s11", -1))
+        self.assertIsNone(self.store.record_rating("s11", 6))
+        self.assertIsNone(self.store.record_rating("s11", 100))
+        stats = self.store.stats()
+        self.assertEqual(stats["by_signal_type"]["rating"], 3)
+
 
 class TestPromptRegistry(unittest.TestCase):
     def setUp(self):

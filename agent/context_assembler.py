@@ -42,7 +42,6 @@ Design principles (P1-A rewrite)
 from __future__ import annotations
 
 import re
-from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from typing import Any, Iterable
 
@@ -412,9 +411,11 @@ class ContextAssembler:
         )
 
     def assemble(self, state: dict, user_message: str, session_id: str = "") -> ContextBundle:
-        prompt = self.registry.get("system")
-        with suppress(Exception):
-            self.registry.record_run(prompt, session_id=session_id)
+        # Use get_active() to resolve through the release pipeline (canary,
+        # tenant scoping, rollback) rather than get() which returns the raw
+        # latest version by version_no, bypassing all release logic.
+        prompt = self.registry.get_active("system", session_seed=session_id,
+                                         log_run=True)
 
         pieces: list[ContextPiece] = [
             ContextPiece("system", prompt.content, 100, role="system",
@@ -469,6 +470,13 @@ class ContextAssembler:
         if rag_selected:
             system_parts.append(
                 "参考资料 (evidence):\n" + "\n\n".join(p.content for p in rag_selected))
+            # 引用纪律：防幻觉 + 防错引（Faithfulness / Citation Accuracy 加固）
+            system_parts.append(
+                "引用纪律（必须遵守）：\n"
+                "- 回答中的每个事实点都必须能在上方参考资料中找到依据，禁止补充资料之外的信息\n"
+                "- 引用编号 [n] 必须对应上方编号为 n 的那条资料，且只引用你实际用到的资料\n"
+                "- 如果某条资料与问题无关或你未使用它，不要引用它\n"
+                "- 不确定或资料缺失时，直接说\"这个我暂时无法确认\"，不要编造")
         for p in by_label.get("memory", []):
             system_parts.append(f"Memory Context: {p.content}")
 

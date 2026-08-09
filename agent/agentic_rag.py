@@ -210,8 +210,8 @@ def _has_requested_entity_evidence(query: str, hits: List[dict]) -> bool:
             pos = evidence.find(alias)
             while pos >= 0:
                 prefix = evidence[max(0, pos - 8):pos]
-                # "??????" / "?????" is evidence of absence,
-                # not an answer about the requested capability.
+                # “暂不支持”或“没有该功能”表示能力不存在，
+                # 不能被当作用户所问能力已被支持的证据。
                 if not any(neg in prefix for neg in ("\u6ca1\u6709", "\u4e0d\u652f\u6301", "\u65e0", "\u672a\u63d0\u53ca", "\u4e0d\u80fd")):
                     supported = True
                     break

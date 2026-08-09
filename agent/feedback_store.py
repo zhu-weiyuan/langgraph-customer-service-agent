@@ -17,6 +17,8 @@ except Exception:
 SIGNAL_TYPES = ("rating", "reaction", "feedback", "escalation", "repeat_question")
 LOW_RATING_THRESHOLD = 3
 REPEAT_SIMILARITY_THRESHOLD = 0.6
+RATING_MIN = 0
+RATING_MAX = 5
 
 
 def _redact_text(text: Optional[str]) -> str:
@@ -116,7 +118,10 @@ class FeedbackStore:
 
     def record_rating(self, session_id: str, stars: int, *, request_id: str = "",
                       query: str = "", answer: str = "", trace_ref: str = "") -> Optional[int]:
-        if int(stars) >= LOW_RATING_THRESHOLD:
+        stars = int(stars)
+        if not (RATING_MIN <= stars <= RATING_MAX):
+            return None
+        if stars >= LOW_RATING_THRESHOLD:
             return None
         return self._insert(session_id=session_id, request_id=request_id, query=query,
                             answer=answer, signal_type="rating", score=float(stars),
@@ -136,7 +141,10 @@ class FeedbackStore:
     def record_feedback(self, session_id: str, query: str, answer: str,
                         rating: int, comment: str, *, request_id: str = "",
                         trace_ref: str = "") -> Optional[int]:
-        if int(rating) >= LOW_RATING_THRESHOLD and not comment.strip():
+        rating = int(rating)
+        if not (RATING_MIN <= rating <= RATING_MAX):
+            return None
+        if rating >= LOW_RATING_THRESHOLD and not comment.strip():
             return None
         return self._insert(session_id=session_id, request_id=request_id, query=query,
                             answer=answer, signal_type="feedback", score=float(rating),

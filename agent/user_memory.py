@@ -49,6 +49,10 @@ DEFAULT_DB_PATH = Path(__file__).parent.parent / "user_memory.db"
 
 VALID_KINDS = ("fact", "preference", "issue")
 
+# Supersede: same-kind memories with cosine similarity > threshold are
+# marked superseded (excluded from recall) when a newer memory is stored.
+SUPERSEDE_SIMILARITY_THRESHOLD: float = 0.7
+
 logger = logging.getLogger("agent.user_memory")
 
 # 衰减常数：半衰期 ~30 天 → λ = ln2 / (30*86400)
@@ -343,10 +347,16 @@ class MemoryStore:
                     source_session TEXT,
                     dedup_key TEXT UNIQUE,
                     embedding_error TEXT,
-                    is_deleted INTEGER NOT NULL DEFAULT 0
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    superseded_at REAL
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_um_sqlite_user ON user_memories(user_id, tenant_id)")
+            # Backward-compatible migration: add superseded_at if missing
+            try:
+                conn.execute("ALTER TABLE user_memories ADD COLUMN superseded_at REAL")
+            except sqlite3.OperationalError:
+                pass  # column already exists
             conn.commit()
         finally:
             conn.close()
@@ -479,7 +489,11 @@ class MemoryStore:
                  json.dumps(vec), importance, _iso(), expires_at,
                  source_session, key))
             conn.commit()
-            return mem_id if cur.rowcount > 0 else None
+            if cur.rowcount > 0:
+                self._supersede_old(user_id, kind, vec, _now_ts(),
+                                    exclude_id=mem_id, tenant_id=tenant_id)
+                return mem_id
+            return None
         finally:
             conn.close()
 
@@ -501,7 +515,11 @@ class MemoryStore:
                 (mem_id, user_id, tenant_id, content, kind, emb_literal,
                  importance, expires_at, source_session, key, embedding_error))
             row = cur.fetchone()
-        return row[0] if row else None
+        if row:
+            self._supersede_old(user_id, kind, vec, _now_ts(),
+                                exclude_id=row[0], tenant_id=tenant_id)
+            return row[0]
+        return None
 
     def extract_and_store(self, user_id: str, messages: Sequence[Any],
                           source_session: str = "",
@@ -554,6 +572,131 @@ class MemoryStore:
         return {"stored": stored, "skipped_hypothetical": skipped,
                 "deduped": deduped}
 
+    def _supersede_old(
+        self,
+        user_id: str,
+        kind: str,
+        new_embedding: List[float],
+        now: float,
+        exclude_id: Optional[str] = None,
+        tenant_id: str = "default",
+    ) -> int:
+        """Mark same-kind, high-similarity older memories as superseded.
+
+        Only processes fact / preference / issue kinds.
+        Threshold: normalized cosine > SUPERSEDE_SIMILARITY_THRESHOLD.
+        exclude_id: the just-inserted memory ID, excluded from comparison.
+        Returns the number of memories marked superseded.
+        """
+        if kind not in ("fact", "preference", "issue"):
+            return 0
+        if not new_embedding:
+            return 0
+        superseded = 0
+        if self.backend == "pgvector":
+            superseded = self._pg_supersede(user_id, kind, new_embedding,
+                                            now, exclude_id, tenant_id)
+        else:
+            conn = self._connect()
+            try:
+                if exclude_id is not None:
+                    rows = conn.execute(
+                        """SELECT id, embedding FROM user_memories
+                           WHERE user_id = ? AND kind = ? AND tenant_id = ?
+                             AND superseded_at IS NULL
+                             AND id != ?
+                             AND (expires_at IS NULL OR expires_at > ?)""",
+                        (user_id, kind, tenant_id, exclude_id, _iso(now)),
+                    ).fetchall()
+                else:
+                    rows = conn.execute(
+                        """SELECT id, embedding FROM user_memories
+                           WHERE user_id = ? AND kind = ? AND tenant_id = ?
+                             AND superseded_at IS NULL
+                             AND (expires_at IS NULL OR expires_at > ?)""",
+                        (user_id, kind, tenant_id, _iso(now)),
+                    ).fetchall()
+                for row in rows:
+                    emb_raw = row["embedding"]
+                    if not emb_raw:
+                        continue
+                    try:
+                        old_emb = json.loads(emb_raw)
+                    except (ValueError, json.JSONDecodeError, TypeError):
+                        continue
+                    if not old_emb:
+                        continue
+                    sim = (cosine(new_embedding, old_emb) + 1.0) / 2.0  # normalize to 0..1
+                    if sim > SUPERSEDE_SIMILARITY_THRESHOLD:
+                        conn.execute(
+                            "UPDATE user_memories SET superseded_at = ? WHERE id = ?",
+                            (now, row["id"]),
+                        )
+                        superseded += 1
+                conn.commit()
+            finally:
+                conn.close()
+        if superseded > 0:
+            logger.info(
+                "superseded %d old %s memories for user %s (sim > %.2f)",
+                superseded, kind, user_id, SUPERSEDE_SIMILARITY_THRESHOLD,
+            )
+        return superseded
+
+    def _pg_supersede(
+        self,
+        user_id: str,
+        kind: str,
+        new_embedding: List[float],
+        now: float,
+        exclude_id: Optional[str] = None,
+        tenant_id: str = "default",
+    ) -> int:
+        """PostgreSQL variant of supersede detection."""
+        conn = self._pg_store()
+        superseded = 0
+        with conn.cursor() as cur:
+            if exclude_id is not None:
+                cur.execute(
+                    """SELECT id, embedding FROM user_memories
+                       WHERE user_id = %s AND kind = %s AND tenant_id = %s
+                         AND superseded_at IS NULL
+                         AND id != %s
+                         AND (expires_at IS NULL OR expires_at > %s)""",
+                    (user_id, kind, tenant_id, exclude_id, _iso(now)),
+                )
+            else:
+                cur.execute(
+                    """SELECT id, embedding FROM user_memories
+                       WHERE user_id = %s AND kind = %s AND tenant_id = %s
+                         AND superseded_at IS NULL
+                         AND (expires_at IS NULL OR expires_at > %s)""",
+                    (user_id, kind, tenant_id, _iso(now)),
+                )
+            rows = cur.fetchall()
+            for row in rows:
+                emb = row[1]
+                if isinstance(emb, str):
+                    try:
+                        old_emb = [float(x) for x in emb.strip("[]").split(",") if x]
+                    except Exception:
+                        continue
+                elif emb:
+                    old_emb = [float(x) for x in emb]
+                else:
+                    continue
+                if not old_emb:
+                    continue
+                sim = (cosine(new_embedding, old_emb) + 1.0) / 2.0
+                if sim > SUPERSEDE_SIMILARITY_THRESHOLD:
+                    cur.execute(
+                        "UPDATE user_memories SET superseded_at = %s WHERE id = %s",
+                        (now, row[0]),
+                    )
+                    superseded += 1
+            conn.commit()
+        return superseded
+
     # ── 召回路径 ──────────────────────────────────────────────
 
     def recall(self, user_id: str, query: str, top_k: int = 5,
@@ -602,12 +745,12 @@ class MemoryStore:
         conn = self._connect()
         try:
             sql = """SELECT id, user_id, content, kind, embedding, importance,
-                             created_at
+                             created_at, superseded_at
                       FROM user_memories
                       WHERE user_id = ? AND tenant_id = ?"""
             params = [user_id, tenant_id]
             if not include_deleted:
-                sql += " AND is_deleted = 0"
+                sql += " AND is_deleted = 0 AND superseded_at IS NULL"
             rows = conn.execute(sql, params).fetchall()
         finally:
             conn.close()
@@ -626,12 +769,12 @@ class MemoryStore:
         conn = self._pg_store()
         with conn.cursor() as cur:
             sql = """SELECT id, user_id, content, kind, importance,
-                             created_at, embedding
+                             created_at, embedding, superseded_at
                       FROM user_memories
                       WHERE user_id = %s AND tenant_id = %s"""
             params = [user_id, tenant_id]
             if not include_deleted:
-                sql += " AND is_deleted = FALSE"
+                sql += " AND is_deleted = FALSE AND superseded_at IS NULL"
             cur.execute(sql, params)
             rows = cur.fetchall()
         out = []
@@ -644,7 +787,8 @@ class MemoryStore:
                     emb = []
             out.append({"id": r[0], "user_id": r[1], "content": r[2],
                         "kind": r[3], "importance": r[4],
-                        "created_at": r[5], "embedding": emb or []})
+                        "created_at": r[5], "embedding": emb or [],
+                        "superseded_at": r[7]})
         return out
 
     # ── 维护 / 管理（供 /api/memory 用户编辑）─────────────────

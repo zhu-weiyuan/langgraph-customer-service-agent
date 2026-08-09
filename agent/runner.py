@@ -795,7 +795,7 @@ async def shutdown() -> None:
 
 __all__ = [
     "build_initial_state", "parse_result", "chunk_text", "classify_message",
-    "get_graph", "prewarm", "shutdown",
+    "prewarm", "shutdown",
     "run", "run_stream",
     "graph_timeout_seconds",
 ]
