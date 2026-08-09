@@ -232,6 +232,30 @@ def get_conversation_messages(session_id: str,
     return messages
 
 
+def timeline_langchain_messages(session_id: str, limit: int = 100) -> List[Any]:
+    """Load persisted conversation messages and remove adjacent checkpoint duplicates.
+
+    Used to rebuild multi-turn context as LangChain message history.
+    """
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    rows = get_conversation_messages(session_id, limit=limit)
+    result: List[Any] = []
+    seen = set()
+    previous = None
+    for row in rows:
+        role = row.get("role", "user")
+        content = row.get("content", "")
+        key = (role, content)
+        if key == previous or key in seen:
+            continue
+        seen.add(key)
+        previous = key
+        result.append(HumanMessage(content=content) if role == "user"
+                      else AIMessage(content=content))
+    return result
+
+
 def save_conversation(session_id: str, user_message: str, bot_reply: str,
                       intent: str = "consult", emotion: str = "neutral",
                       emotion_intensity: int = 1, resolved: bool = False,

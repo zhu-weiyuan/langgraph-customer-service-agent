@@ -19,8 +19,10 @@ psycopg-pool>=3.2.0
 # langchain-anthropic>=0.3.0
 
 # 向量检索（RAG 语义搜索）
-chromadb>=0.4.0
-sentence-transformers>=2.2.0
+# chromadb 已无任何代码引用（死依赖）——移除。
+# sentence-transformers 为本地 CrossEncoder rerank 的守护导入依赖（可选，
+# 缺失时自动降级 RuleReranker/远程 rerank），不装可大幅减小镜像。
+# sentence-transformers>=2.2.0
 
 # 中文分词（BM25 关键词检索）
 jieba>=0.42.0
