@@ -1,0 +1,106 @@
+{
+  "timestamp": "2026-08-09T23:53:49",
+  "k": 5,
+  "total": 1,
+  "ok": 1,
+  "errors": [],
+  "metrics": {
+    "hit_rate_at_k": 1.0,
+    "mrr": 1.0,
+    "context_recall": 0.75,
+    "context_precision": 0.75,
+    "faithfulness": 0.6,
+    "answer_relevancy": 1.0,
+    "citation_accuracy": 0.67
+  },
+  "counts": {
+    "retrieval_layer": 0,
+    "generation_layer": 1
+  },
+  "by_difficulty": {
+    "medium": {
+      "count": 1,
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "context_recall": 0.75,
+      "context_precision": 0.75,
+      "faithfulness": 0.6,
+      "answer_relevancy": 1.0,
+      "citation_accuracy": 0.67
+    }
+  },
+  "by_category": {
+    "returns-refunds": {
+      "count": 1,
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "context_recall": 0.75,
+      "context_precision": 0.75,
+      "faithfulness": 0.6,
+      "answer_relevancy": 1.0,
+      "citation_accuracy": 0.67
+    }
+  },
+  "items": [
+    {
+      "id": "gen-01",
+      "layer": "generation",
+      "category": "returns-refunds",
+      "difficulty": "medium",
+      "query": "怎么退货",
+      "golden_sources": [
+        "returns-refunds"
+      ],
+      "retrieved_sources": [
+        "returns-refunds",
+        "returns-refunds",
+        "faq",
+        "returns-refunds"
+      ],
+      "retrieved_titles": [
+        "returns-refunds",
+        "returns-refunds",
+        "faq",
+        "returns-refunds"
+      ],
+      "rerank_scores": [
+        0.8668,
+        0.2967,
+        0.2894,
+        0.2322
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "generation": {
+        "answer": "退货申请流程如下：\n1. 在App“我的订单”中选择订单点击“申请退货”，或联系在线客服说明原因；质量问题需上传照片/视频，无理由退货填写原因即可 [2]。\n2. 客服1个工作日内审核，通过后提供退货地址与退货单号(RMA号)，请勿在未获得RMA号前自行寄回 [2]。\n3. 将商品寄回并在订单页面填写快递单号（务必保留底单）；质量问题可选顺丰到付或先垫付后凭单据报销(上限¥25) [4]。\n4. 仓库签收并验货(1-2个工作日)，验货通过后3个工作日内发起退款 [2]。\n\n注意事项：\n- 7天无理由退货需商品未使用、包装完整，运费用户承担；15天内质量问题免费退换，运费我方承担 [1]。\n- 寄回前请解绑设备并恢复出厂设置，赠品需一并退回，否则按标价扣除 [1]。\n- 部分退款：无理由退货若有轻微使用痕迹可能扣折旧(最高20%)，质量问题不扣费；缺主要配件按单价扣除 [1]。",
+        "citation_accuracy": 0.67,
+        "citation_detail": [
+          {
+            "n": 1,
+            "supported": true,
+            "reason": "资料[1]明确列出了7天无理由退货的条件（商品未使用、包装完整）及运费由用户承担，以及15天内质量问题免费退换且运费我方承担的条款。"
+          },
+          {
+            "n": 2,
+            "supported": true,
+            "reason": "资料[2]详细描述了退款进度状态流转（已申请→审核通过→已寄回→验货中→退款中→已到账），并提及超过7个工作日未到账的处理流程，这与回答中的流程步骤和注意事项相符。"
+          },
+          {
+            "n": 4,
+            "supported": false,
+            "reason": "资料[4]主要讨论了换货规则（同型号/不同型号、周期、保修期计算）以及套装类商品的退货规则，并未提及质量问题寄回运费的支付方式（如顺丰到付或先垫付后报销），也未涉及RMA号的概念。"
+          }
+        ],
+        "faithfulness": 0.6,
+        "faithfulness_reason": "回答中关于‘质量问题运费报销上限¥25’、‘无理由退货扣折旧最高20%’以及‘缺主要配件按单价扣除’的陈述在参考资料中均未提及，属于无依据内容。其余流程与条件基本符合参考资料。",
+        "answer_relevancy": 1.0,
+        "answer_relevancy_raw": 5.0,
+        "answer_relevancy_reason": "回答完整、结构化地覆盖了退货申请流程、注意事项及评分标准，直接且全面回应了用户问题。",
+        "context_precision": 0.75,
+        "context_recall": 0.75
+      },
+      "elapsed_s": 71.6
+    }
+  ]
+}

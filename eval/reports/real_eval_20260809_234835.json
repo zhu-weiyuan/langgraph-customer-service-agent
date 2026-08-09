@@ -1,0 +1,90 @@
+{
+  "timestamp": "2026-08-09T23:48:35",
+  "k": 5,
+  "total": 1,
+  "ok": 1,
+  "errors": [],
+  "metrics": {
+    "hit_rate_at_k": 1.0,
+    "mrr": 1.0,
+    "context_recall": 0.75,
+    "context_precision": 0.75,
+    "faithfulness": 0.4,
+    "answer_relevancy": 1.0,
+    "citation_accuracy": 0.0
+  },
+  "counts": {
+    "retrieval_layer": 0,
+    "generation_layer": 1
+  },
+  "by_difficulty": {
+    "medium": {
+      "count": 1,
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "context_recall": 0.75,
+      "context_precision": 0.75,
+      "faithfulness": 0.4,
+      "answer_relevancy": 1.0,
+      "citation_accuracy": 0.0
+    }
+  },
+  "by_category": {
+    "returns-refunds": {
+      "count": 1,
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "context_recall": 0.75,
+      "context_precision": 0.75,
+      "faithfulness": 0.4,
+      "answer_relevancy": 1.0,
+      "citation_accuracy": 0.0
+    }
+  },
+  "items": [
+    {
+      "id": "gen-01",
+      "layer": "generation",
+      "category": "returns-refunds",
+      "difficulty": "medium",
+      "query": "怎么退货",
+      "golden_sources": [
+        "returns-refunds"
+      ],
+      "retrieved_sources": [
+        "returns-refunds",
+        "faq",
+        "returns-refunds",
+        "returns-refunds"
+      ],
+      "retrieved_titles": [
+        "returns-refunds",
+        "faq",
+        "returns-refunds",
+        "returns-refunds"
+      ],
+      "rerank_scores": [
+        0.8687,
+        0.2931,
+        0.2906,
+        0.234
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "generation": {
+        "answer": "退货申请流程如下：\n1. 在App“我的订单”中选择对应订单点击“申请退货”，或联系在线客服说明原因；质量问题需上传问题照片或视频，无理由退货只需填写原因即可 [3]。\n2. 客服会在1个工作日内审核，通过后提供退货地址与退货单号（RMA号），请勿在未获得RMA号前自行寄回 [3]。\n3. 将商品寄回并在订单页面填写快递单号，务必保留底单；仓库签收后验货（1-2个工作日），验货通过后3个工作日内发起退款 [3]。\n\n运费承担规则：\n- 7天无理由退货：用户承担 [4]。\n- 15天内质量问题退换、错发/漏发/破损拒收：我方承担，可选择顺丰到付或先垫付后凭单据报销（上限¥25） [4]。\n- 无理由换货（如换颜色）：寄回运费用户承担，补发运费我方承担 [4]。\n\n退款方式与到账时效：\n- 原路退回（默认）：微信/支付宝1-3个工作日，银联卡/信用卡3-7个工作日；余额退款即时到账 [2]。\n- 平台订单（京东、天猫等）按平台流程发起，标准与官网一致 [3]。\n\n注意事项：\n- 寄回前需在App解绑设备并恢复出厂设置，未解绑会延迟验货 [3]。\n- 赠品需一并退回，否则按标价扣除；轻微使用痕迹可能扣折旧（最高20%），质量问题不扣费 [1]。\n- 定制产品不支持无理由退货，云服务代金卡/延保激活后不支持退货 [3]。",
+        "citation_accuracy": 0.0,
+        "citation_detail": [],
+        "faithfulness": 0.4,
+        "faithfulness_reason": "回答中部分陈述在参考资料中无依据或与内容矛盾。例如：'15天内质量问题退换...我方承担，可选择顺丰到付或先垫付后凭单据报销（上限¥25）'、'原路退回...微信/支付宝1-3个工作日...'、'轻微使用痕迹可能扣折旧（最高20%）'等细节在参考资料中并未提及。",
+        "answer_relevancy": 1.0,
+        "answer_relevancy_raw": 5.0,
+        "answer_relevancy_reason": "回答直接、完整且结构清晰地涵盖了退货申请流程、运费承担规则、退款方式与时效以及注意事项，全面回应了用户“怎么退货”的核心问题。",
+        "context_precision": 0.75,
+        "context_recall": 0.75
+      },
+      "elapsed_s": 129.75
+    }
+  ]
+}

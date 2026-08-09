@@ -1,0 +1,232 @@
+{
+  "timestamp": "2026-08-10T01:11:42",
+  "k": 5,
+  "total": 3,
+  "ok": 3,
+  "errors": [],
+  "metrics": {
+    "hit_rate_at_k": 1.0,
+    "mrr": 0.8333333333333334,
+    "context_recall": 0.7799999999999999,
+    "context_precision": 0.5833333333333334,
+    "faithfulness": 0.8666666666666667,
+    "answer_relevancy": 1.0,
+    "citation_accuracy": 0.25
+  },
+  "counts": {
+    "retrieval_layer": 0,
+    "generation_layer": 3
+  },
+  "by_difficulty": {
+    "easy": {
+      "count": 3,
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.8333333333333334,
+      "context_recall": 0.7799999999999999,
+      "context_precision": 0.5833333333333334,
+      "faithfulness": 0.8666666666666667,
+      "answer_relevancy": 1.0,
+      "citation_accuracy": 0.25
+    }
+  },
+  "by_category": {
+    "high-frequency": {
+      "count": 3,
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.8333333333333334,
+      "context_recall": 0.7799999999999999,
+      "context_precision": 0.5833333333333334,
+      "faithfulness": 0.8666666666666667,
+      "answer_relevancy": 1.0,
+      "citation_accuracy": 0.25
+    }
+  },
+  "items": [
+    {
+      "id": "high-frequency-01",
+      "layer": "generation",
+      "category": "high-frequency",
+      "difficulty": "easy",
+      "query": "怎么退货？",
+      "golden_sources": [
+        "returns-refunds"
+      ],
+      "retrieved_sources": [
+        "returns-refunds",
+        "returns-refunds",
+        "returns-refunds",
+        "faq"
+      ],
+      "retrieved_titles": [
+        "returns-refunds",
+        "returns-refunds",
+        "returns-refunds",
+        "faq"
+      ],
+      "rerank_scores": [
+        0.9202,
+        0.4113,
+        0.295,
+        0.2904
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "generation": {
+        "answer": "退货流程如下：\n1. 在App“我的订单”中选择对应订单点击“申请退货”，或联系在线客服说明原因；质量问题需上传问题照片/视频，无理由退货只需填写原因即可 [3]。\n2. 客服将在1个工作日内审核，通过后提供退货地址与退货单号（RMA号），请勿在未获得RMA号前自行寄回 [3]。\n3. 将商品寄回并在订单页面填写快递单号（务必保留底单）；质量问题可选顺丰到付或先垫付后凭单据报销（上限¥25） [3]。\n4. 仓库签收并验货（1-2个工作日），验货通过后3个工作日内发起退款，原路退回通常1-7个工作日到账，余额退款即时到账 [3]。\n\n注意事项：\n- 7天无理由退货需商品未使用、包装完整且配件齐全，运费由用户承担；已绑定账号的设备需在App中解绑并恢复出厂设置 [2][3]。\n- 15天内质量问题可免费退换货，来回运费由我方承担，人为损坏不在此列 [2]。\n- 部分退款：无理由退货若有轻微使用痕迹可能扣除最高20%折旧费，48小时内可异议申诉；缺少主要配件按官网单价扣除 [3]。\n- 平台订单（京东/天猫等）按平台流程发起售后，标准与官网一致 [3]。",
+        "citation_accuracy": 0.0,
+        "citation_detail": [
+          {
+            "n": 1,
+            "supported": false,
+            "reason": "资料[1]仅说明7天无理由退货条件（未使用、包装完整等）及运费由用户承担，并未提及“已绑定账号的设备需在App中解绑并恢复出厂设置”这一具体操作步骤。"
+          },
+          {
+            "n": 2,
+            "supported": false,
+            "reason": "资料[2]主要描述退款进度查看流程、平台订单退换货说明及退货商品数据与账号处理注意事项（如解绑设备、恢复出厂设置），并未提及“15天内质量问题可免费退换货，来回运费由我方承担”这一具体条款。"
+          },
+          {
+            "n": 3,
+            "supported": false,
+            "reason": "资料[3]主要描述换货规则（同型号/不同型号、周期）、套装类商品退货规则及云服务退订方式，并未提及“客服将在1个工作日内审核”、“仓库签收后3个工作日内发起退款”或“平台订单按平台流程发起售后”等具体流程与时效。"
+          }
+        ],
+        "faithfulness": 0.6,
+        "faithfulness_reason": "回答中关于质量问题运费的‘顺丰到付或先垫付后凭单据报销（上限¥25）’、无理由退货的‘轻微使用痕迹扣20%折旧费及48小时异议申诉’、以及‘缺少主要配件按官网单价扣除’等陈述在参考资料中均无依据，属于虚构内容。其余关于流程步骤、7天/15天政策要点、平台订单规则等陈述有依据。",
+        "answer_relevancy": 1.0,
+        "answer_relevancy_raw": 5.0,
+        "answer_relevancy_reason": "回答完整、结构清晰，直接且详细地回应了用户“怎么退货”的问题，涵盖了申请流程、审核与寄回步骤、退款时间、注意事项（如条件、运费、折旧等），信息准确且无冗余或偏离。",
+        "context_precision": 0.75,
+        "context_recall": 0.67
+      },
+      "elapsed_s": 73.91
+    },
+    {
+      "id": "high-frequency-02",
+      "layer": "generation",
+      "category": "high-frequency",
+      "difficulty": "easy",
+      "query": "保修多久？",
+      "golden_sources": [
+        "warranty-service"
+      ],
+      "retrieved_sources": [
+        "faq",
+        "warranty-service",
+        "warranty-service",
+        "product-manual",
+        "product-manual"
+      ],
+      "retrieved_titles": [
+        "faq",
+        "warranty-service",
+        "warranty-service",
+        "product-manual",
+        "product-manual"
+      ],
+      "rerank_scores": [
+        0.8373,
+        0.8352,
+        0.7406,
+        0.6801,
+        0.6337
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.5,
+      "generation": {
+        "answer": "智能音箱整机保修1年，主要部件（扬声器单元、主板、电源适配器）保修2年；智能家居网关保修2年，传感器类子设备保修1年，执行器类（灯泡、插座、窗帘电机）保修1.5年；电池属消耗品不保修 [1][2]。可付费延保：音箱+¥299延至3年、+¥499延至5年；家居套装+¥199延至3年 [1]。",
+        "citation_accuracy": 0.5,
+        "citation_detail": [
+          {
+            "n": 1,
+            "supported": false,
+            "reason": "资料[1]仅涉及隐私与账号管理，未提及任何保修期限或延保政策"
+          },
+          {
+            "n": 2,
+            "supported": true,
+            "reason": "资料[2]明确列出智能音箱整机保修1年、主要部件保修2年、网关保修2年、传感器类保修1年、执行器类保修1.5年，与回答一致"
+          }
+        ],
+        "faithfulness": 1.0,
+        "faithfulness_reason": "回答中的所有保修期限、延保价格及电池不保修等陈述均可在【产品保修期是多久】和【保修与售后服务政策】中直接找到依据，无矛盾或无依据内容。",
+        "answer_relevancy": 1.0,
+        "answer_relevancy_raw": 5.0,
+        "answer_relevancy_reason": "回答直接、完整地回应了“保修多久”的问题，涵盖了智能音箱、智能家居网关及各类子设备的保修期限，并补充了延保选项，信息全面且准确。",
+        "context_precision": 0.6,
+        "context_recall": 0.67
+      },
+      "elapsed_s": 60.3
+    },
+    {
+      "id": "high-frequency-03",
+      "layer": "generation",
+      "category": "high-frequency",
+      "difficulty": "easy",
+      "query": "快递几天能到？",
+      "golden_sources": [
+        "shipping-logistics"
+      ],
+      "retrieved_sources": [
+        "shipping-logistics",
+        "shipping-logistics",
+        "faq",
+        "shipping-logistics",
+        "returns-refunds"
+      ],
+      "retrieved_titles": [
+        "shipping-logistics",
+        "shipping-logistics",
+        "faq",
+        "shipping-logistics",
+        "returns-refunds"
+      ],
+      "rerank_scores": [
+        0.8116,
+        0.7904,
+        0.4187,
+        0.1449,
+        0.1351
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "generation": {
+        "answer": "快递时效因配送方式与地区而异：标准快递为2-5个工作日（偏远地区如新疆、西藏等5-8个工作日）[1]；加急快递1-2个工作日，顺丰特快次日达（限一二线城市）[1]。港澳台转运需5-7个工作日，海外国际快递7-15个工作日[1][2]。",
+        "citation_accuracy": 0.25,
+        "citation_detail": [
+          {
+            "n": 1,
+            "supported": false,
+            "reason": "资料[1]仅列出标准快递为2-5个工作日，未提及偏远地区如新疆、西藏等需5-8个工作日的具体说明。"
+          },
+          {
+            "n": 1,
+            "supported": true,
+            "reason": "资料[1]明确列出了加急快递1-2个工作日，顺丰特快次日达（限一二线城市）的时效与适用地区。"
+          },
+          {
+            "n": 1,
+            "supported": false,
+            "reason": "资料[1]仅说明港澳台转运需5-7个工作日，未提及海外国际快递的7-15个工作日时效。"
+          },
+          {
+            "n": 2,
+            "supported": false,
+            "reason": "资料[2]主要讨论签收检查、代收点视为签收及退货规则，并未提供关于海外国际快递具体时效（如7-15个工作日）的信息。"
+          }
+        ],
+        "faithfulness": 1.0,
+        "faithfulness_reason": "回答中的每一句陈述均可在参考资料中找到直接对应依据：标准快递时效、偏远地区时效、加急与顺丰特快时效及适用地区、港澳台转运时效、海外国际快递时效，均准确引用自【配送方式与运费】表格及相关段落。",
+        "answer_relevancy": 1.0,
+        "answer_relevancy_raw": 5.0,
+        "answer_relevancy_reason": "回答直接、完整且全面地回应了用户“快递几天能到？”的问题，涵盖了不同配送方式（标准、加急、特快）、地区差异（国内偏远地区、港澳台、海外）的具体时效范围，信息准确且无冗余，完全符合问题核心需求。",
+        "context_precision": 0.4,
+        "context_recall": 1.0
+      },
+      "elapsed_s": 61.82
+    }
+  ]
+}

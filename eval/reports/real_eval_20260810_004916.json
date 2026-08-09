@@ -1,0 +1,794 @@
+{
+  "timestamp": "2026-08-10T00:49:16",
+  "k": 5,
+  "total": 22,
+  "ok": 22,
+  "errors": [],
+  "metrics": {
+    "hit_rate_at_k": 0.9090909090909091,
+    "mrr": 0.7727272727272727,
+    "context_recall": null,
+    "context_precision": null,
+    "faithfulness": null,
+    "answer_relevancy": null,
+    "citation_accuracy": null
+  },
+  "counts": {
+    "retrieval_layer": 22,
+    "generation_layer": 0
+  },
+  "by_difficulty": {
+    "easy": {
+      "count": 10,
+      "hit_rate_at_k": 0.9,
+      "mrr": 0.75
+    },
+    "medium": {
+      "count": 9,
+      "hit_rate_at_k": 0.8888888888888888,
+      "mrr": 0.7222222222222222
+    },
+    "hard": {
+      "count": 3,
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0
+    }
+  },
+  "by_category": {
+    "product-manual": {
+      "count": 3,
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.5
+    },
+    "troubleshooting": {
+      "count": 4,
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.875
+    },
+    "shipping-logistics": {
+      "count": 3,
+      "hit_rate_at_k": 0.6666666666666666,
+      "mrr": 0.6666666666666666
+    },
+    "warranty-service": {
+      "count": 3,
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.8333333333333334
+    },
+    "returns-refunds": {
+      "count": 4,
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0
+    },
+    "faq": {
+      "count": 3,
+      "hit_rate_at_k": 0.6666666666666666,
+      "mrr": 0.5
+    },
+    "multi": {
+      "count": 2,
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0
+    }
+  },
+  "items": [
+    {
+      "id": "ret-01",
+      "layer": "retrieval",
+      "category": "product-manual",
+      "difficulty": "easy",
+      "query": "音箱怎么连WiFi",
+      "golden_sources": [
+        "product-manual"
+      ],
+      "retrieved_sources": [
+        "installation-guide",
+        "product-manual",
+        "installation-guide",
+        "product-manual",
+        "troubleshooting"
+      ],
+      "retrieved_titles": [
+        "installation-guide",
+        "product-manual",
+        "installation-guide",
+        "product-manual",
+        "troubleshooting"
+      ],
+      "rerank_scores": [
+        0.9574,
+        0.8362,
+        0.7132,
+        0.6762,
+        0.5954
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.5,
+      "elapsed_s": 2.9
+    },
+    {
+      "id": "ret-02",
+      "layer": "retrieval",
+      "category": "product-manual",
+      "difficulty": "easy",
+      "query": "支持哪些音乐平台",
+      "golden_sources": [
+        "product-manual"
+      ],
+      "retrieved_sources": [
+        "faq",
+        "product-manual",
+        "product-manual",
+        "faq",
+        "account-security"
+      ],
+      "retrieved_titles": [
+        "faq",
+        "product-manual",
+        "product-manual",
+        "faq",
+        "account-security"
+      ],
+      "rerank_scores": [
+        0.8979,
+        0.6942,
+        0.2579,
+        0.1518,
+        0.0809
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.5,
+      "elapsed_s": 2.68
+    },
+    {
+      "id": "ret-03",
+      "layer": "retrieval",
+      "category": "product-manual",
+      "difficulty": "easy",
+      "query": "音量怎么调节",
+      "golden_sources": [
+        "product-manual"
+      ],
+      "retrieved_sources": [
+        "troubleshooting",
+        "product-manual",
+        "troubleshooting"
+      ],
+      "retrieved_titles": [
+        "troubleshooting",
+        "product-manual",
+        "troubleshooting"
+      ],
+      "rerank_scores": [
+        0.3179,
+        0.2503,
+        0.0144
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.5,
+      "elapsed_s": 1.61
+    },
+    {
+      "id": "ret-04",
+      "layer": "retrieval",
+      "category": "troubleshooting",
+      "difficulty": "medium",
+      "query": "蓝牙配对不上",
+      "golden_sources": [
+        "troubleshooting"
+      ],
+      "retrieved_sources": [
+        "error-codes",
+        "troubleshooting",
+        "troubleshooting",
+        "product-manual"
+      ],
+      "retrieved_titles": [
+        "error-codes",
+        "troubleshooting",
+        "troubleshooting",
+        "product-manual"
+      ],
+      "rerank_scores": [
+        0.7062,
+        0.5751,
+        0.2334,
+        0.0932
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.5,
+      "elapsed_s": 1.53
+    },
+    {
+      "id": "ret-05",
+      "layer": "retrieval",
+      "category": "troubleshooting",
+      "difficulty": "medium",
+      "query": "设备无法开机",
+      "golden_sources": [
+        "troubleshooting"
+      ],
+      "retrieved_sources": [
+        "troubleshooting",
+        "returns-refunds",
+        "error-codes",
+        "troubleshooting"
+      ],
+      "retrieved_titles": [
+        "troubleshooting",
+        "returns-refunds",
+        "error-codes",
+        "troubleshooting"
+      ],
+      "rerank_scores": [
+        0.8418,
+        0.7937,
+        0.4297,
+        0.063
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.48
+    },
+    {
+      "id": "ret-06",
+      "layer": "retrieval",
+      "category": "troubleshooting",
+      "difficulty": "medium",
+      "query": "声音有杂音怎么办",
+      "golden_sources": [
+        "troubleshooting"
+      ],
+      "retrieved_sources": [
+        "troubleshooting",
+        "troubleshooting"
+      ],
+      "retrieved_titles": [
+        "troubleshooting",
+        "troubleshooting"
+      ],
+      "rerank_scores": [
+        0.702,
+        0.4261
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.57
+    },
+    {
+      "id": "ret-07",
+      "layer": "retrieval",
+      "category": "troubleshooting",
+      "difficulty": "medium",
+      "query": "设备离线怎么处理",
+      "golden_sources": [
+        "troubleshooting"
+      ],
+      "retrieved_sources": [
+        "troubleshooting",
+        "installation-guide",
+        "error-codes",
+        "api-developer",
+        "error-codes"
+      ],
+      "retrieved_titles": [
+        "troubleshooting",
+        "installation-guide",
+        "error-codes",
+        "api-developer",
+        "error-codes"
+      ],
+      "rerank_scores": [
+        0.9218,
+        0.7254,
+        0.6264,
+        0.2376,
+        0.0923
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.53
+    },
+    {
+      "id": "ret-08",
+      "layer": "retrieval",
+      "category": "shipping-logistics",
+      "difficulty": "easy",
+      "query": "快递几天能到",
+      "golden_sources": [
+        "shipping-logistics"
+      ],
+      "retrieved_sources": [
+        "shipping-logistics",
+        "shipping-logistics",
+        "faq",
+        "returns-refunds",
+        "shipping-logistics"
+      ],
+      "retrieved_titles": [
+        "shipping-logistics",
+        "shipping-logistics",
+        "faq",
+        "returns-refunds",
+        "shipping-logistics"
+      ],
+      "rerank_scores": [
+        0.7283,
+        0.5952,
+        0.2979,
+        0.1078,
+        0.0756
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.55
+    },
+    {
+      "id": "ret-09",
+      "layer": "retrieval",
+      "category": "shipping-logistics",
+      "difficulty": "medium",
+      "query": "可以到店自提吗",
+      "golden_sources": [
+        "shipping-logistics"
+      ],
+      "retrieved_sources": [
+        "faq",
+        "billing-invoices"
+      ],
+      "retrieved_titles": [
+        "faq",
+        "billing-invoices"
+      ],
+      "rerank_scores": [
+        0.0089,
+        0.0062
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 0.0,
+      "mrr": 0.0,
+      "elapsed_s": 2.32
+    },
+    {
+      "id": "ret-10",
+      "layer": "retrieval",
+      "category": "shipping-logistics",
+      "difficulty": "easy",
+      "query": "发什么快递公司",
+      "golden_sources": [
+        "shipping-logistics"
+      ],
+      "retrieved_sources": [
+        "shipping-logistics",
+        "shipping-logistics",
+        "shipping-logistics",
+        "returns-refunds"
+      ],
+      "retrieved_titles": [
+        "shipping-logistics",
+        "shipping-logistics",
+        "shipping-logistics",
+        "returns-refunds"
+      ],
+      "rerank_scores": [
+        0.8688,
+        0.1768,
+        0.1109,
+        0.0614
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.56
+    },
+    {
+      "id": "ret-11",
+      "layer": "retrieval",
+      "category": "warranty-service",
+      "difficulty": "easy",
+      "query": "保修多久",
+      "golden_sources": [
+        "warranty-service"
+      ],
+      "retrieved_sources": [
+        "warranty-service",
+        "faq",
+        "warranty-service",
+        "product-manual",
+        "warranty-service"
+      ],
+      "retrieved_titles": [
+        "warranty-service",
+        "faq",
+        "warranty-service",
+        "product-manual",
+        "warranty-service"
+      ],
+      "rerank_scores": [
+        0.7415,
+        0.6839,
+        0.6484,
+        0.2959,
+        0.2583
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.61
+    },
+    {
+      "id": "ret-12",
+      "layer": "retrieval",
+      "category": "warranty-service",
+      "difficulty": "medium",
+      "query": "怎么申请保修",
+      "golden_sources": [
+        "warranty-service"
+      ],
+      "retrieved_sources": [
+        "troubleshooting",
+        "warranty-service",
+        "warranty-service",
+        "warranty-service",
+        "returns-refunds"
+      ],
+      "retrieved_titles": [
+        "troubleshooting",
+        "warranty-service",
+        "warranty-service",
+        "warranty-service",
+        "returns-refunds"
+      ],
+      "rerank_scores": [
+        0.8069,
+        0.7543,
+        0.1885,
+        0.1827,
+        0.177
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.5,
+      "elapsed_s": 1.57
+    },
+    {
+      "id": "ret-13",
+      "layer": "retrieval",
+      "category": "warranty-service",
+      "difficulty": "medium",
+      "query": "保修范围包括什么",
+      "golden_sources": [
+        "warranty-service"
+      ],
+      "retrieved_sources": [
+        "warranty-service",
+        "warranty-service",
+        "warranty-service",
+        "troubleshooting",
+        "faq"
+      ],
+      "retrieved_titles": [
+        "warranty-service",
+        "warranty-service",
+        "warranty-service",
+        "troubleshooting",
+        "faq"
+      ],
+      "rerank_scores": [
+        0.5831,
+        0.4072,
+        0.3661,
+        0.3456,
+        0.1883
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.53
+    },
+    {
+      "id": "ret-14",
+      "layer": "retrieval",
+      "category": "returns-refunds",
+      "difficulty": "easy",
+      "query": "怎么退货",
+      "golden_sources": [
+        "returns-refunds"
+      ],
+      "retrieved_sources": [
+        "returns-refunds",
+        "faq",
+        "returns-refunds",
+        "returns-refunds"
+      ],
+      "retrieved_titles": [
+        "returns-refunds",
+        "faq",
+        "returns-refunds",
+        "returns-refunds"
+      ],
+      "rerank_scores": [
+        0.8687,
+        0.2931,
+        0.2906,
+        0.2301
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 2.86
+    },
+    {
+      "id": "ret-15",
+      "layer": "retrieval",
+      "category": "returns-refunds",
+      "difficulty": "medium",
+      "query": "退款多久到账",
+      "golden_sources": [
+        "returns-refunds"
+      ],
+      "retrieved_sources": [
+        "returns-refunds",
+        "returns-refunds",
+        "billing-invoices",
+        "billing-invoices",
+        "warranty-service"
+      ],
+      "retrieved_titles": [
+        "returns-refunds",
+        "returns-refunds",
+        "billing-invoices",
+        "billing-invoices",
+        "warranty-service"
+      ],
+      "rerank_scores": [
+        0.7325,
+        0.7028,
+        0.5407,
+        0.4431,
+        0.2165
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.5
+    },
+    {
+      "id": "ret-16",
+      "layer": "retrieval",
+      "category": "returns-refunds",
+      "difficulty": "easy",
+      "query": "七天无理由退货吗",
+      "golden_sources": [
+        "returns-refunds"
+      ],
+      "retrieved_sources": [
+        "returns-refunds",
+        "returns-refunds",
+        "shipping-logistics",
+        "faq",
+        "returns-refunds"
+      ],
+      "retrieved_titles": [
+        "returns-refunds",
+        "returns-refunds",
+        "shipping-logistics",
+        "faq",
+        "returns-refunds"
+      ],
+      "rerank_scores": [
+        0.8174,
+        0.6985,
+        0.6896,
+        0.6309,
+        0.2198
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.53
+    },
+    {
+      "id": "ret-17",
+      "layer": "retrieval",
+      "category": "returns-refunds",
+      "difficulty": "hard",
+      "query": "退货运费谁出",
+      "golden_sources": [
+        "returns-refunds"
+      ],
+      "retrieved_sources": [
+        "returns-refunds",
+        "returns-refunds",
+        "faq",
+        "shipping-logistics"
+      ],
+      "retrieved_titles": [
+        "returns-refunds",
+        "returns-refunds",
+        "faq",
+        "shipping-logistics"
+      ],
+      "rerank_scores": [
+        0.8904,
+        0.3348,
+        0.3087,
+        0.0822
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.63
+    },
+    {
+      "id": "ret-18",
+      "layer": "retrieval",
+      "category": "faq",
+      "difficulty": "easy",
+      "query": "产品价格多少",
+      "golden_sources": [
+        "faq"
+      ],
+      "retrieved_sources": [
+        "faq",
+        "faq",
+        "returns-refunds",
+        "product-manual"
+      ],
+      "retrieved_titles": [
+        "faq",
+        "faq",
+        "returns-refunds",
+        "product-manual"
+      ],
+      "rerank_scores": [
+        0.5015,
+        0.1954,
+        0.1428,
+        0.0517
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.6
+    },
+    {
+      "id": "ret-19",
+      "layer": "retrieval",
+      "category": "faq",
+      "difficulty": "easy",
+      "query": "有优惠活动吗",
+      "golden_sources": [
+        "faq"
+      ],
+      "retrieved_sources": [
+        "promotions-membership",
+        "promotions-membership",
+        "promotions-membership",
+        "warranty-service",
+        "billing-invoices"
+      ],
+      "retrieved_titles": [
+        "promotions-membership",
+        "promotions-membership",
+        "promotions-membership",
+        "warranty-service",
+        "billing-invoices"
+      ],
+      "rerank_scores": [
+        0.3081,
+        0.2255,
+        0.1679,
+        0.125,
+        0.0786
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 0.0,
+      "mrr": 0.0,
+      "elapsed_s": 1.67
+    },
+    {
+      "id": "ret-20",
+      "layer": "retrieval",
+      "category": "faq",
+      "difficulty": "medium",
+      "query": "怎么开发票",
+      "golden_sources": [
+        "faq"
+      ],
+      "retrieved_sources": [
+        "billing-invoices",
+        "faq"
+      ],
+      "retrieved_titles": [
+        "billing-invoices",
+        "faq"
+      ],
+      "rerank_scores": [
+        0.6447,
+        0.3365
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 0.5,
+      "elapsed_s": 1.89
+    },
+    {
+      "id": "ret-21",
+      "layer": "retrieval",
+      "category": "multi",
+      "difficulty": "hard",
+      "query": "音箱蓝牙连不上而且想退货",
+      "golden_sources": [
+        "returns-refunds",
+        "troubleshooting"
+      ],
+      "retrieved_sources": [
+        "troubleshooting",
+        "error-codes",
+        "product-manual",
+        "returns-refunds",
+        "faq"
+      ],
+      "retrieved_titles": [
+        "troubleshooting",
+        "error-codes",
+        "product-manual",
+        "returns-refunds",
+        "faq"
+      ],
+      "rerank_scores": [
+        0.8113,
+        0.6629,
+        0.5737,
+        0.4631,
+        0.2049
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.6
+    },
+    {
+      "id": "ret-22",
+      "layer": "retrieval",
+      "category": "multi",
+      "difficulty": "hard",
+      "query": "保修期内快递寄修怎么弄",
+      "golden_sources": [
+        "shipping-logistics",
+        "warranty-service"
+      ],
+      "retrieved_sources": [
+        "warranty-service",
+        "warranty-service",
+        "warranty-service",
+        "returns-refunds"
+      ],
+      "retrieved_titles": [
+        "warranty-service",
+        "warranty-service",
+        "warranty-service",
+        "returns-refunds"
+      ],
+      "rerank_scores": [
+        0.9238,
+        0.3958,
+        0.3103,
+        0.0657
+      ],
+      "reranker_provider": "siliconflow",
+      "hit_rate_at_k": 1.0,
+      "mrr": 1.0,
+      "elapsed_s": 1.48
+    }
+  ]
+}
