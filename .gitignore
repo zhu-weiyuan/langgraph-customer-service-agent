@@ -68,3 +68,25 @@ chroma_db/
 # Node (frontend)
 frontend/node_modules/
 frontend/dist/
+
+# Runtime / scratch dirs (never commit)
+/data/
+/work/
+/logs/
+/archive/
+/memory/
+
+# SQLite WAL artifacts
+*.db-shm
+*.db-wal
+*.pid
+
+# Recovery backups
+agent/nodes.py.before_stream_rebuild_20260730
+agent/nodes.py.corrupted_20260730_recovery
+
+# Scratch eval scripts (real harness lives in eval/)
+eval/_*.py
+
+# Keep the golden dataset despite the *.jsonl rule
+!eval/golden_set_v2.jsonl
