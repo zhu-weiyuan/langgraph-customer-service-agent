@@ -1,0 +1,5 @@
+c = open('app_fastapi.py', encoding='utf-8').read()
+print('f"u:{header_uid}" in file:', 'f"u:{header_uid}"' in c)
+print('vue_index in file:', 'vue_index' in c)
+print('X-Accel-Buffering in file:', 'X-Accel-Buffering' in c)
+print('header_uid[:128] in file:', 'header_uid[:128]' in c)

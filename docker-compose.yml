@@ -1,0 +1,25 @@
+services:
+  customer-service:
+    build: .
+    ports:
+      - "7860:7860"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-local}
+      # 显式覆盖 .env 的 127.0.0.1 → 用 host.docker.internal 才能从容器内访问宿主机
+      - OPENAI_BASE_URL=http://host.docker.internal:8080/v1
+      - USE_POSTGRES=1
+      - RAG_BACKEND=pgvector
+      - POSTGRES_DSN=postgresql://langgraph:${POSTGRES_PASSWORD}@langgraph-postgres:5432/langgraph
+      - DATABASE_URL=postgresql://langgraph:${POSTGRES_PASSWORD}@langgraph-postgres:5432/langgraph
+      - PG_DSN=postgresql://langgraph:${POSTGRES_PASSWORD}@langgraph-postgres:5432/langgraph
+    volumes:
+      - ./knowledge:/app/knowledge:ro
+    networks:
+      - default
+      - langgraph-network
+    restart: unless-stopped
+
+networks:
+  langgraph-network:
+    external: true
+    name: langgraph-customer-service-agent_langgraph-network
