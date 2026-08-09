@@ -1,0 +1,3481 @@
+{
+  "total": 200,
+  "samples": [
+    {
+      "ok": true,
+      "latency": 20.34,
+      "data": {
+        "reply": "这是**蓝牙模块异常**（E006）的简化报错。请按以下步骤操作：\n\n1. **重启音箱**：断电 10 秒后重新通电开机。\n2. **恢复出厂设置**：长按【播放/暂停】键 +【音量+】键约 5 秒，直到提示重置成功。\n3. **手机端清理**：在手机蓝牙列表中**删除**旧的音箱配对记录，重新搜索连接。\n\n✅ 若以上操作后仍报错：**属于硬件故障，请报修**。整机保修 1 年内免费更换。",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "escalated"
+      },
+      "message": "蓝牙连不上，显示 e0",
+      "category": "product",
+      "user_id": "test_user_42",
+      "session_id": "e2e-batch-b678fa24",
+      "index": 1
+    },
+    {
+      "ok": true,
+      "latency": 28.368,
+      "data": {
+        "reply": "您好！收到您的消息，但“只是一个建议”这句话比较简短，我不太确定您具体想表达的意思。\n\n为了更好地帮助您，能否请您**澄清一下您的问题或需求**？例如：\n\n- 您是想对我们某项服务或产品提出**建议**吗？\n- 您是在询问“**建议**”这个概念的定义或法律含义？\n- 您需要**建议书的写作模板**吗？\n- 或者您遇到了具体问题，希望获得我们的**专业建议**？\n\n请补充更多细节，我会尽力为您提供准确、有用的支持！😊",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "只是一个建议",
+      "category": "chitchat",
+      "user_id": "test_user_19",
+      "session_id": "e2e-batch-fc88a22b",
+      "index": 2
+    },
+    {
+      "ok": true,
+      "latency": 14.933,
+      "data": {
+        "reply": "非常抱歉给您带来了这么糟糕的体验！😔 等了半个月还没收到换货，换作是我也会非常焦急和生气的，真的对不起！\n\n请您放心，我一定全力帮您跟进这个问题。为了尽快查到您的包裹状态，麻烦您提供一下以下信息：\n\n1. **订单编号**（或者换货申请的单号）\n2. **您的收货地址**（方便我核实物流信息）\n\n收到信息后，我会立刻联系物流部门或仓库，核实您的换货商品到底卡在哪个环节，并给您一个明确的解决方案（比如优先补发、加急配送或全额退款等），您看可以吗？",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "换货等了半个月都没收到",
+      "category": "complaint",
+      "user_id": "test_user_36",
+      "session_id": "e2e-batch-65187b44",
+      "index": 3
+    },
+    {
+      "ok": true,
+      "latency": 15.08,
+      "data": {
+        "reply": "好的，祝您生活愉快！如果以后有任何问题，欢迎随时联系我们。再见！👋\n请问您对刚才的服务还满意吗？如果还有其他需要，随时告诉我哦～\n感谢您的信任与支持！如果后续有任何需要，欢迎随时联系我们。祝您生活愉快，阖家幸福！再见～",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_39",
+      "session_id": "e2e-batch-76f5e990",
+      "index": 4
+    },
+    {
+      "ok": true,
+      "latency": 16.054,
+      "data": {
+        "reply": "非常抱歉给您带来了不好的体验，我完全理解您此刻焦急和不满的心情。等待包裹却迟迟没有更新，确实让人非常恼火，真的对不起！\n\n为了尽快帮您解决这个问题，能否请您提供一下**订单编号**？\n\n收到信息后，我会立即为您做以下几件事：\n1. **查询最新物流状态**：确认包裹具体卡在哪里，是运输延误、分拣问题还是其他原因。\n2. **联系快递公司催促**：如果确实存在异常，我会第一时间向物流公司施压，要求加急派送或给出明确解释。\n3. **提供补偿方案**：如果是我们的责任导致严重延误，我们会为您提供相应的补偿（如优惠券、退款或部分赔付等），以表达我们的歉意。\n\n请您放心，我一定会跟进到底，直到问题妥善解决。请告诉我您的订单号，我马上处理！",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "你们的物流也太慢了吧",
+      "category": "complaint",
+      "user_id": "test_user_33",
+      "session_id": "e2e-batch-f54b09ac",
+      "index": 5
+    },
+    {
+      "ok": true,
+      "latency": 11.578,
+      "data": {
+        "reply": "哈哈，看来今天运气爆棚呀！✨\n\n有什么我可以帮你的吗？无论是查询订单、解答疑问，还是随便聊聊，我都在哦～ 😄",
+        "intent": "chat",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "不错不错",
+      "category": "chitchat",
+      "user_id": "test_user_34",
+      "session_id": "e2e-batch-bba7fc7a",
+      "index": 6
+    },
+    {
+      "ok": true,
+      "latency": 14.648,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。祝您生活愉快，再见！👋\n感谢您的耐心，请问刚才的回答有帮到您吗？\n感谢您的信任与支持！如有任何产品问题，随时联系我们。祝您生活愉快，智能科技为您带来便捷与温馨！👋",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的，谢谢，拜拜",
+      "category": "ending",
+      "user_id": "test_user_25",
+      "session_id": "e2e-batch-af307bf8",
+      "index": 7
+    },
+    {
+      "ok": true,
+      "latency": 40.928,
+      "data": {
+        "reply": "您好，针对 **M300 无人机无法开机** 的问题，请按以下步骤快速排查：\n\n### ✅ 立即尝试的解决方案\n\n1. **检查电源连接**\n   - 确认电池与机身卡扣完全锁紧。\n   - 检查充电接口是否清洁、无异物。\n\n2. **强制重启**\n   - 长按电源键 **10-15 秒**，观察是否有指示灯或屏幕反应。\n   - 若无效，尝试取出电池，等待 **30 秒** 后重新装入再开机。\n\n3. **检查电池状态**\n   - 确认电池是否有电：连接充电器，观察充电指示灯是否亮起。\n   - 若电池完全无电量，请先充电 **10-15 分钟** 后再尝试开机（深度放电后需短暂激活）。\n\n4. **检查电源开关/保险丝**\n   - 部分型号有独立电源开关，确认已打开。\n   - 如配备可更换保险丝，检查是否熔断。\n\n---\n\n### ⚠️ 若以上无效，可能为硬件故障\n\n- **现象**：指示灯完全不亮、屏幕无显示、无任何反应。\n- **建议**：立即停止自行拆解，避免扩大损坏。\n\n---\n\n### 📦 售后报修指引\n\n| 情况 | 处理方式 |\n|------|----------|\n| **保修期内** | 免费检测维修（主板/电池等核心部件通常保修 1-2 年） |\n| **过保设备** | 先报价后维修，含工时费 + 部件费 + 往返运费约 ¥25 |\n| **加急需求** | 可申请加急处理，最快 2 个工作日寄回（正常 3-5 个工作日） |\n\n**报修前准备**：提供设备序列号（SN 码）、购买凭证、故障描述。\n\n> 💡 **提示**：开不了机多由电池或主板问题导致，大概率仍在保修范围内。请优先联系官方售后获取进一步支持。",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "M300 开不了机怎么办？",
+      "category": "product",
+      "user_id": "test_user_41",
+      "session_id": "e2e-batch-4bed1f28",
+      "index": 8
+    },
+    {
+      "ok": true,
+      "latency": 27.528,
+      "data": {
+        "reply": "您好！关于运费的计算，主要取决于您选择的配送方式和订单金额：\n\n### 1. 标准快递（全国大部分地区）\n*   **满 ¥99 免运费**：单笔订单实付金额（扣除优惠券与积分后）达到或超过 ¥99，即可免除运费。\n*   **不满 ¥99**：收取 ¥10 运费。\n*   **时效**：2-5 个工作日。\n\n### 2. 其他配送方式（不享受免邮优惠）\n以下加急/特快服务需在标准运费基础上额外支付固定费用，不参与满额免邮活动：\n*   **加急快递**：¥15（1-2 个工作日，全国主要城市）\n*   **顺丰特快**：¥25（次日达，一二线城市）\n\n### 3. 偏远地区说明\n*   **新疆、西藏、青海及内蒙古部分地区**：标准快递时效为 5-8 个工作日，且**不支持**加急与次日达服务。\n\n### 4. 特殊情况免运费\n*   **换货补发、质量问题补发**：一律免运费。\n*   **退货退款**：若因退货导致订单实付金额低于 ¥99，我们不会追收已免除的运费。\n\n### 5. 港澳台及国际快递\n*   **港澳台**：¥40 起，按重量计费（5-7 个工作日）。\n*   **国际快递**：按 DHL/顺丰国际实时报价（7-15 个工作日，覆盖海外 20+ 国家）。\n\n> 💡 **温馨提示**：运费在“我的订单”结算页面会清晰显示。如有其他疑问，欢迎随时联系我们！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "运费怎么算？",
+      "category": "consult",
+      "user_id": "test_user_39",
+      "session_id": "e2e-batch-4ceca124",
+      "index": 9
+    },
+    {
+      "ok": true,
+      "latency": 16.246,
+      "data": {
+        "reply": "真的非常抱歉给您带来了这么糟糕的体验！😔 连续三天联系却得不到任何回应，换做是我也会感到非常愤怒和失望，这完全是我们工作的失误，我向您诚挚道歉。\n\n请您消消气，我现在立刻为您处理这个问题。为了能准确帮到您，麻烦您告诉我：\n\n1. **您之前是通过什么渠道联系的？**（比如：电话热线、在线客服、邮件、还是社交媒体？）\n2. **您的问题大致是什么？** 或者您可以直接在这里描述一下遇到的具体情况。\n\n我会优先为您加急处理，并亲自跟进直到问题得到妥善解决。如果是因为系统故障或人工客服繁忙导致漏接，我也会向相关部门反馈，避免其他客户遇到类似情况。\n\n再次向您说声对不起！🙏",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "联系三天了都没人理我",
+      "category": "complaint",
+      "user_id": "test_user_45",
+      "session_id": "e2e-batch-0641c084",
+      "index": 10
+    },
+    {
+      "ok": true,
+      "latency": 37.255,
+      "data": {
+        "reply": "根据提供的参考资料，**智能音箱 X-200（标准版）并没有内置电池**。\n\n从【资料1】可知：\n*   **供电方式**：通过 **USB-C 接口**连接电源适配器供电（额定功率 15W）。\n*   **产品定位**：作为插电式智能音箱使用。\n\n因此，X-200 不存在“电池能用多久”的问题，其正常使用完全依赖持续通电。如果您指的是其他型号或有关断电续航的疑问，请注意以下区别：\n*   **网关 G2 Pro**（非音箱）内置备用电池，断电后可续航约 **4 小时**（见【资料3】、【资料4】）。\n*   **传感器类设备**（如门窗、人体传感器）通常使用 CR2032 等一次性电池，但此类电池属于消耗品，不在保修范围内（见【资料5】）。\n\n如果您遇到的是 X-200 在断电后无法工作或其他异常情况，建议检查电源连接或联系售后支持。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "escalated"
+      },
+      "message": "X200 的电池能用多久？",
+      "category": "product",
+      "user_id": "test_user_14",
+      "session_id": "e2e-batch-b7f78d80",
+      "index": 11
+    },
+    {
+      "ok": true,
+      "latency": 22.171,
+      "data": {
+        "reply": "非常抱歉给您带来了这么糟糕的体验！等了半个月还没收到换货，这确实让人非常气愤和焦急，我完全理解您现在的心情，真的对不起。\n\n请您放心，我会立刻帮您跟进这个问题。为了能尽快查到您的订单状态并解决，麻烦您提供一下以下信息：\n\n1. **订单编号**（可以在您的订单详情里找到）\n2. **换货申请的时间**（大概是什么时候提交的？）\n3. **物流单号**（如果有的话，您可以直接发给我；如果没有，我可以帮您查询）\n\n**在您提供信息的同时，我先帮您做以下几件事：**\n\n- ✅ 立即联系仓库或物流部门，核实您的换货包裹目前的具体位置。\n- ✅ 确认是否存在漏发、错发或物流停滞的情况。\n- ✅ 一旦找到问题，我会优先为您加急处理，争取最快速度发出或补寄。\n\n**另外，为了表达我们的歉意：**\n如果确实是因我们失误导致延误，除了尽快给您处理好换货外，我们也可以为您提供一定的补偿（如优惠券、积分或小额退款等），具体方案我们会根据您的情况灵活协商。\n\n请您先消消气，把订单信息发给我，我马上为您处理！",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "换货等了半个月都没收到",
+      "category": "complaint",
+      "user_id": "test_user_39",
+      "session_id": "e2e-batch-a45f13a7",
+      "index": 12
+    },
+    {
+      "ok": true,
+      "latency": 18.184,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。祝您生活愉快，再见！👋\n希望我的回答能帮到您！请问您对本次服务还满意吗？如有其他问题，随时告诉我哦～\n感谢您的信任与支持！如果后续有任何需要，随时联系我们。祝您生活愉快，智能家居为您带来更多精彩体验！再见～",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_36",
+      "session_id": "e2e-batch-f615f35b",
+      "index": 13
+    },
+    {
+      "ok": true,
+      "latency": 18.604,
+      "data": {
+        "reply": "非常抱歉给您带来了这么糟糕的体验！😔 我完全理解您现在的心情，换货等待了半个月却还没收到，换作是我也会非常焦急和生气。这确实是我们要改进的地方，让您久等真的对不起。\n\n为了尽快帮您解决这个问题，能否请您提供一下**订单编号**？或者告诉我您申请换货的具体时间？\n\n一旦有了这些信息，我会立即：\n1.  **优先查询物流状态**，确认包裹是否卡在某个环节。\n2.  如果包裹丢失或异常，我会**立刻为您安排补发**或为您提供其他解决方案（如退款等），确保您不再等待。\n\n请您消消气，我这就去帮您跟进，一定给您一个满意的答复！🙏",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "换货等了半个月都没收到",
+      "category": "complaint",
+      "user_id": "test_user_5",
+      "session_id": "e2e-batch-96a39a67",
+      "index": 14
+    },
+    {
+      "ok": true,
+      "latency": 19.172,
+      "data": {
+        "reply": "物流轨迹超过3天无更新属于异常，请按以下步骤处理：\n\n1. **先在快递公司官网/客服核实**物流状态；\n2. **若仍无结果，立即联系智联在线客服**，我们将向快递方发起查件（通常2个工作日内回复）；\n3. **一旦快递公司确认丢件，我们免费补发同款商品**，无需您等待理赔流程。\n\n请放心，我们会全程跟进直至问题解决！",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "快递半路丢了怎么办？",
+      "category": "consult",
+      "user_id": "test_user_50",
+      "session_id": "e2e-batch-ae8d0c44",
+      "index": 15
+    },
+    {
+      "ok": true,
+      "latency": 51.073,
+      "data": {
+        "reply": "您好！为了给您最合适的建议，我需要先确认您指的是哪款产品的尺寸选择呢？\n\n从您的问题来看，可能是以下几种情况：\n\n1. **智能音箱型号选择**（X-100 / X-200 / X-300 Pro）\n2. **智能家居套装版本选择**（基础版 vs 全屋版）\n3. **其他设备的尺寸规格**\n\n---\n\n### 🔊 如果您是在问**智能音箱尺寸/型号选择**：\n\n| 型号 | 尺寸 | 重量 | 适用场景 |\n|------|------|------|----------|\n| **X-100**（青春版） | 90×90×110mm | 480g | 卧室、书房等小空间，预算 ¥199 |\n| **X-200**（标准版） | 110×110×150mm | 780g | 客厅、大空间，销量最高主力款，¥399 |\n| **X-300 Pro** | 尺寸参考知识库未完整提供 | — | 大型空间/专业需求 |\n\n**选择建议：**\n- **小房间/个人使用** → X-100（紧凑便携）\n- **客厅/多人家庭** → X-200（拾音范围5米，音质更好）\n- **大面积/高性能需求** → X-300 Pro（拾音8米，功率30W）\n\n---\n\n### 🏠 如果您是在问**智能家居套装版本选择**：\n\n| 版本 | 随附网关 | 子设备上限 | 适合场景 |\n|------|----------|------------|----------|\n| **基础版** | G1（Zigbee 3.0） | 64个 | 单间/小公寓 |\n| **全屋版** | G2 Pro（双协议+有线网口+备用电池） | 128个 | 多房间/大户型，断网自动化仍可执行 |\n\n---\n\n请告诉我您具体想了解哪款产品的尺寸建议，我可以为您提供更详细的对比和推荐！😊",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "尺寸选哪个好？",
+      "category": "consult",
+      "user_id": "test_user_1",
+      "session_id": "e2e-batch-70e2a8ea",
+      "index": 16
+    },
+    {
+      "ok": true,
+      "latency": 17.005,
+      "data": {
+        "reply": "真的非常抱歉给您带来这么糟糕的体验！我完全理解您现在的愤怒和失望，满怀期待收到包裹却发现是空的，这确实让人难以接受。请您放心，我一定会全力帮您解决这个问题。\n\n为了尽快为您处理，请您提供以下信息：\n\n1. **订单编号**（可以在您的订单确认邮件或网站上找到）\n2. **快递单号**（如果有的话）\n3. **开箱视频或照片**（如果有拍摄开箱过程，请一并提供，这能帮助我们快速核实情况）\n\n收到这些信息后，我会立即为您安排：\n- **优先补发**全新商品，并升级快递时效；或\n- **全额退款**，如果您更倾向于退货退款\n\n同时，我也会将此事反馈给物流和仓库部门，调查为何出现空箱情况，避免类似问题再次发生。\n\n再次为给您带来的不便深表歉意！我们非常重视您的购物体验，一定会负责到底。请您提供订单信息，我马上为您处理。",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 5,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "收到的是空箱子，气死我了",
+      "category": "complaint",
+      "user_id": "test_user_30",
+      "session_id": "e2e-batch-f4054eb2",
+      "index": 17
+    },
+    {
+      "ok": true,
+      "latency": 15.913,
+      "data": {
+        "reply": "好的，没问题！如果您以后有任何问题或需要帮助，随时欢迎回来咨询。祝您生活愉快！😊\n请问您对刚才的服务还满意吗？如果有其他问题，随时告诉我哦！\n感谢您的信任与支持！如有任何问题，随时欢迎联系我们。祝您生活愉快，事事顺心！再见～",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "我没什么问题了",
+      "category": "chitchat",
+      "user_id": "test_user_5",
+      "session_id": "e2e-batch-f2eadec8",
+      "index": 18
+    },
+    {
+      "ok": true,
+      "latency": 23.558,
+      "data": {
+        "reply": "您好！不同产品的保修期限有所不同，具体如下：\n\n**智能音箱**\n- 整机：**1 年**\n- 主要部件（扬声器单元、主板、电源适配器）：**2 年**\n- 电池属消耗品，不保修\n\n**智能家居套装**\n- 网关：**2 年**\n- 传感器类子设备：**1 年**\n- 执行器类（灯泡、插座、窗帘电机）：**1.5 年**\n\n---\n\n**💡 延保服务**\n您可以付费延长保修期：\n- **音箱套装**：+¥299 延至 **3 年**，或 +¥499 延至 **5 年**\n- **家居套装**：+¥199 延至 **3 年**\n\n---\n\n**📱 如何查询保修状态？**\n在 App 中点击「设备管理」→ 选择对应设备 → 查看「保修信息」，即可看到购买日期、保修截止日及延保状态。\n\n> 温馨提示：保修期自购买之日起算，转让设备后新主人绑定设备可继承剩余保修期（保修跟设备走，不跟账号走）。具体以《保修与售后服务政策》为准。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "保修期多久？",
+      "category": "consult",
+      "user_id": "test_user_4",
+      "session_id": "e2e-batch-367cd3f6",
+      "index": 19
+    },
+    {
+      "ok": true,
+      "latency": 16.013,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。😊\n\n如果您还有其他问题或需要进一步的帮助，随时告诉我！祝您一切顺利！\n请问刚才的服务还让您满意吗？如有任何需要，随时告诉我哦～\n感谢您的信任与支持！如果后续有任何关于智联产品的问题，随时欢迎联系我们。祝您生活愉快，一切顺心！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "明白了，谢谢",
+      "category": "ending",
+      "user_id": "test_user_24",
+      "session_id": "e2e-batch-20a39884",
+      "index": 20
+    },
+    {
+      "ok": true,
+      "latency": 27.482,
+      "data": {
+        "reply": "是的，我们提供批量购买的优惠政策！🎉\n\n**企业采购通道：**\n- 📧 邮箱：b2b@smartlinktech.com\n- 🌐 官网\"企业采购\"页提交需求\n- ⏱️ 1个工作日内商务响应\n\n**阶梯报价优惠：**\n| 采购数量 | 折扣 |\n|---------|------|\n| 10-49台 | 95折 |\n| 50-199台 | 9折 |\n| 200台以上 | 单独洽谈 |\n\n**企业采购还支持：**\n✅ 对公转账  \n✅ 增值税专用发票  \n✅ 定制服务（外壳/刻字、预配置组网）  \n✅ 云服务企业定制SLA（99.95%/99.99%）  \n✅ 酒店/公寓等行业方案可申请样机测试\n\n如需了解更多详情，欢迎发送邮件至 **b2b@smartlinktech.com** 或直接访问官网企业采购页面！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "批量购买有优惠吗？",
+      "category": "consult",
+      "user_id": "test_user_31",
+      "session_id": "e2e-batch-9ff7aac9",
+      "index": 21
+    },
+    {
+      "ok": true,
+      "latency": 43.087,
+      "data": {
+        "reply": "您好！WiFi 信号弱**不一定**是路由器坏了，很多时候是**部署环境或干扰**导致的。请您先别担心，按照以下步骤逐一排查，大多数情况都能解决：\n\n### ✅ 第一步：确认设备与路由器的距离和阻隔\n*   **操作**：将手机或智能设备靠近路由器（3米内），测试信号是否变强。\n*   **预期结果**：如果靠近后信号正常，说明是**距离过远或墙体阻隔**导致，并非路由器故障。\n*   **建议**：尽量让设备与路由器之间减少承重墙、金属柜等阻隔；若距离超过10米且有多堵墙，建议加装 Zigbee 中继设备（如智能插座）增强信号。\n\n### ✅ 第二步：检查 WiFi 频段设置（关键！）\n*   **操作**：进入路由器后台，确认 **2.4GHz 频段是否已开启**。\n*   **预期结果**：部分智能设备（如 X-100/G1）**仅支持 2.4GHz**，不支持 5GHz。如果路由器开启了“双频合一”或关闭了 2.4G，会导致设备搜不到或信号弱。\n*   **建议**：将 2.4G 和 5G 网络**分开命名**（如 `Home_2.4G` 和 `Home_5G`），方便连接和排查。\n\n### ✅ 第三步：排除干扰源\n*   **操作**：检查路由器附近是否有微波炉、无线摄像头、金属柜等强干扰设备。\n*   **预期结果**：远离这些干扰源后，信号稳定性应明显提升。\n*   **建议**：将路由器放置在开阔、高处位置，避免放在弱电箱或角落。\n\n### ✅ 第四步：重启路由器与设备\n*   **操作**：拔掉路由器电源，等待10秒后重新插上；同时重启您的手机或智能设备。\n*   **预期结果**：很多临时性连接问题可通过重启恢复。\n*   **建议**：如果路由器连接设备过多（>30台），也可能导致拥堵，尝试断开一些不用的设备后再试。\n\n### ✅ 第五步：检查 APP 权限（如使用 App 配网）\n*   **操作**：\n    *   **Android**：确保已授予 App “位置信息” 权限（系统限制，扫描 WiFi 需要）。",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "WiFi 信号很弱，是不是路由器问题？",
+      "category": "product",
+      "user_id": "test_user_18",
+      "session_id": "e2e-batch-fb9422bf",
+      "index": 22
+    },
+    {
+      "ok": true,
+      "latency": 14.826,
+      "data": {
+        "reply": "不客气！如果还有其他问题，随时欢迎咨询。祝您一切顺利！ 😊\n请问您对刚才的服务还满意吗？如果还有其他问题，随时告诉我哦～\n感谢您的信任与支持！希望我们的智能产品能为您的生活带来更多便利与温馨。如果您日后有任何需要，随时欢迎联系我们。祝您生活愉快，阖家幸福！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "明白了，谢谢",
+      "category": "ending",
+      "user_id": "test_user_28",
+      "session_id": "e2e-batch-7b3ee621",
+      "index": 23
+    },
+    {
+      "ok": true,
+      "latency": 16.424,
+      "data": {
+        "reply": "别急，按以下步骤处理，我们免费补发：\n\n1. **先自查**：登录 App →「我的订单」查看物流轨迹。若超过3天无更新，属于异常。\n2. **联系我们**：直接联系智联在线客服，提供订单号。\n3. **我们处理**：客服会向快递公司发起查件（通常2个工作日内回复）。\n4. **确认丢件后**：**无需您等待理赔流程**，我们直接免费补发同款商品。\n\n国际件清关停留5-7天属正常，可在 DHL/顺丰国际官网查询状态。",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "快递半路丢了怎么办？",
+      "category": "consult",
+      "user_id": "test_user_34",
+      "session_id": "e2e-batch-bc6e56ec",
+      "index": 24
+    },
+    {
+      "ok": true,
+      "latency": 14.221,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。如果以后还有其他问题，随时欢迎联系我。祝您生活愉快！😊\n请问刚才的服务还让您满意吗？\n感谢您的信任与支持！如果您后续有任何产品问题或需要帮助，随时联系我们。祝您生活愉快，智能家居相伴每一天！🌟",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "明白了，谢谢",
+      "category": "ending",
+      "user_id": "test_user_13",
+      "session_id": "e2e-batch-f9af47a4",
+      "index": 25
+    },
+    {
+      "ok": true,
+      "latency": 15.083,
+      "data": {
+        "reply": "非常抱歉给您带来了这么糟糕的购物体验！我完全理解您现在的心情，买到坏掉的产品确实让人非常沮丧和生气，真的对不起。\n\n为了尽快帮您解决退货问题，请您提供以下信息，我会立即为您处理：\n\n1. **订单号**（或在哪个平台购买的）\n2. **产品名称**\n3. **产品出现的问题描述**（比如无法开机、损坏部位等，如有照片更佳）\n4. **购买日期**\n\n收到这些信息后，我会第一时间为您安排退货流程，并尽量加快处理速度。同时，也会跟进公司内部对产品问题的反馈，避免其他顾客遇到同样问题。\n\n再次向您诚挚道歉，感谢您的耐心！",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "产品坏了，我要退货！",
+      "category": "complaint",
+      "user_id": "test_user_27",
+      "session_id": "e2e-batch-30e847fd",
+      "index": 26
+    },
+    {
+      "ok": true,
+      "latency": 71.56,
+      "data": {
+        "reply": "选择音箱尺寸主要取决于您的**房间大小**、**预算**以及**功能需求**。以下是针对 X-100、X-200 和 X-300 Pro 三款型号的选购建议：\n\n### 1. 快速对比表\n\n| 型号 | 尺寸 (高×宽) | 重量 | 价格 | 核心定位 |\n| :--- | :--- | :--- | :--- | :--- |\n| **X-100** | 110 × 90 mm | 480g | ¥199 | 小空间/入门 |\n| **X-200** | 150 × 110 mm | 780g | ¥399 | 客厅主力/均衡 |\n| **X-300 Pro** | (尺寸略大于 X-200，功率更大) | - | ¥699 | 全屋智能/高品质音质 |\n\n### 2. 按场景推荐\n\n*   **卧室、书房、小房间（预算有限）**\n    *   ✅ 选 **X-100**\n    *   理由：体积最小（仅 90×110mm），重量最轻，适合桌面摆放。价格最低，功能基础但够用。\n    *   注意：拾音距离仅 3 米，且不支持 5GHz WiFi。\n\n*   **客厅、主卧、大多数家庭首选**\n    *   ✅ 选 **X-200**\n    *   理由：尺寸适中（110×150mm），音质均衡（15W 功率 + 被动辐射器），支持 WiFi 6 和蓝牙 5.2，拾音距离 5 米，是销量最高的主力型号。\n    *   适合：日常听音乐、语音控制、中等大小房间。\n\n*   **追求高品质音质 / 需要内置网关**\n    *   ✅ 选 **X-300 Pro**\n    *   理由：功率最大（30W），音质更饱满，支持左右分频。更重要的是**内置 Zigbee 网关**，可直接连接最多 128 个智能子设备，无需额外购买网关。\n    *   适合：全屋智能用户、对音质要求高、客厅面积较大的家庭。\n\n### 3.",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "尺寸选哪个好？",
+      "category": "consult",
+      "user_id": "test_user_27",
+      "session_id": "e2e-batch-622405ee",
+      "index": 27
+    },
+    {
+      "ok": true,
+      "latency": 20.337,
+      "data": {
+        "reply": "根据官网/官方App的支付政策，支持以下支付方式：\n\n- **微信支付**\n- **支付宝**\n- **银联卡**\n- **信用卡**\n\n> 💳 **分期优惠**：订单满 ¥3000 支持花呗或信用卡 **3期免息分期**。\n\n### 其他场景说明：\n- **企业采购**：支持对公转账，详见《优惠活动与会员权益》中的企业采购说明。\n- **云服务订阅**：仅支持微信、支付宝，并可开启自动续费。\n- **电商平台（京东/天猫/亚马逊全球购）**：订单按各平台自有支付方式操作。\n\n如有支付异常或重复扣款问题，可联系在线客服处理。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "用什么支付方式？",
+      "category": "consult",
+      "user_id": "test_user_7",
+      "session_id": "e2e-batch-f91a105d",
+      "index": 28
+    },
+    {
+      "ok": true,
+      "latency": 13.424,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。\n\n祝您生活愉快，再见！👋\n请问您对刚才的服务还满意吗？如果还有其他问题，随时告诉我哦～\n感谢您的信任与支持！祝您生活愉快，智能生活相伴每一天~如有需要，随时联系我们！👋",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的，谢谢，拜拜",
+      "category": "ending",
+      "user_id": "test_user_26",
+      "session_id": "e2e-batch-b62af2e2",
+      "index": 29
+    },
+    {
+      "ok": true,
+      "latency": 40.237,
+      "data": {
+        "reply": "您好！WiFi 信号弱**不一定**是路由器硬件故障，更常见的原因是**覆盖范围、干扰或频段设置**问题。请先别担心，按以下步骤排查，大多数情况都可以自行解决：\n\n---\n\n### ✅ 第一步：快速判断是“路由器问题”还是“覆盖/干扰问题”\n\n| 现象 | 可能原因 |\n|------|----------|\n| **所有设备**（手机、电脑等）在同一位置都信号弱 | 路由器距离远、墙体阻隔多 → **覆盖范围问题** |\n| **只有智能音箱/网关**等设备信号弱，手机正常 | 可能是设备频段不支持或 Zigbee 子设备问题 |\n| 路由器指示灯异常、频繁死机、其他有线设备也断网 | 可能是路由器硬件故障 |\n\n---\n\n### ✅ 第二步：按顺序自查（预期结果如下）\n\n#### 1. **缩短距离，减少墙体阻隔**\n- 将设备尽量靠近路由器（**10–15 米内**，无厚重墙体阻挡）。\n- **预期结果**：信号强度明显提升，连接稳定。\n- 若仍弱 → 进入下一步。\n\n#### 2. **检查 WiFi 频段设置**\n- 确认您的设备是否支持 **5GHz**（如 X-200/X-300 Pro），否则需确保路由器开启了 **2.4GHz 频段**。\n- 部分老设备（如 X-100）**仅支持 2.4GHz**，若路由器设为“5GHz only”则无法连接。\n- **预期结果**：设备成功连接且信号稳定。\n\n#### 3. **排除干扰源**\n- 将路由器**远离微波炉、金属柜、蓝牙设备**等干扰源。\n- **预期结果**：信号波动减少，连接更稳定。\n\n#### 4. **重启路由器和设备**\n- 拔掉路由器电源 **10 秒后重新插上**，同时重启智能设备。\n- **预期结果**：临时性网络拥堵或缓存问题得以解决。\n\n#### 5. **检查连接设备数量**\n- 若路由器连接设备 **超过 30 台**，可能出现带宽不足。\n- 尝试断开部分非必要设备后重试。\n- **预期结果**：剩余设备网速和信号质量改善。\n\n#### 6. **检查企业级路由器的 MAC 白名单**",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "WiFi 信号很弱，是不是路由器问题？",
+      "category": "product",
+      "user_id": "test_user_49",
+      "session_id": "e2e-batch-2033d652",
+      "index": 30
+    },
+    {
+      "ok": true,
+      "latency": 23.324,
+      "data": {
+        "reply": "可以发顺丰，但需要您在下单时手动选择**“顺丰特快”**配送方式（需额外支付 ¥25 运费）。\n\n需要注意的是：\n- **时效**：次日达\n- **限制**：仅支持一二线城市\n- **默认发货**：如果您未主动选择，仓库会根据地址自动匹配快递（可能是顺丰、京东物流或中通），暂不支持直接指定快递公司。\n\n另外，如果是**质量问题退换货**，您可以使用顺丰到付寄回（需由我方提供收货地址）。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "能发顺丰吗？",
+      "category": "consult",
+      "user_id": "test_user_19",
+      "session_id": "e2e-batch-6fae3f8c",
+      "index": 31
+    },
+    {
+      "ok": true,
+      "latency": 18.421,
+      "data": {
+        "reply": "客服热线的工作时间是 **工作日 9:00-18:00**。\n\n**温馨提示：**\n*   **高峰时段**：周一上午通话量较大，等待时间可能较长。\n*   **非工作时间或不想等待**：您可以使用 **App 在线客服**（7×24 小时服务，平均响应 1 分钟内）或发送邮件至 **support@smartlinktech.com**（24 小时内回复）。\n*   退换货、报修、发票等业务均可通过在线客服全流程办理。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "客服工作时间是几点？",
+      "category": "consult",
+      "user_id": "test_user_19",
+      "session_id": "e2e-batch-87a2d644",
+      "index": 32
+    },
+    {
+      "ok": true,
+      "latency": 18.428,
+      "data": {
+        "reply": "请按以下步骤排查：\n\n1. **检查电源**：确认适配器插好，尝试更换插座；使用原装适配器（M300 需 15W 以上）。\n2. **断电重启**：拔掉电源，等待 30 秒后重新上电。\n3. **检查线缆**：确认 USB-C 线无破损。\n\n若指示灯完全不亮且上述操作无效，大概率是主板或适配器硬件故障。**保修期内免费维修**，含上门取送，请提供订单号报修。",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "M300 开不了机怎么办？",
+      "category": "product",
+      "user_id": "test_user_50",
+      "session_id": "e2e-batch-446625af",
+      "index": 33
+    },
+    {
+      "ok": true,
+      "latency": 21.646,
+      "data": {
+        "reply": "您可以通过以下几种方式联系人工客服：\n\n**1. App 在线客服（推荐）**\n- **入口**：打开 App → 点击“我的”→选择“在线客服”\n- **服务时间**：7×24 小时，平均响应 1 分钟内\n- **优势**：无需等待，退换货、报修、发票等业务均可全流程在线办理\n\n**2. 客服热线**\n- **电话**：400-888-8888\n- **服务时间**：工作日 9:00-18:00\n- **提示**：周一上午为高峰时段，等待时间较长；非工作时间请拨打 App 在线客服\n\n**3. 邮箱联系**\n- **地址**：support@smartlinktech.com\n- **回复时效**：24 小时内回复\n\n**其他说明：**\n- 云服务家庭版用户享有优先接入权，专业版用户有专属客服通道\n- 如遇账号安全/冒用问题，可同时在在线客服提交“账号安全申诉”或发邮件至 security@smartlinktech.com",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "怎么联系人工客服？",
+      "category": "consult",
+      "user_id": "test_user_15",
+      "session_id": "e2e-batch-3e688166",
+      "index": 34
+    },
+    {
+      "ok": true,
+      "latency": 13.273,
+      "data": {
+        "reply": "非常抱歉给您带来了这么糟糕的购物体验，我完全理解您现在的愤怒和失望。买到的东西是坏的，换做是我也会非常生气，真的对不起。\n\n请您放心，我们一定会负责到底，帮您妥善处理这个问题。为了能尽快为您办理退货退款，麻烦您提供一下以下信息：\n\n1. **订单编号**（可以在您的订单详情里找到）\n2. **产品具体哪里出现了问题**？（如果方便的话，可以拍一张照片发给我们，这样我们能更准确判断）\n3. 您希望是**全额退款**还是**换货**呢？\n\n一旦确认信息，我们会立即为您启动退货流程，并承担退回运费。再次向您诚挚道歉，感谢您的耐心！",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "产品坏了，我要退货！",
+      "category": "complaint",
+      "user_id": "test_user_3",
+      "session_id": "e2e-batch-680b0cd1",
+      "index": 35
+    },
+    {
+      "ok": true,
+      "latency": 11.776,
+      "data": {
+        "reply": "哈哈，谢谢你的夸奖！听到你这么说，我感觉我的代码都变得更轻快了呢～ 🌟\n\n今天心情这么好，是有什么特别开心的事情发生吗？还是说，只是单纯想找人聊聊天呀？无论哪种，我都随时准备好陪你唠嗑哦！ 😊",
+        "intent": "chat",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "你真可爱",
+      "category": "chitchat",
+      "user_id": "test_user_7",
+      "session_id": "e2e-batch-7003368d",
+      "index": 36
+    },
+    {
+      "ok": true,
+      "latency": 13.328,
+      "data": {
+        "reply": "您好！很高兴为您服务。😊\n\n“随便问问”也没问题，您可以聊聊：\n\n*   **关于产品或服务**：有什么功能想了解？或者遇到了什么问题？\n*   **订单或物流**：查询订单状态、退换货政策等。\n*   **使用建议**：想知道怎么更好地使用我们的服务？\n*   **随便聊聊**：如果只是想找人说说话，我也很乐意倾听！\n\n请问今天有什么我可以帮您的吗？",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "随便问问",
+      "category": "chitchat",
+      "user_id": "test_user_2",
+      "session_id": "e2e-batch-3a3b1114",
+      "index": 37
+    },
+    {
+      "ok": true,
+      "latency": 9.119,
+      "data": {
+        "reply": "您好！我在的，请问有什么可以帮您的？",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "在吗？",
+      "category": "chitchat",
+      "user_id": "test_user_47",
+      "session_id": "e2e-batch-31580c22",
+      "index": 38
+    },
+    {
+      "ok": true,
+      "latency": 37.065,
+      "data": {
+        "reply": "别急，按下面顺序操作，通常能解决：\n\n1. **检查电源**  \n   - 确认 USB-C 线插紧，换插座试试  \n   - **务必用原装适配器**（X-100 需 10W、X-200 需 15W、X-300 Pro 需 30W），功率不足会导致无法开机  \n\n2. **硬重启**  \n   - 拔掉电源，等 **30 秒** 后重新插电开机  \n\n3. **判断是否硬件故障**  \n   - 如果换了线/插座、重启后 **指示灯仍完全不亮** → 基本是主板或适配器硬件问题  \n   - **保修期内免费修**（含上门取送），过保也先报价再修，不花冤枉钱  \n\n4. **需要报修？**  \n   - 直接联系在线客服，提供订单号，我们安排寄修（3-5 工作日修好寄回，可加急至 2 天）  \n\n> ⚠️ 如果机器还在保修期内（主要部件如主板保修 2 年），开不了机大概率是免费范围，放心交给我们。",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "M300 开不了机怎么办？",
+      "category": "product",
+      "user_id": "test_user_14",
+      "session_id": "e2e-batch-b8e7d90a",
+      "index": 39
+    },
+    {
+      "ok": true,
+      "latency": 15.478,
+      "data": {
+        "reply": "晚安！祝您有个好梦，好好休息 😊\n请问刚才的服务还让您满意吗？如果还有其他问题，随时告诉我哦～\n感谢您的信任与支持！如果您后续有任何智能音箱、家居套装或云服务的需求，欢迎随时联系我们。祝您生活愉快，科技为您带来便捷与温馨！再见～",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "晚安",
+      "category": "chitchat",
+      "user_id": "test_user_18",
+      "session_id": "e2e-batch-408b749a",
+      "index": 40
+    },
+    {
+      "ok": true,
+      "latency": 13.361,
+      "data": {
+        "reply": "您好！很高兴为您服务。😊\n\n既然您说“随便问问”，那不如让我来猜猜，或者给您一些灵感？\n\n您可以从以下几个方向选一个感兴趣的：\n\n1. **日常小帮手**：比如“今晚吃什么好？”、“周末有什么不出门也能放松的活动？”\n2. **知识小问答**：比如“为什么天空是蓝色的？”、“咖啡是怎么诞生的？”\n3. **轻松闲聊**：聊聊您最近的心情、兴趣爱好，或者任何您好奇的事情。\n4. **实际问题求助**：如果您有具体的问题（如购物、技术、生活技巧等），也可以直接告诉我。\n\n您现在想聊点什么呢？或者，我可以先给您讲一个有趣的小知识作为开场？",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "随便问问",
+      "category": "chitchat",
+      "user_id": "test_user_23",
+      "session_id": "e2e-batch-442ef212",
+      "index": 41
+    },
+    {
+      "ok": true,
+      "latency": 12.764,
+      "data": {
+        "reply": "好的，祝您生活愉快！再见！👋\n请问您对刚才的服务还满意吗？如有其他问题，随时告诉我哦！\n感谢您的信任与支持！如果您之后有任何问题，欢迎随时联系我们。祝您生活愉快，智能生活伴您每一天！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_15",
+      "session_id": "e2e-batch-c00c55e3",
+      "index": 42
+    },
+    {
+      "ok": true,
+      "latency": 27.763,
+      "data": {
+        "reply": "**E0（或 E006）是蓝牙模块异常**，请按以下步骤操作，通常可快速恢复：\n\n1. **重启音箱**  \n   长按电源键 10 秒关机，再重新开机。\n\n2. **进入蓝牙模式**  \n   对音箱说：“**进入蓝牙模式**”，等待提示音。\n\n3. **手机端清理旧配对**  \n   - 手机蓝牙设置中，找到“SmartLink Speaker-XXXX”，选择**忽略此设备/删除**。\n   - 重新搜索并连接。\n\n4. **恢复出厂设置（如仍失败）**  \n   长按 `音量+` 和 `播放/暂停` 键 5 秒，直到语音提示“恢复出厂设置”。\n\n> ⚠️ 若以上操作后仍报 E0，属于**蓝牙硬件故障**。请通过 App **“售后报修”** 提交工单（附错误码 E0/E006），客服远程诊断约 5 分钟完成。  \n> **保修说明**：整机保修 1 年内免费维修；扬声器相关部件（如 E004）保修 2 年，第 13–24 个月仍免费。\n\n请尝试前两步，多数情况重启+删除旧配对即可解决。",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "蓝牙连不上，显示 e0",
+      "category": "product",
+      "user_id": "test_user_11",
+      "session_id": "e2e-batch-f84e8dfa",
+      "index": 43
+    },
+    {
+      "ok": true,
+      "latency": 10.234,
+      "data": {
+        "reply": "哈哈，听起来您今天状态很棒！😄 有什么我可以帮您的吗？无论是咨询问题、处理订单，还是随便聊聊，我都随时在线～",
+        "intent": "chat",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "不错不错",
+      "category": "chitchat",
+      "user_id": "test_user_15",
+      "session_id": "e2e-batch-7b1fe3bc",
+      "index": 44
+    },
+    {
+      "ok": true,
+      "latency": 39.368,
+      "data": {
+        "reply": "您好！WiFi 信号弱**不一定是路由器硬件故障**，更常见的原因是**覆盖距离、墙体阻隔或干扰**。请先别担心，按以下步骤排查，90% 的情况可以自行解决：\n\n---\n\n### ✅ 第一步：确认是「路由器问题」还是「覆盖问题」\n\n| 判断方式 | 说明 |\n|----------|------|\n| **所有设备都弱**（手机、电脑、音箱等） | 可能是路由器设置或带宽问题 |\n| **仅某台设备弱**（如智能音箱） | 很可能是距离远或墙体阻隔 |\n| **信号格数正常但网速慢** | 可能是干扰或路由器负载高 |\n\n---\n\n### ✅ 第二步：快速自查 & 解决方案\n\n#### 1️⃣ 缩短距离，减少墙体阻隔\n- **预期结果**：将设备（如音箱）移到离路由器 **10 米内、无墙体阻挡**的位置测试。\n- 如果信号明显改善 → 属于覆盖问题，无需报修。\n- **技巧**：大户型可在中间加装**智联智能插座作 Zigbee 中继**（参考 [1]）。\n\n#### 2️⃣ 检查 WiFi 频段设置（关键！）\n- **X-100 设备仅支持 2.4GHz**，请确认路由器：\n  - ✅ 已开启 **2.4GHz 频段**\n  - ✅ **未开启 \"5GHz Only\" 模式**\n  - ✅ 建议将 2.4G/5G 的 WiFi 名称**分开命名**（如 `Home_2.4G` 和 `Home_5G`），避免混淆。\n\n#### 3️⃣ 重启路由器 & 设备\n- 拔掉路由器电源，等待 **30 秒**后重新插上。\n- 同时重启您的智能设备（音箱/网关等）。\n- **预期结果**：临时性信号干扰或缓存问题通常可恢复。\n\n#### 4️⃣ 检查路由器负载 & 设置\n- 连接设备数是否超过 **30 台**？如果是，请先释放部分设备。\n- 确认未开启 **AP 隔离、访客网络隔离**（会导致设备无法通信）。\n- 确认 DHCP 地址池未满。\n\n#### 5️⃣ 远离干扰源\n- 路由器请远离",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "escalated"
+      },
+      "message": "WiFi 信号很弱，是不是路由器问题？",
+      "category": "product",
+      "user_id": "test_user_47",
+      "session_id": "e2e-batch-47d3d623",
+      "index": 45
+    },
+    {
+      "ok": true,
+      "latency": 24.76,
+      "data": {
+        "reply": "您好！关于发货时间，具体取决于您的下单时间和商品类型：\n\n**📦 普通商品发货时效：**\n*   **工作日 16:00 前**支付成功的订单：**当日发货**。\n*   **工作日 16:00 后**及**节假日**支付的订单：在 **24 小时内**（顺延至下一个工作日）发货。\n\n**⏳ 特殊商品：**\n*   **预售商品**：按照商品页面标注的预计发货日期发货。\n*   **定制类商品**（如企业定制、刻字版）：生产周期为 5-7 个工作日，之后按标准时效发出。\n\n**📅 温馨提示：**\n大促期间（如 618、双 11）发货可能会延迟 1-2 天，请以订单页面提示为准。\n\n如果您想查询具体订单的物流进度，可以登录 App 进入 **“我的订单”** 查看实时物流轨迹。如有其他疑问，欢迎随时咨询！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "商品什么时候发货？",
+      "category": "consult",
+      "user_id": "test_user_24",
+      "session_id": "e2e-batch-81a47eb4",
+      "index": 46
+    },
+    {
+      "ok": true,
+      "latency": 23.955,
+      "data": {
+        "reply": "运费计算规则如下：\n\n**1. 标准快递（全国大部分地区）**\n*   **满 ¥99 免运费**：按单笔订单**实付金额**计算（扣除优惠券、积分抵扣后的金额）。\n*   **不满 ¥99**：收取 **¥10** 运费。\n*   *注意*：若因退货导致订单实付金额低于 ¥99，我们不会追收已免除的运费。\n\n**2. 其他配送方式（不参与免邮）**\n以下服务运费为**固定全额费用**，不受满额优惠影响：\n*   **加急快递**：¥15（1-2 个工作日，全国主要城市）\n*   **顺丰特快**：¥25（次日达，一二线城市）\n*   **港澳台转运**：¥40 起，按重量计费（5-7 个工作日）\n*   **国际快递**：按 DHL/顺丰国际实时报价（7-15 个工作日）\n\n**3. 特殊情况免运费**\n*   换货补发、质量问题补发：**一律免运费**。\n\n**4. 偏远地区提示**\n新疆、西藏、青海及内蒙古部分地区，标准快递时效为 5-8 个工作日，且不支持加急与次日达服务。\n\n建议您下单时在结算页面确认最终运费金额。如有其他疑问，欢迎继续咨询！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "运费怎么算？",
+      "category": "consult",
+      "user_id": "test_user_30",
+      "session_id": "e2e-batch-ba484dc9",
+      "index": 47
+    },
+    {
+      "ok": true,
+      "latency": 15.111,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。如果之后还有其他问题，随时欢迎咨询。祝您生活愉快！ 😊\n请问您对刚才的服务还满意吗？有其他问题随时找我哦～\n感谢您的信任与支持！如果您之后还有任何关于智能音箱、智能家居或云服务的问题，随时欢迎联系我们。祝您生活愉快，科技为您带来更多便利与温馨！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "明白了，谢谢",
+      "category": "ending",
+      "user_id": "test_user_46",
+      "session_id": "e2e-batch-8d4a6d61",
+      "index": 48
+    },
+    {
+      "ok": true,
+      "latency": 13.142,
+      "data": {
+        "reply": "非常抱歉给您带来了不好的体验，我完全理解您此刻焦急和不满的心情。等待包裹的过程确实让人煎熬，尤其是当物流进度不如预期时，这种感受更加令人沮丧。请您消消气，我一定会帮您尽快查明原因并推动解决。\n\n为了更准确地帮您查询，麻烦您提供一下**订单编号**（或者收货人的手机号/姓名），我马上为您联系物流部门核实当前的具体位置和延误原因。\n\n同时，我也记录下了这次的问题反馈，我们会督促物流合作方优化配送时效，避免类似情况再次发生。请您稍等，我先帮您查一下！",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "你们的物流也太慢了吧",
+      "category": "complaint",
+      "user_id": "test_user_17",
+      "session_id": "e2e-batch-ac494838",
+      "index": 49
+    },
+    {
+      "ok": true,
+      "latency": 21.989,
+      "data": {
+        "reply": "非常抱歉给您带来了这样糟糕的体验，我完全理解您的心情。花了不少钱修东西，结果发现比直接买新的还贵，这确实让人非常难以接受，换做是我也会感到既失望又生气。真的对不起。\n\n为了帮您解决这个问题，我想先向您说明一下可能的情况，并看看我们能否找到一个更合理的方案：\n\n**1. 关于报价的构成**\n有时候维修费用会高于预期，可能是因为：\n*   **配件成本：** 原厂替换零件的价格本身就在上涨。\n*   **人工与技术费：** 如果是复杂设备，需要资深技师花费大量时间排查故障。\n*   **检测费：** 部分情况包含初步诊断的费用。\n\n**2. 我们可以为您做的（请告诉我您的具体产品是什么）**\n虽然报价是系统/技师基于标准计算的，但作为客服，我可以尝试以下方式来帮助您：\n\n*   **重新评估必要性：** 如果您方便提供具体的故障描述和报价单，我可以帮您看看是否有更经济的替代方案（例如使用兼容配件而非原厂配件，如果适用）。\n*   **申请特殊折扣或补贴：** 鉴于这次体验让您感到不满，我可以向主管申请为您争取一个**老客户关怀折扣**或**部分费用减免**，希望能尽量缩小维修与新品之间的差价。\n*   **提供以旧换新建议：** 如果维修确实不划算，我们可以查看品牌是否有“以旧换新”活动，用旧机抵扣购买新机的费用，这样可能比单独买新机更优惠。\n\n**为了尽快帮您处理，请您告诉我：**\n1. 您是购买了什么产品（品牌/型号）？\n2. 具体的故障现象是什么？\n3. 您方便提供那份报价单的具体金额吗？\n\n我绝不会推诿责任，一定会尽力为您争取一个最公平的解决方案。请您给我一个机会来弥补这次的过失。",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "维修报价比我买新的还贵",
+      "category": "complaint",
+      "user_id": "test_user_30",
+      "session_id": "e2e-batch-d0f49a09",
+      "index": 50
+    },
+    {
+      "ok": true,
+      "latency": 15.429,
+      "data": {
+        "reply": "客服热线的工作时间是**工作日 9:00-18:00**。\n\n如果您在非工作时间（如晚上、周末或节假日）需要帮助，推荐以下方式：\n\n*   **App 在线客服**：7×24 小时在线，平均响应时间约 1 分钟。\n    *   路径：“我的” → “在线客服”\n*   **邮件联系**：support@smartlinktech.com（24 小时内回复）\n\n大部分业务（如退换货、报修、发票申请等）都可通过在线客服全流程办理，无需等待电话接通。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "客服工作时间是几点？",
+      "category": "consult",
+      "user_id": "test_user_25",
+      "session_id": "e2e-batch-b293203d",
+      "index": 51
+    },
+    {
+      "ok": true,
+      "latency": 34.539,
+      "data": {
+        "reply": "根据现有资料，**X-200（标准版）智能音箱并不配备内置电池**，它是通过 USB-C 接口连接电源适配器供电的设备，因此不存在“电池续航”的概念。\n\n不过，如果您是在询问以下相关产品的电池情况，请参考：\n\n1. **G2 Pro 网关备用电池**：正常断电后续航约 **4 小时**。如果充满电后续航低于 1 小时，则可能存在异常，需报修（保修期 2 年）。\n2. **X-200 整机保修**：虽然无电池，但该机型整机保修 **1 年**，主要部件（扬声器单元、主板、电源适配器）保修 **2 年**。\n\n如果您指的是其他型号或具体使用场景中的“续航”问题，请补充说明，我将为您提供更精准的解答。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "X200 的电池能用多久？",
+      "category": "product",
+      "user_id": "test_user_39",
+      "session_id": "e2e-batch-d7444127",
+      "index": 52
+    },
+    {
+      "ok": true,
+      "latency": 13.598,
+      "data": {
+        "reply": "不客气！很高兴能为您服务。祝您生活愉快，再见！👋\n请问您对刚才的服务还满意吗？如果有其他需要，随时告诉我哦~\n感谢您的信任与支持！如果后续有任何问题，欢迎随时联系我们。祝您生活愉快，智能家居伴您每一天！👋",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的，谢谢，拜拜",
+      "category": "ending",
+      "user_id": "test_user_41",
+      "session_id": "e2e-batch-9d00ad45",
+      "index": 53
+    },
+    {
+      "ok": true,
+      "latency": 20.039,
+      "data": {
+        "reply": "非常抱歉给您带来了不愉快的购物体验，我完全理解您现在的心情。花钱买了东西还要额外承担退货运费，确实会让人觉得心里很不舒服，尤其是当您觉得这并非您的问题时。\n\n为了帮您解决这个问题，我需要先向您核实一下具体情况，因为不同的退货原因对应的运费政策是不同的：\n\n1. **请问这次退货的原因是什么呢？**\n   - 是商品本身有质量问题、破损或发错货？\n   - 还是您个人不喜欢/不合适（非质量问题的无理由退货）？\n\n2. **您是在哪个平台购买的？**（例如：淘宝、京东、拼多多、抖音等，不同平台的规则略有差异）\n\n**通常情况下：**\n- **如果是商品质量问题或商家责任**：运费应该由商家承担，您可以要求商家报销或直接从退款中扣除。\n- **如果是无理由退货**：根据《消费者权益保护法》，部分平台或店铺可能会要求买家承担退回运费，但有些店铺提供“运费险”可以抵扣。\n\n**请您先告诉我具体情况，我会立即帮您：**\n- 查询该订单的运费政策；\n- 如果属于商家责任，我会协助您申请运费补偿；\n- 如果是因为没有运费险，我也会尽力为您争取更优的解决方案。\n\n再次为给您带来的困扰道歉，请您消消气，我来帮您妥善处理。",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "退货时还非要我自己出运费",
+      "category": "complaint",
+      "user_id": "test_user_4",
+      "session_id": "e2e-batch-edcc6848",
+      "index": 54
+    },
+    {
+      "ok": true,
+      "latency": 15.756,
+      "data": {
+        "reply": "您好！很高兴为您服务。请问有什么我可以帮您的吗？\n请问刚才的解答还满意吗？如果还有其他问题，随时告诉我哦～\n感谢您的信任与选择！很高兴能为您提供帮助。祝您生活愉快，智能科技为您的每一天带来便利与惊喜。再见！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的",
+      "category": "chitchat",
+      "user_id": "test_user_13",
+      "session_id": "e2e-batch-a57778ad",
+      "index": 55
+    },
+    {
+      "ok": true,
+      "latency": 15.401,
+      "data": {
+        "reply": "不客气！很高兴能帮到你。\n\n如果之后还有其他问题或需要帮助，随时欢迎来找我。祝你一切顺利！ 😊\n希望今天的回答能帮到您！如果您还有其他问题，随时欢迎咨询。祝您生活愉快！\n感谢您的信任与选择！祝您生活愉快，科技为您带来更便捷美好的每一天。如有需要，欢迎随时联系我们~",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "明白了，谢谢",
+      "category": "ending",
+      "user_id": "test_user_17",
+      "session_id": "e2e-batch-8b9879f8",
+      "index": 56
+    },
+    {
+      "ok": true,
+      "latency": 8.229,
+      "data": {
+        "reply": "你好！很高兴为您服务。请问有什么可以帮您的吗？😊",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "你好",
+      "category": "chitchat",
+      "user_id": "test_user_31",
+      "session_id": "e2e-batch-4e6676f8",
+      "index": 57
+    },
+    {
+      "ok": true,
+      "latency": 41.248,
+      "data": {
+        "reply": "有的，我们针对批量采购提供了专门的优惠政策：\n\n**企业采购折扣：**\n- **50-199 台**：享受 **9 折** 优惠\n- **200 台及以上**：可享受更优的大宗采购价格（建议联系对接）\n\n**服务支持：**\n- ✅ 支持对公转账付款\n- ✅ 可开具增值税专用发票\n- ✅ 专属企业客服对接，提供订单跟踪与售后保障\n\n**申请方式：**\n请发送邮件至 **b2b@smartlinktech.com**，说明以下信息：\n1. 预计采购数量\n2. 产品型号（如 X-100、X-200、X-300 Pro 等）\n3. 公司名称及联系方式\n\n我们的企业销售团队会在 1-2 个工作日内与您联系，提供详细报价方案。\n\n> 💡 **温馨提示**：如果您是公司员工采购自用，也可先通过官网下单享受会员权益（如积分倍率、免邮门槛等），后续再与企业通道核对政策差异。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "批量购买有优惠吗？",
+      "category": "consult",
+      "user_id": "test_user_7",
+      "session_id": "e2e-batch-166057de",
+      "index": 58
+    },
+    {
+      "ok": true,
+      "latency": 16.476,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。\n\n如果之后还有其他问题或需要协助，随时欢迎联系我。祝您一切顺利！\n请问刚才的服务还让您满意吗？还有其他可以帮您的吗？\n感谢您的信任与支持！如果之后有任何问题，欢迎随时联系我们。祝您生活愉快，智能家居带来便捷与舒适！再见～",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "明白了，谢谢",
+      "category": "ending",
+      "user_id": "test_user_46",
+      "session_id": "e2e-batch-53dea539",
+      "index": 59
+    },
+    {
+      "ok": true,
+      "latency": 18.659,
+      "data": {
+        "reply": "真的非常抱歉给您带来了这么糟糕的体验！听到您收到空箱子，我完全理解您现在的愤怒和失望——满怀期待地等待包裹，结果却是一场空，这换谁都会气得半死。这绝对不是您应得的服务标准，我代表团队向您诚挚道歉。\n\n请您放心，我们一定会立刻为您解决这个问题。为了最快帮您处理，麻烦您提供以下信息：\n\n1. **订单号**（可以在您的订单确认邮件或短信中找到）\n2. **收件人姓名和联系电话**\n3. 如果方便的话，可以拍一张空箱子的照片发给我们，便于我们内部追责和排查物流问题\n\n**接下来我会立即为您做以下处理：**\n- ✅ **优先补发**：核实后马上为您免费重新寄送商品，并升级快递时效以尽快送达。\n- ✅ **或全额退款**：如果您不想再等待，我们可以立即安排全额退款，款项原路返回。\n- ✅ **额外补偿**：对于此次严重失误，我们会为您提供一张优惠券/部分补偿金，以表歉意。\n\n您希望选择补发还是退款？请告诉我您的偏好，我马上为您操作！再次为这次糟糕的体验向您道歉，我们绝不会再让这种事发生。",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 5,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "收到的是空箱子，气死我了",
+      "category": "complaint",
+      "user_id": "test_user_43",
+      "session_id": "e2e-batch-b63a6468",
+      "index": 60
+    },
+    {
+      "ok": true,
+      "latency": 40.473,
+      "data": {
+        "reply": "您好！根据我目前掌握的资料，**没有找到关于 \"L600 底座\" 的具体适配信息**。\n\n从参考资料中可以看到，我们详细列出了以下两款智能音箱的规格：\n\n- **X-200（标准版）**：支持 3.5mm 音频输出、USB-C 供电\n- **X-100（青春版）**：仅 USB-C 供电，无 3.5mm 接口\n\n但**并未提及 L600 型号或其专用底座**。\n\n为了帮您准确确认，建议您：\n\n1. **查看产品说明书或包装盒**，上面通常会列出兼容的音箱型号\n2. **联系官方客服**（电话/在线客服），提供底座的完整型号或图片进行确认\n3. **访问官网配件页面**，查询 L600 底座的商品详情\n\n如果您方便的话，也可以告诉我底座上印有的具体型号或外观特征，我可以帮您进一步分析！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "L600 底座适配什么型号？",
+      "category": "product",
+      "user_id": "test_user_38",
+      "session_id": "e2e-batch-c0cd412b",
+      "index": 61
+    },
+    {
+      "ok": true,
+      "latency": 20.009,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。\n\n如果您之后还有其他问题或需要帮助，随时欢迎联系我。祝您一切顺利！\n刚才的服务还满意吗？有任何反馈欢迎随时告诉我～\n感谢您的信任与支持！很高兴能为您提供帮助。祝您生活愉快，智能家居生活更加便捷舒适！如有任何问题，随时欢迎联系我们。再见！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "明白了，谢谢",
+      "category": "ending",
+      "user_id": "test_user_1",
+      "session_id": "e2e-batch-e58d5d7a",
+      "index": 62
+    },
+    {
+      "ok": true,
+      "latency": 38.735,
+      "data": {
+        "reply": "请按以下步骤快速排查：\n\n1. **检查电源**：确认电源适配器插好，尝试更换插座；检查 USB-C 线缆是否损坏，建议使用原装适配器（功率不足可能导致无法启动）。\n2. **重启设备**：拔电等待 30 秒后重新上电。\n3. **判断故障**：若指示灯完全不亮且上述操作无效，基本为硬件故障。\n\n✅ **解决方案**：直接申请报修。保修期内（整机 1 年）免费维修，支持上门取送，无需担心费用。",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "M300 开不了机怎么办？",
+      "category": "product",
+      "user_id": "test_user_16",
+      "session_id": "e2e-batch-df0548c6",
+      "index": 63
+    },
+    {
+      "ok": true,
+      "latency": 9.874,
+      "data": {
+        "reply": "早上好！很高兴为您服务。请问今天有什么可以帮您的吗？",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "早上好",
+      "category": "chitchat",
+      "user_id": "test_user_47",
+      "session_id": "e2e-batch-e001260d",
+      "index": 64
+    },
+    {
+      "ok": true,
+      "latency": 17.7,
+      "data": {
+        "reply": "谢谢您的鼓励！😊\n\n我会继续努力，为您提供更优质、高效的服务。\n\n请问今天有什么我可以帮您的吗？无论是解答疑问、协助解决问题，还是其他需求，请随时告诉我！",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "继续努力",
+      "category": "chitchat",
+      "user_id": "test_user_16",
+      "session_id": "e2e-batch-effe1833",
+      "index": 65
+    },
+    {
+      "ok": true,
+      "latency": 23.738,
+      "data": {
+        "reply": "您好！关于商品的发货时间，具体如下：\n\n*   **普通商品**：工作日 **16:00 前**支付成功的订单，当日发货；16:00 后及节假日的订单，将在 **24 小时内**（顺延至下一个工作日）发货。\n*   **预售商品**：请参照商品页面标注的预计发货日期。\n*   **定制类商品**（如企业定制、刻字版）：生产周期约为 5-7 个工作日，之后按标准时效发出。\n\n另外提醒一下，大促期间（如 618、双 11）发货可能会延迟 1-2 天，具体请以订单页面提示为准哦。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "商品什么时候发货？",
+      "category": "consult",
+      "user_id": "test_user_5",
+      "session_id": "e2e-batch-971c3890",
+      "index": 66
+    },
+    {
+      "ok": true,
+      "latency": 10.125,
+      "data": {
+        "reply": "您好！很高兴为您服务。请问有什么我可以帮您的吗？无论是关于产品咨询、订单查询，还是其他问题，我都乐意为您提供帮助。",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "你好",
+      "category": "chitchat",
+      "user_id": "test_user_7",
+      "session_id": "e2e-batch-086f09e0",
+      "index": 67
+    },
+    {
+      "ok": true,
+      "latency": 44.869,
+      "data": {
+        "reply": "目前智能音箱的状态指示灯**无法完全关闭**。该指示灯用于显示设备的工作状态（如配网、连接、静音等），是设备正常运行的必要提示，官方设计不支持将其熄灭。\n\n不过，您可以尝试以下方法减轻光线干扰：\n\n1. **调整摆放位置**：将音箱朝向墙壁或角落放置，避免灯光直射眼睛。\n2. **夜间模式**：部分型号支持在 App 中开启“夜间模式”或“睡眠模式”，可能会降低指示灯亮度或延迟响应（具体请以您设备型号的实际功能为准）。\n3. **物理遮挡**：如确实影响休息，可用透气布轻微遮盖指示灯区域（注意不要堵塞散热孔）。\n\n如您对隐私有顾虑，可通过 App 关闭麦克风静音键来避免误唤醒，但状态灯仍会随工作正常亮起。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "能关掉状态灯吗？太亮了",
+      "category": "product",
+      "user_id": "test_user_26",
+      "session_id": "e2e-batch-7c5704df",
+      "index": 68
+    },
+    {
+      "ok": true,
+      "latency": 17.197,
+      "data": {
+        "reply": "好的，很高兴能帮到您！\n\n如果以后还有其他问题或需要帮助，随时欢迎回来找我。祝您生活愉快，再见！👋\n请问刚才的服务还满意吗？\n感谢您的信任与支持！很高兴能为您服务，祝您生活愉快，万事顺意！如有其他需要，随时联系我们。再见！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "可以了，就这样吧",
+      "category": "ending",
+      "user_id": "test_user_19",
+      "session_id": "e2e-batch-8c62071d",
+      "index": 69
+    },
+    {
+      "ok": true,
+      "latency": 13.26,
+      "data": {
+        "reply": "好的，很高兴为您服务！祝您生活愉快，再见！👋\n这次服务还满意吗？\n感谢您的信任与支持！祝您生活愉快，如有任何需要，随时联系我们。再见！👋",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_32",
+      "session_id": "e2e-batch-983a67a1",
+      "index": 70
+    },
+    {
+      "ok": true,
+      "latency": 24.022,
+      "data": {
+        "reply": "可以的，我们支持开具电子普通发票和增值税专用发票：\n\n**📄 电子普通发票**\n- **官网订单**：进入「我的订单」→「申请开票」，填写发票抬头信息即可。\n- **处理时效**：提交后 **24 小时内** 发送到您填写的邮箱。\n- **电商平台订单**：请按各平台（如京东、天猫等）的流程操作。\n\n**🏢 增值税专用发票**\n- **所需资质**：需提供公司名称、税号、地址电话、开户行及账号等信息。\n- **处理流程**：提交资质审核通过后，发票将随订单包裹一同邮寄。\n- **处理时效**：通常需要 **5–10 个工作日**。\n\n**📌 温馨提示**\n- 发票金额以**实付金额**为准（即扣除优惠后的实际支付金额）。\n- 如需了解更多细节，可查看《计费与发票说明》。\n\n如有其他问题，欢迎随时咨询！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "能开发票吗？",
+      "category": "consult",
+      "user_id": "test_user_4",
+      "session_id": "e2e-batch-2f391e68",
+      "index": 71
+    },
+    {
+      "ok": true,
+      "latency": 54.941,
+      "data": {
+        "reply": "您好！根据您查询的\"A100 信号放大器\"，在当前的参考资料中**没有找到该具体型号的产品信息**。\n\n不过，如果您指的是我们品牌的**智能家居网关或子设备**（如 E016 系列），可以参考以下通用安装与使用指南：\n\n### 📡 网关/主设备配网步骤\n1. **位置摆放**：将网关插在路由器附近（建议距离 ≤ 3 米），接通电源。\n2. **进入配网模式**：观察指示灯，**黄灯闪烁**即表示已进入配网模式。\n   - 若未自动进入，可尝试断电重启或长按重置键 5 秒。\n3. **App 添加设备**：\n   - 打开\"智联生活\"App → 点击\"添加设备\" → 选择\"网关\"。\n   - 按屏幕提示完成入网（iOS 用户请确保允许\"本地网络\"权限）。\n\n### 🔌 子设备连接（如信号放大器/中继器）\n- **距离要求**：子设备与网关距离建议不超过 **10 米**，且尽量无墙体阻隔。\n- **配对方法**：\n  1. 子设备断电重启，或按住重置键 5 秒，直到指示灯**慢闪**。\n  2. 在 App 中点击\"自动搜索\"完成绑定。\n- **信号增强技巧**（若出现 E016 信号弱提示）：\n  - 缩短与网关距离，减少墙体遮挡。\n  - 将智能插座作为 **Zigbee 中继器**放置在中间位置，扩展覆盖范围。\n  - 避免将设备靠近微波炉、金属柜或无线充电器等干扰源。\n\n### 📖 找不到说明书？\n- **电子版获取**：访问官网\"服务支持\"→\"下载中心\"，按型号搜索 PDF 说明书。\n- **App 内查看**：打开\"智联生活\"App → \"设备管理\" → 选择对应设备 → \"帮助与说明书\"。\n\n---\n\n❓ **为了更准确地帮助您，请确认：**\n1. 您手中的设备是 **A100 型号的网关/放大器**，还是其他品牌产品？\n2. 设备上的指示灯状态是怎样的（如红灯、黄灯、蓝灯闪烁）？\n3. 您在 App 中添加设备时是否遇到报错提示？",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "A100 信号放大器怎么用？",
+      "category": "product",
+      "user_id": "test_user_47",
+      "session_id": "e2e-batch-090a759b",
+      "index": 72
+    },
+    {
+      "ok": true,
+      "latency": 14.126,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。\n\n祝您生活愉快，再见！👋\n请问刚才的解答还满意吗？还有其他问题需要帮忙吗？😊\n感谢您的信任与支持！很高兴能为您服务。如果您之后还有任何关于智能音箱、智能家居或云服务的问题，随时欢迎联系我们。祝您生活愉快，科技让每一天更美好！👋",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的，谢谢，拜拜",
+      "category": "ending",
+      "user_id": "test_user_39",
+      "session_id": "e2e-batch-42687df8",
+      "index": 73
+    },
+    {
+      "ok": true,
+      "latency": 19.493,
+      "data": {
+        "reply": "非常抱歉给您带来了如此不愉快的体验！😔 我完全理解您现在的愤怒和失望，作为消费者，遇到态度不好的客服人员确实会让人非常恼火，这绝不是您应得的服务待遇。请允许我向您诚挚道歉。\n\n为了尽快帮您解决问题并改进服务，能否请您提供以下信息？\n\n1. **大致时间**：您是什么时候与客服联系的？\n2. **渠道**：是通过电话、在线聊天还是其他途径？\n3. **工单号或对话记录**（如果有）：方便我们快速定位具体情况。\n4. **具体问题描述**：当时发生了什么让您感到不被尊重或态度差的情况？\n\n您的反馈对我们非常重要，我们会认真调查此事，并对相关人员进行培训或处理，确保今后不再发生类似情况。同时，我也希望有机会能亲自帮您解决当前遇到的问题，让您感受到应有的尊重和专业的服务。\n\n再次向您道歉，感谢您的耐心与包容！🙏",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "客服态度差，我要投诉",
+      "category": "complaint",
+      "user_id": "test_user_21",
+      "session_id": "e2e-batch-e8972c90",
+      "index": 74
+    },
+    {
+      "ok": true,
+      "latency": 14.174,
+      "data": {
+        "reply": "好的，祝您生活愉快！如果有其他问题，随时欢迎联系我们。再见！👋\n请问您对刚才的服务还满意吗？如果还有其他问题，随时告诉我哦~\n感谢您的信任与支持！如果以后有任何产品问题，随时欢迎回来咨询。祝您生活愉快，智能生活伴您每一天！👋😊",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_25",
+      "session_id": "e2e-batch-26cf1985",
+      "index": 75
+    },
+    {
+      "ok": true,
+      "latency": 30.462,
+      "data": {
+        "reply": "您好！根据我们的支付政策，目前**不支持**货到付款服务哦。\n\n我们官网支持的支付方式包括：\n*   微信支付\n*   支付宝\n*   银联卡\n*   信用卡\n\n此外，订单满 ¥3000 还支持花呗/信用卡 3 期免息分期。企业采购支持对公转账。\n\n如果您在支付过程中遇到任何问题，建议核对账户余额或更换支付渠道尝试。如有其他疑问，欢迎随时咨询！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "支持货到付款吗？",
+      "category": "consult",
+      "user_id": "test_user_49",
+      "session_id": "e2e-batch-ca50793f",
+      "index": 76
+    },
+    {
+      "ok": true,
+      "latency": 14.86,
+      "data": {
+        "reply": "真的非常抱歉给您带来了这么糟糕的体验！😔 我完全理解您现在的心情，连续三天发消息却得不到任何回复，换作是我也会感到非常愤怒和沮丧。这确实是我们工作上的严重失职，对不起！\n\n请您消消气，我现在立刻为您处理这个问题。为了能最高效地帮您解决，麻烦您告诉我：\n\n1. **您之前咨询的具体问题是什么？**（比如：订单查询、退款申请、产品故障等）\n2. **您是通过什么渠道联系的我们？**（比如：在线客服、电话热线、邮件等）\n3. **如果有订单号或相关凭证，也请一并提供给我。**\n\n我这边会优先为您加急处理，并亲自跟进直到问题解决。再次为给您带来的不便郑重道歉！🙏",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "联系三天了都没人理我",
+      "category": "complaint",
+      "user_id": "test_user_46",
+      "session_id": "e2e-batch-e3568ce5",
+      "index": 77
+    },
+    {
+      "ok": true,
+      "latency": 16.829,
+      "data": {
+        "reply": "非常抱歉给您带来了这么糟糕的体验！等待了半个月却还没有收到换货的商品，这确实让人非常着急和沮丧，我完全理解您现在的心情。请您放心，我一定会全力协助您解决这个问题。\n\n为了尽快帮您查明物流状态并推动发货/配送，麻烦您提供一下以下信息：\n\n1. **订单编号**（可以在您的订单详情页找到）\n2. **换货申请的大致日期**\n3. **目前物流单号**（如果有的话）\n\n收到这些信息后，我会立即联系物流部门和仓库，确认您的换货商品具体在哪里、为何延迟，并督促他们尽快为您发出。同时，我也会帮您申请相应的补偿或优先处理通道，以表达我们的歉意。\n\n再次向您诚恳致歉，感谢您的耐心！",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "换货等了半个月都没收到",
+      "category": "complaint",
+      "user_id": "test_user_48",
+      "session_id": "e2e-batch-7171fbf9",
+      "index": 78
+    },
+    {
+      "ok": true,
+      "latency": 34.098,
+      "data": {
+        "reply": "您好！关于退货地址，我需要先向您说明一下流程：\n\n**退货地址不是固定的**，需要根据您的订单情况单独申请。具体步骤如下：\n\n1. **发起退货申请**\n   - 进入 App →「我的订单」→ 选择对应订单 → 点击「申请退货」\n   - 或联系在线客服说明退货原因\n\n2. **等待审核**\n   - 客服会在 **1 个工作日内**审核您的申请\n   - 审核通过后，会为您提供专属的**退货地址**和**RMA 退货单号**\n\n3. **寄回商品**\n   - 将商品寄至指定地址，并在订单页面填写快递单号\n   - ⚠️ **请务必保留快递底单**，且不要在没有 RMA 号的情况下自行寄回，否则可能无法入库核销\n\n---\n\n💡 **温馨提示：**\n- **7天内**未使用、包装完整可无理由退货（运费需您承担）\n- **15天内**出现质量问题可免费退换货（运费由我方承担）\n\n如果您已提交退货申请但尚未收到地址，请告诉我您的订单号，我可以帮您查询审核进度。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "退货地址在哪？",
+      "category": "consult",
+      "user_id": "test_user_34",
+      "session_id": "e2e-batch-1bc47853",
+      "index": 79
+    },
+    {
+      "ok": true,
+      "latency": 15.636,
+      "data": {
+        "reply": "晚安！祝您有个好梦，好好休息。🌙\n请问您对刚才的服务还满意吗？如果有其他问题，随时告诉我哦～\n感谢您的信任与支持！如果后续还有任何疑问，欢迎随时联系我们。祝您生活愉快，万事顺意！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "晚安",
+      "category": "chitchat",
+      "user_id": "test_user_48",
+      "session_id": "e2e-batch-ac140ac8",
+      "index": 80
+    },
+    {
+      "ok": true,
+      "latency": 26.784,
+      "data": {
+        "reply": "您好！您提到的“尺寸”具体是指哪款产品呢？🤔\n\n从参考资料来看，我们目前有以下产品信息：\n\n**📦 音箱系列（按房间大小/需求选择）：**\n- **X-100**（¥199）— 小房间、预算有限之选，拾音3米，仅支持2.4GHz WiFi\n- **X-200**（¥399）— 客厅主力推荐，拾音5米，WiFi 6，音质均衡\n- **X-300 Pro**（¥699）— 想要全屋智能、省掉网关的用户，拾音8米，30W音质，内置Zigbee网关\n\n**🏠 家居套装（按房屋面积选择）：**\n- **基础版**（¥499）— 适合一居室或初次尝试\n- **全屋版**（¥1299）— 适合两居及以上户型\n\n请问您是在挑选**音箱型号**还是**家居套装版本**呢？或者您有具体的房间尺寸/使用场景，我可以帮您更精准地推荐～ 😊",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "尺寸选哪个好？",
+      "category": "consult",
+      "user_id": "test_user_39",
+      "session_id": "e2e-batch-7156fa82",
+      "index": 81
+    },
+    {
+      "ok": true,
+      "latency": 19.697,
+      "data": {
+        "reply": "目前智联科技**暂无线下直营门店**。\n\n您可以通过以下官方渠道购买产品：\n*   **官网**：www.smartlinktech.com\n*   **电商平台**：京东旗舰店、天猫旗舰店（部分型号在亚马逊全球购有售）\n\n> ⚠️ 温馨提示：请认准官方渠道购买，非官方渠道购买的产品可能无法享受保修服务。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "有线下门店吗？",
+      "category": "consult",
+      "user_id": "test_user_30",
+      "session_id": "e2e-batch-1186daf1",
+      "index": 82
+    },
+    {
+      "ok": true,
+      "latency": 8.865,
+      "data": {
+        "reply": "你好！很高兴为您服务。请问有什么我可以帮您的吗？",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "你好",
+      "category": "chitchat",
+      "user_id": "test_user_12",
+      "session_id": "e2e-batch-5ba767c7",
+      "index": 83
+    },
+    {
+      "ok": true,
+      "latency": 18.023,
+      "data": {
+        "reply": "不客气！这是我应该做的。😊\n\n很高兴能为您提供帮助。如果还有其他问题或需要进一步的支持，请随时告诉我！祝您一切顺利！ 🌟\n请问您对刚才的服务还满意吗？\n感谢您的信任与支持！如果您后续有任何产品问题或需要帮助，随时欢迎联系我们。祝您生活愉快，智能家居带给您更多便捷与温馨！🌟",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "辛苦了",
+      "category": "chitchat",
+      "user_id": "test_user_23",
+      "session_id": "e2e-batch-ff26b567",
+      "index": 84
+    },
+    {
+      "ok": true,
+      "latency": 16.553,
+      "data": {
+        "reply": "真的非常抱歉！听到您遇到这样的情况，我完全理解您现在的愤怒和失望，这确实是非常糟糕的体验，换作是我也会非常生气。请您消消气，我们一定会负责到底，帮您解决这个问题。\n\n为了尽快为您处理，麻烦您提供一下以下信息：\n\n1. **订单号**（可以在订单页面找到）\n2. **空箱子的照片或视频**（包括外包装、内层包装以及空箱内部的照片，这样能帮助我们更快地核实情况）\n\n一旦收到您的信息，我们会立即为您安排**免费补发新品**或**全额退款**（由您选择），并且承担所有相关费用。同时，我们也会内部严查物流和打包环节，避免类似情况再次发生。\n\n再次向您诚恳道歉，给您带来了这么大的困扰，真的对不起！请您给我们一个弥补的机会。",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 5,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "收到的是空箱子，气死我了",
+      "category": "complaint",
+      "user_id": "test_user_41",
+      "session_id": "e2e-batch-64aaa644",
+      "index": 85
+    },
+    {
+      "ok": true,
+      "latency": 18.988,
+      "data": {
+        "reply": "非常抱歉给您带来了如此糟糕的体验，我完全理解您的愤怒和失望。**“第二次出现同样的问题”** 确实让人难以接受，这不仅是产品本身的质量问题，更说明我们在服务或品控上存在严重疏漏，辜负了您对我们的信任。真的对不起！\n\n为了尽快帮您彻底解决这个问题，能否请您告诉我：\n\n1. **具体是什么产品或订单？**（订单号或产品名称）\n2. **出现的问题具体是什么？**（例如：功能故障、发错货、破损等）\n3. **之前一次是如何处理的？**（这样我可以避免重复无效的方案，直接给出更彻底的解决方式）\n\n我们承诺：这次一定会**彻底解决**，而不仅仅是临时补救。您可以选择：\n- 立即换货/退款\n- 专人跟进直至问题闭环\n- 其他您希望的补偿方案\n\n请给我们一次弥补的机会，我会全程跟进到底。",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "第二次了，每次都是这个毛病",
+      "category": "complaint",
+      "user_id": "test_user_46",
+      "session_id": "e2e-batch-bdcb0b58",
+      "index": 86
+    },
+    {
+      "ok": true,
+      "latency": 12.784,
+      "data": {
+        "reply": "哈喽！看来今天心情很不错呀～ 😄 有什么我可以帮你的吗？无论是查订单、问问题，还是随便聊聊，我都在！",
+        "intent": "chat",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "哈哈",
+      "category": "chitchat",
+      "user_id": "test_user_15",
+      "session_id": "e2e-batch-6777c59b",
+      "index": 87
+    },
+    {
+      "ok": true,
+      "latency": 16.927,
+      "data": {
+        "reply": "不客气！😊 很高兴能帮到你～\n\n如果之后还有其他问题，随时来找我哦！祝你今天心情愉快！🌟\n请问刚才的服务还满意吗？如有其他需要，随时告诉我！\n感谢您的信任与支持！很高兴能为您服务。祝您生活愉快，万事如意！如果以后还有任何疑问，随时欢迎联系我们。再见！",
+        "intent": "ending",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "谢谢",
+      "category": "chitchat",
+      "user_id": "test_user_32",
+      "session_id": "e2e-batch-ea9c6d5e",
+      "index": 88
+    },
+    {
+      "ok": true,
+      "latency": 17.661,
+      "data": {
+        "reply": "根据现有资料，**目前不支持货到付款**。\n\n官网支持的支付方式包括：微信支付、支付宝、银联卡、信用卡；订单满 ¥3000 还支持花呗/信用卡 3 期免息分期。电商平台则按各平台自有支付方式操作。企业采购可支持对公转账。\n\n如您有其他支付相关疑问，欢迎继续咨询！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "支持货到付款吗？",
+      "category": "consult",
+      "user_id": "test_user_7",
+      "session_id": "e2e-batch-723a3b75",
+      "index": 89
+    },
+    {
+      "ok": true,
+      "latency": 19.891,
+      "data": {
+        "reply": "哈哈，看来今天是个好日子！😄 有什么我可以帮你的吗？无论是查订单、解决问题，还是随便聊聊，我都在这儿～",
+        "intent": "chat",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "不错不错",
+      "category": "chitchat",
+      "user_id": "test_user_47",
+      "session_id": "e2e-batch-67a374bb",
+      "index": 90
+    },
+    {
+      "ok": true,
+      "latency": 44.084,
+      "data": {
+        "reply": "您好！根据我们的退换货政策，**退货地址需要在您申请退货并通过审核后才能获得**。具体流程如下：\n\n1.  **发起退货申请**\n    *   路径：App → \"我的订单\" → 选择对应订单 → 点击\"申请退货\"\n    *   或：直接联系在线客服说明退货原因\n\n2.  **等待审核**\n    *   客服会在 **1 个工作日内**完成审核。\n    *   **质量问题**：需上传照片/视频凭证。\n    *   **无理由退货**：填写原因即可。\n\n3.  **获取退货地址与 RMA 号**\n    *   审核通过后，系统/客服会提供**专属退货地址**和**RMA 退货单号**。\n    *   ⚠️ **重要提醒**：请务必在获得 RMA 号后再寄回商品，无单号包裹可能无法入库核销。\n\n4.  **寄回商品**\n    *   将商品寄至指定地址，并在订单页面填写快递单号（建议保留寄件底单）。\n\n---\n\n**温馨提示：**\n*   **7 天内**无理由退货：商品未使用、包装完整，运费由您承担。\n*   **15 天内**质量问题：免费退换货，运费由我方承担。\n*   退款将在仓库验货通过后 **3 个工作日内**发起，原路退回（1-7 个工作日到账）。\n\n如需进一步帮助，请直接在 App 内联系在线客服或查看《退换货政策》详情页。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "退货地址在哪？",
+      "category": "consult",
+      "user_id": "test_user_11",
+      "session_id": "e2e-batch-d5978f76",
+      "index": 91
+    },
+    {
+      "ok": true,
+      "latency": 14.895,
+      "data": {
+        "reply": "好的，祝您生活愉快！再见！👋\n希望我的解答能帮到您！如果对刚才的服务满意，麻烦点个好评鼓励一下哦～还有其他问题随时找我！\n感谢您的信任与支持！如果您后续还有其他问题或需要帮助，随时欢迎联系我们。祝您生活愉快，智能家居给您带来温馨便捷的每一天！👋",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_2",
+      "session_id": "e2e-batch-b8ee5841",
+      "index": 92
+    },
+    {
+      "ok": true,
+      "latency": 39.046,
+      "data": {
+        "reply": "您好！根据现有资料，目前**没有关于“A100 信号放大器”的具体使用说明或安装教程**。\n\n不过，如果您遇到的是**智联（Zigbee）子设备信号弱**的问题（错误码 E016），可以参考以下通用排查方法：\n\n### 📶 Zigbee 信号弱/掉线自查建议\n1. **缩短距离**：确保子设备与网关在 **10 米以内**，并尽量减少墙体阻隔。\n2. **加装中继**：在中间位置加装一个**智联智能插座**作为 Zigbee 信号中继器，可增强覆盖范围。\n3. **避开干扰源**：将网关远离微波炉、金属柜等可能产生干扰的设备。\n\n> ⚠️ 注：以上为部署优化建议，**无需报修**。\n\n---\n\n### ❓ 如果您指的是其他设备\n- 若“A100”是某款特定型号的**WiFi 信号放大器**或**其他品牌产品**，建议您：\n  - 查看产品包装盒内的**纸质说明书**；\n  - 或通过产品机身上的型号标识，在官网或电商平台搜索对应型号的**官方安装视频/图文教程**。\n\n如您能提供更准确的产品型号或使用场景，我可以进一步帮您分析！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "A100 信号放大器怎么用？",
+      "category": "product",
+      "user_id": "test_user_35",
+      "session_id": "e2e-batch-fe8b9a24",
+      "index": 93
+    },
+    {
+      "ok": true,
+      "latency": 13.726,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。祝您生活愉快，再见！👋\n请问您对刚才的服务还满意吗？如果有其他问题，随时告诉我哦～\n感谢您的咨询！如果之后还有其他问题，欢迎随时联系我们。祝您生活愉快，阖家幸福！👋",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的，谢谢，拜拜",
+      "category": "ending",
+      "user_id": "test_user_39",
+      "session_id": "e2e-batch-69edb522",
+      "index": 94
+    },
+    {
+      "ok": true,
+      "latency": 15.142,
+      "data": {
+        "reply": "非常抱歉给您带来了这么糟糕的体验！😔 等了半个月还没收到换货，这确实太让人失望和焦急了，我完全理解您的心情。\n\n请您放心，我一定会帮您尽快查明情况并解决问题。为了更准确地处理，能麻烦您提供一下以下信息吗？\n\n1. **订单编号**（可以在“我的订单”里找到）\n2. **换货申请单号**（如果有单独的申请记录）\n3. 您是在哪个平台购买的？（比如淘宝、京东、拼多多、品牌官网等）\n\n收到信息后，我会立即帮您联系物流或相关部门，优先跟进您的换货进度，争取尽快给您一个满意的解决方案。再次为这次的延误向您诚恳道歉！🙏",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "换货等了半个月都没收到",
+      "category": "complaint",
+      "user_id": "test_user_44",
+      "session_id": "e2e-batch-05170a7d",
+      "index": 95
+    },
+    {
+      "ok": true,
+      "latency": 22.132,
+      "data": {
+        "reply": "我们的客服热线是 **400-888-8888**。\n\n**服务时间：** 工作日 9:00 - 18:00\n\n💡 **温馨提示：**\n*   高峰时段（如周一上午）等待时间可能较长。\n*   如果您在非工作时间或不想排队，推荐使用 **App 在线客服**（7×24 小时，平均响应 1 分钟内），路径为：“我的” → “在线客服”。\n*   退换货、报修、发票等业务也可通过在线客服全流程办理。\n*   如需邮件联系，可发送至 support@smartlinktech.com（24 小时内回复）。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "你们的客服电话是多少？",
+      "category": "consult",
+      "user_id": "test_user_49",
+      "session_id": "e2e-batch-42f4e4a4",
+      "index": 96
+    },
+    {
+      "ok": true,
+      "latency": 15.332,
+      "data": {
+        "reply": "您好！很高兴为您服务。请问有什么我可以帮您的吗？\n请问今天的解答还让您满意吗？如果还有其他需要，随时告诉我哦～\n感谢您的信任与支持！如果之后有任何问题，随时联系我们。祝您生活愉快，科技让生活更美好！再见～",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的",
+      "category": "chitchat",
+      "user_id": "test_user_34",
+      "session_id": "e2e-batch-89e0e180",
+      "index": 97
+    },
+    {
+      "ok": true,
+      "latency": 15.237,
+      "data": {
+        "reply": "真的非常抱歉给您带来了这么糟糕的体验！听到您收到空箱子，我完全理解您现在的愤怒和失望，这换做是我也会非常生气。请您消消气，我一定会全力帮您解决这个问题。\n\n为了尽快为您处理，麻烦您提供以下信息：\n\n1. **订单号**是多少？\n2. 方便拍一张**开箱照片**（包括空箱子和快递面单）发给我吗？这样我可以立即向物流方追责并启动赔付流程。\n\n**我们的解决方案是：**\n- ✅ **立即补发**全新商品，并承担所有运费；\n- 或者 ✅ **全额退款**，无需您退回空箱。\n\n您希望选择哪种方式？我马上为您加急处理！再次为这次的失误向您诚挚道歉，我们一定给您一个满意的答复。",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 5,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "收到的是空箱子，气死我了",
+      "category": "complaint",
+      "user_id": "test_user_30",
+      "session_id": "e2e-batch-cf97ad9b",
+      "index": 98
+    },
+    {
+      "ok": true,
+      "latency": 11.057,
+      "data": {
+        "reply": "哈哈，看来你今天心情很不错呀！😄 有什么我可以帮你的吗？无论是查订单、问问题，还是随便聊聊，我都在～",
+        "intent": "chat",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "哈哈",
+      "category": "chitchat",
+      "user_id": "test_user_28",
+      "session_id": "e2e-batch-77666ca0",
+      "index": 99
+    },
+    {
+      "ok": true,
+      "latency": 41.709,
+      "data": {
+        "reply": "您好，E0 错误码通常表示**蓝牙模块异常或连接中断**。请按以下步骤快速处理：\n\n1. **重启音箱**：断电 10 秒后重新通电，观察是否恢复。\n2. **清除手机配对记录**：在手机蓝牙列表中删除旧的 \"SmartLink Speaker\" 记录，再重新搜索配对。\n3. **进入蓝牙模式**：对音箱说“进入蓝牙模式”，确认指示灯状态。\n\n✅ **如果以上无效**：可能是硬件故障（E006 类问题）。请直接在 App 提交售后报修工单，1 年内整机免费保修，客服远程诊断通常 5 分钟内完成。\n\n别担心，先试前两步，大部分情况重启+重连即可解决！",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "蓝牙连不上，显示 e0",
+      "category": "product",
+      "user_id": "test_user_45",
+      "session_id": "e2e-batch-7285e919",
+      "index": 100
+    },
+    {
+      "ok": true,
+      "latency": 17.353,
+      "data": {
+        "reply": "不客气！😊 很高兴能帮到你～\n\n如果之后还有什么问题，或者只是想聊聊天，随时都可以找我哦！祝你今天过得开心愉快！🌟\n刚才的服务还让您满意吗？\n感谢您的信任与支持！如有任何需要，随时联系智联科技。祝您生活愉快，科技伴您每一天！🌟",
+        "intent": "ending",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "谢谢",
+      "category": "chitchat",
+      "user_id": "test_user_41",
+      "session_id": "e2e-a9b7396e",
+      "index": 101
+    },
+    {
+      "ok": true,
+      "latency": 17.843,
+      "data": {
+        "reply": "哈哈，听到您这么说真开心！😊 今天有什么我可以帮您的吗？无论是查询订单、解答疑问，还是随便聊聊，我都在哦～",
+        "intent": "chat",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "不错不错",
+      "category": "chitchat",
+      "user_id": "test_user_14",
+      "session_id": "e2e-f239904f",
+      "index": 105
+    },
+    {
+      "ok": true,
+      "latency": 21.62,
+      "data": {
+        "reply": "谢谢您的鼓励！我会继续保持热情和专业，为您提供最优质的服务。😊\n\n如果您有任何问题或需要帮助，请随时告诉我！无论是关于订单、产品咨询还是其他任何事项，我都乐意为您解答。",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "继续努力",
+      "category": "chitchat",
+      "user_id": "test_user_30",
+      "session_id": "e2e-a743b74a",
+      "index": 102
+    },
+    {
+      "ok": true,
+      "latency": 28.205,
+      "data": {
+        "reply": "是啊！☀️ 这种好天气真的让人心情也跟着亮堂起来～\n\n你是打算出门走走，还是就在家享受一下阳光呢？不管做什么，都希望你能有一个愉快的时光！🌸",
+        "intent": "chat",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "天气真好",
+      "category": "chitchat",
+      "user_id": "test_user_4",
+      "session_id": "e2e-387757cd",
+      "index": 104
+    },
+    {
+      "ok": true,
+      "latency": 33.332,
+      "data": {
+        "reply": "您可以通过以下几种方式联系人工客服：\n\n1. **App 在线客服（推荐）**  \n   路径：“我的” → “在线客服”，7×24 小时服务，平均响应 1 分钟内，退换货、报修、发票等业务均可全程办理。\n\n2. **客服热线**  \n   电话：**400-888-8888**  \n   服务时间：工作日 9:00–18:00（高峰时段如周一上午等待较长）\n\n3. **邮箱**  \n   发送邮件至：**support@smartlinktech.com**，24 小时内回复\n\n> 💡 提示：云服务家庭版用户可优先接入，专业版用户享有专属客服通道；如遇账号冒用等安全问题，还可发送说明至 security@smartlinktech.com。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "怎么联系人工客服？",
+      "category": "consult",
+      "user_id": "test_user_23",
+      "session_id": "e2e-4771319d",
+      "index": 103
+    },
+    {
+      "ok": true,
+      "latency": 12.855,
+      "data": {
+        "reply": "好的，祝您生活愉快！如有其他问题，随时欢迎咨询。再见！\n请问刚才的服务还让您满意吗？如果还有其他问题，随时告诉我哦～\n感谢您的信任与支持！如果后续有任何问题，随时欢迎联系我们。祝您生活愉快，智慧相伴！👋",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_33",
+      "session_id": "e2e-4587f09e",
+      "index": 106
+    },
+    {
+      "ok": true,
+      "latency": 32.606,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。\n\n祝您生活愉快，再见！👋\n请问今天的咨询服务还让您满意吗？如果还有其他问题，随时欢迎咨询！\n感谢您的信任与支持！祝您生活愉快，智能家居带给您更多便利与温馨。如有需要，随时联系我们，再见！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的，谢谢，拜拜",
+      "category": "ending",
+      "user_id": "test_user_21",
+      "session_id": "e2e-3b97b804",
+      "index": 109
+    },
+    {
+      "ok": true,
+      "latency": 44.193,
+      "data": {
+        "reply": "非常抱歉给您带来了这么不好的体验，我完全理解您现在愤怒和失望的心情。遇到态度差的客服人员确实令人非常沮丧，这绝对不是我们想要提供给您的服务标准，对此我向您致以最诚挚的歉意。\n\n请您放心，我会认真对待您的投诉。为了能够尽快调查清楚并妥善处理，能否麻烦您提供一下以下信息？\n\n1. **订单号**（如果有相关订单的话）\n2. **发生问题的具体时间**（大概日期和时间段）\n3. **客服工号或姓名**（如果记得的话）\n4. **大致的情况描述**（比如是通过电话、在线聊天还是其他渠道沟通的）\n\n收到这些信息后，我会立即转交给我们的质检或主管团队进行核查。一旦确认问题存在，我们一定会对涉事员工进行处理，并联系您说明改进措施。\n\n同时，如果您现在有任何具体的业务问题需要解决，我也非常乐意亲自为您处理，确保您的问题得到妥善、高效的解答。\n\n再次向您道歉，感谢您的反馈，这帮助我们变得更好。",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "客服态度差，我要投诉",
+      "category": "complaint",
+      "user_id": "test_user_31",
+      "session_id": "e2e-d480c2f2",
+      "index": 110
+    },
+    {
+      "ok": true,
+      "latency": 67.172,
+      "data": {
+        "reply": "很抱歉，在当前的参考资料中，**没有找到关于 L600 底座的兼容型号信息**。\n\n知识库主要涵盖了 X-100、X-200 和 X-300 Pro 三款智能音箱的参数及选购建议，但未提及 L600 底座及其适配情况。\n\n建议您：\n1. 查看 L600 底座产品说明书或包装上的型号列表；\n2. 联系我们的客服团队（电话/在线客服）提供具体型号确认；\n3. 访问官网支持页面查询最新兼容信息。\n\n如有其他关于 X-100/X-200/X-300 Pro 音箱的问题，我很乐意为您解答！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "L600 底座适配什么型号？",
+      "category": "product",
+      "user_id": "test_user_6",
+      "session_id": "e2e-49c7e8b7",
+      "index": 108
+    },
+    {
+      "ok": true,
+      "latency": 69.108,
+      "data": {
+        "reply": "您好！关于智能音箱的状态灯（指示灯）亮度或开关问题，根据现有资料，目前**没有直接的语音指令可以关闭或调节状态灯的亮度**。\n\n不过，您可以尝试以下方法缓解光线干扰：\n\n### ✅ 建议操作：\n1. **开启静音模式**  \n   当顶部静音键开启时，音箱会显示**橙灯常亮**，此时指示灯仍会亮，但可配合放置在较暗位置或远离床头。\n\n2. **覆盖物理遮挡**（如允许）  \n   部分用户会在不通风的前提下，用薄布轻微遮挡指示灯区域（请确保不影响散热和麦克风收音）。\n\n3. **调整音箱摆放位置**  \n   将音箱朝向墙壁或放在柜子中，避免灯光直射眼睛。\n\n4. **检查固件版本**  \n   登录 App → 设备详情页 → 查看是否有固件更新，部分新版本可能新增指示灯调节功能（参考 [2] 中“固件过旧”建议）。\n\n---\n\n### ⚠️ 注意：\n- 状态灯用于提示设备状态（如配网、断网、静音等），**完全关闭可能导致无法判断设备运行情况**。\n- 若红灯常亮/闪烁，说明存在网络或系统问题，需优先排查（参考 [1] 和 [4]）。\n\n如您希望未来支持此功能，建议在 App「意见反馈」中提交需求，技术团队会评估后续版本是否加入“夜灯模式”或“关灯指令”。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "escalated"
+      },
+      "message": "能关掉状态灯吗？太亮了",
+      "category": "product",
+      "user_id": "test_user_35",
+      "session_id": "e2e-8f64d324",
+      "index": 107
+    },
+    {
+      "ok": true,
+      "latency": 39.426,
+      "data": {
+        "reply": "好的！那我就“随便”问一下：\n\n**你今天过得怎么样？有什么好玩或者想吐槽的事情吗？** 😊\n\n或者，如果你有任何关于产品、订单、技术问题或者其他方面的疑问，也可以随时告诉我，我很乐意帮忙！",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "随便问问",
+      "category": "chitchat",
+      "user_id": "test_user_8",
+      "session_id": "e2e-f9470250",
+      "index": 112
+    },
+    {
+      "ok": true,
+      "latency": 45.659,
+      "data": {
+        "reply": "您好！很高兴为您服务。请问有什么我可以帮您的吗？\n很高兴为您服务！请问您对我的解答还满意吗？如果还有其他疑问，随时告诉我哦～\n感谢您的信任与支持！祝您生活愉快，智慧出行每一天～如有需要，随时联系我们。",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的",
+      "category": "chitchat",
+      "user_id": "test_user_21",
+      "session_id": "e2e-54ce239c",
+      "index": 111
+    },
+    {
+      "ok": true,
+      "latency": 51.961,
+      "data": {
+        "reply": "您好！关于是否可以发顺丰，具体情况如下：\n\n**默认发货：**\n系统会根据您的收货地址自动分配快递，主要合作的是 **顺丰、京东物流、中通**。如果您所在区域由顺丰负责配送，订单就会直接发顺丰，无需额外操作。\n\n**指定发顺丰（可选）：**\n如果您希望确保使用顺丰快递，可以在下单时选择 **“顺丰特快”** 服务：\n- **运费：** ¥25\n- **时效：** 次日达\n- **适用地区：** 限一二线城市\n\n**退换货寄回：**\n如果是质量问题需要退换货，您可以选择顺丰到付寄回（需我方提供地址）。\n\n如果您不确定默认是否会发顺丰，可以在下单时直接选择“顺丰特快”以确保配送方式~",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "能发顺丰吗？",
+      "category": "consult",
+      "user_id": "test_user_39",
+      "session_id": "e2e-dff1cc87",
+      "index": 113
+    },
+    {
+      "ok": true,
+      "latency": 55.445,
+      "data": {
+        "reply": "别急，按以下步骤操作，通常能快速解决：\n\n1. **先自查**：登录物流官网/APP，确认是否显示“已签收”或“投递异常”。有时是放驿站/快递柜了，可能被误以为丢失。\n2. **立即联系快递公司**：拨打官方客服电话（如顺丰95338、中通95311等），提供运单号，明确要求**发起“丢件理赔”或“未收到货投诉”**。要求给出处理时限（通常3-7天）。\n3. **同步联系卖家**：如果是网购，立刻告知卖家快递异常。根据《电商法》，**卖家有义务补发或退款**，你无需自己承担损失。卖家通常会优先帮你催件。\n4. **保留证据**：截图物流页面、保存与客服/卖家的聊天记录。\n\n✅ **关键提示**：  \n- 如果超过7天无更新或明确丢件，坚持要求**全额退款或补发**。  \n- 若快递推诿，可向**国家邮政局申诉网站（sswz.spb.gov.cn）**投诉，快递公司最怕这个，处理会更快。\n\n你现在先做第2和第3步，双管齐下，问题很快能推进。",
+        "intent": "complaint",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "快递半路丢了怎么办？",
+      "category": "consult",
+      "user_id": "test_user_25",
+      "session_id": "e2e-3235bf6c",
+      "index": 114
+    },
+    {
+      "ok": true,
+      "latency": 69.703,
+      "data": {
+        "reply": "您好！S400 设备的固件更新非常简单，您可以通过以下两种方式操作：\n\n### 📱 方法一：自动提醒更新（推荐）\n当 App 检测到有新版本时，会弹出更新提醒，您只需点击 **“立即更新”** 即可完成。\n\n> 💡 **建议开启“自动更新”**：系统会在每天凌晨 **3:00-5:00** 静默安装新版本，无需手动操作，设备始终保持最新状态。\n\n### 🔧 方法二：手动检查更新\n1. 打开 App，进入 **“设备管理”**\n2. 选择您的 S400 设备\n3. 点击 **“固件更新”**\n4. 系统会自动检查最新版本，如有可用更新，点击 **立即更新**\n\n---\n\n### ⚠️ 更新注意事项\n- **耗时约 3-8 分钟**，期间指示灯会 **红灯闪烁**，请勿断电或中断操作。\n- 如遇到错误码 **E005**（下载/校验失败），设备会自动回滚到旧版本，可正常使用。您可以：\n  1. 靠近路由器确保网络稳定\n  2. 重启设备后在 App 中手动重试更新\n- 若连续失败 3 次，请记录机身 **SN 码** 并联系客服，后台将推送定向修复包。\n\n如有其他问题，欢迎随时咨询！ 😊",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "S400 的固件怎么更新？",
+      "category": "product",
+      "user_id": "test_user_44",
+      "session_id": "e2e-7444e85b",
+      "index": 115
+    },
+    {
+      "ok": true,
+      "latency": 8.534,
+      "data": {
+        "reply": "早上好！很高兴为您服务。请问今天有什么我可以帮您的吗？",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "早上好",
+      "category": "chitchat",
+      "user_id": "test_user_27",
+      "session_id": "e2e-1a4628ab",
+      "index": 117
+    },
+    {
+      "ok": true,
+      "latency": 27.359,
+      "data": {
+        "reply": "在的！您好，有什么我可以帮您的吗？😊",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "在吗？",
+      "category": "chitchat",
+      "user_id": "test_user_39",
+      "session_id": "e2e-fc3ebba5",
+      "index": 118
+    },
+    {
+      "ok": true,
+      "latency": 28.664,
+      "data": {
+        "reply": "好的，很高兴能为您提供帮助！祝您生活愉快，再见！👋\n请问您对本次服务还满意吗？如有其他问题，随时告诉我哦~\n感谢您的信任与支持！如果后续有任何问题，欢迎随时联系我们。祝您生活愉快，智能科技为您带来更多精彩体验！再见～",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_23",
+      "session_id": "e2e-a3cf18da",
+      "index": 119
+    },
+    {
+      "ok": true,
+      "latency": 41.945,
+      "data": {
+        "reply": "您好！关于发货时间，具体取决于您的下单时间和商品类型：\n\n**标准发货时效：**\n- **工作日 16:00 前**支付成功的订单，**当日发货**。\n- **16:00 后**及节假日的订单，将在 **24 小时内**（顺延至下一个工作日）发货。\n\n**特殊情况：**\n- **预售商品**：请按商品页面标注的预计发货日发货。\n- **定制类商品**（如企业定制、刻字版）：生产周期为 **5-7 个工作日**，之后按标准时效发出。\n- **大促期间**（如 618、双 11）：发货可能延迟 1-2 天，具体以订单页提示为准。\n\n如果您已经下单但超过上述时效仍未发货，或者想查询具体的物流状态，可以登录 App 进入“我的订单”查看实时物流轨迹。如有其他疑问，欢迎随时联系我们！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "商品什么时候发货？",
+      "category": "consult",
+      "user_id": "test_user_29",
+      "session_id": "e2e-241425c8",
+      "index": 120
+    },
+    {
+      "ok": true,
+      "latency": 51.971,
+      "data": {
+        "reply": "很抱歉，在当前的知识库中**没有找到关于“L600 底座”及其适配型号的明确信息**。\n\n现有资料主要涵盖了以下产品：\n- **X-200（标准版智能音箱）**\n- **X-300 Pro（旗舰版智能音箱）**\n- 换货政策、价保规则等售后服务说明\n\n**建议您可以：**\n1. 查看产品说明书或包装上的型号标识；\n2. 访问品牌官网或联系官方客服提供具体设备序列号查询；\n3. 若您是 X-200 或 X-300 Pro 用户，可提供更多上下文，我将进一步为您核实。\n\n感谢您的理解与支持！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "L600 底座适配什么型号？",
+      "category": "product",
+      "user_id": "test_user_41",
+      "session_id": "e2e-96c307ed",
+      "index": 116
+    },
+    {
+      "ok": true,
+      "latency": 13.736,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。\n\n祝您生活愉快，再见！👋 如有其他问题，随时欢迎回来咨询。\n感谢您的耐心等候！请问您对本次服务还满意吗？如有其他疑问，随时告诉我哦～\n感谢您的信任与支持！祝您生活愉快，科技让家更温馨～如有需要，随时联系我们！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的，谢谢，拜拜",
+      "category": "ending",
+      "user_id": "test_user_8",
+      "session_id": "e2e-87ef894e",
+      "index": 121
+    },
+    {
+      "ok": true,
+      "latency": 36.034,
+      "data": {
+        "reply": "好的，祝您生活愉快！再见！👋\n请问您对刚才的服务还满意吗？如有其他需要，随时告诉我哦～\n感谢您的信任与支持！祝您生活愉快，智能科技为您的每一天带来更多便利与温馨。如有需要，随时联系我们，再见！👋",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_26",
+      "session_id": "e2e-ed48f81f",
+      "index": 123
+    },
+    {
+      "ok": true,
+      "latency": 45.195,
+      "data": {
+        "reply": "非常抱歉给您带来了这么糟糕的体验，我完全理解您的心情。花了很多钱去修，结果发现比直接买个新的还贵，换做是我也会觉得非常委屈和生气，这确实不是您想要的服务体验。\n\n关于这个问题，我想先为您核实一下具体情况，希望能帮您争取一个更合理的解决方案：\n\n1. **确认报价细节**：方便告诉我具体的维修项目是什么吗？是某个零件损坏，还是整体检修？有时候“维修费贵”可能是因为包含了人工费、上门费或者某些特定配件的费用。\n2. **对比新机价格**：您提到的“买新的”是指同款产品的全新机，还是功能类似的其他产品呢？\n\n**针对这种情况，我这边可以为您提供以下几种解决方案，您可以看看哪种更适合您：**\n\n*   **重新评估维修方案**：如果确实是核心部件损坏导致维修成本过高，我们可以安排工程师上门进一步检查，看是否有替代性的、更经济的维修方式（比如更换二手/翻新件，或只维修局部而非整体）。\n*   **以旧换新补贴**：如果您决定购买新机，我们可以申请一个“维修转购新”的专属折扣或抵扣券，帮您降低新机的购买成本，尽量缩小与纯维修费用的差距。\n*   **特殊关怀补偿**：对于这次让您失望的服务体验，我会向公司申请一份小礼品或优惠券作为歉意，虽然不能直接抵消差价，但希望能表达我们的诚意。\n\n您看这样处理可以吗？或者您还有其他想法，我也愿意继续听您的意见。",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "维修报价比我买新的还贵",
+      "category": "complaint",
+      "user_id": "test_user_13",
+      "session_id": "e2e-622c1e40",
+      "index": 124
+    },
+    {
+      "ok": true,
+      "latency": 47.066,
+      "data": {
+        "reply": "您可以选择以下几种方式联系我们的人工客服：\n\n1. **App 在线客服（推荐）**\n   - 路径：打开 App → 点击“我的” → 选择“在线客服”\n   - 服务时间：**7×24 小时**，平均响应时间在 1 分钟内\n   - 优势：退换货、报修、发票等业务均可全流程办理，无需排队等待\n\n2. **客服热线**\n   - 电话：**400-888-8888**\n   - 服务时间：工作日 9:00–18:00\n   - 提示：周一上午为高峰时段，等待时间较长；非工作时间请拨打在线客服或发送邮件\n\n3. **电子邮箱**\n   - 邮箱：**support@smartlinktech.com**\n   - 回复时效：24 小时内回复\n\n💡 **温馨提示**：如果您遇到账号被冒用等安全问题，除联系客服外，也可第一时间发送邮件至 **security@smartlinktech.com**。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "怎么联系人工客服？",
+      "category": "consult",
+      "user_id": "test_user_10",
+      "session_id": "e2e-24154415",
+      "index": 125
+    },
+    {
+      "ok": true,
+      "latency": 89.908,
+      "data": {
+        "reply": "WiFi 信号弱**不一定**是路由器本身坏了，更多时候是**部署位置、干扰或设置问题**。我们可以按以下步骤排查，逐步缩小范围：\n\n---\n\n### ✅ 第一步：确认“信号弱”的具体表现\n先明确是哪个设备信号弱：\n- **手机/电脑**在某些房间信号弱？→ 可能是 WiFi 覆盖问题。\n- **智能音箱、网关、摄像头等子设备**频繁掉线或提示 E016？→ 可能是 Zigbee/WiFi 连接问题，不一定是主路由故障。\n\n---\n\n### ✅ 第二步：快速自查（无需工具）\n\n#### 如果是**手机/电脑 WiFi 弱**：\n1. **靠近路由器测试**  \n   - 把手机拿到路由器旁边（1–2 米），看信号是否变强。  \n   - **预期结果**：如果靠近后信号正常，说明是**覆盖距离或墙体阻挡**问题，而非路由器故障。\n\n2. **检查是否双频混淆**  \n   - 很多设备（如 X-100 音箱）**仅支持 2.4GHz**，如果连的是 5GHz 频段会显示“已连接但无网络”或信号极弱。  \n   - **预期结果**：进入路由器设置，确认 2.4GHz 频段已开启，并让设备重连 2.4G 网络。\n\n3. **重启路由器**  \n   - 断电 10 秒后重新上电，观察恢复情况。  \n   - **预期结果**：临时性卡顿或缓存问题可解决；若仍弱，继续下一步。\n\n#### 如果是**智能设备（音箱/网关/摄像头）信号弱**：\n1. **缩短距离、减少墙体**  \n   - 将设备移至距离路由器 **10 米内**，且尽量无承重墙阻隔。  \n   - **预期结果**：信号强度应明显提升，掉线频率下降。\n\n2. **加装 Zigbee 中继**（针对 Zigbee 子设备）  \n   - 在网关与子设备之间加装一个**智联智能插座**作为中继。  \n   - **预期结果**：子设备信号强度恢复，不再提示 E016。\n\n3. **远离干扰源**  \n   - 确保路由器/网关远离微波炉、金属柜、蓝牙设备等。  \n   - **预期结果**：干扰消除后，",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "WiFi 信号很弱，是不是路由器问题？",
+      "category": "product",
+      "user_id": "test_user_9",
+      "session_id": "e2e-79a7dd5b",
+      "index": 122
+    },
+    {
+      "ok": true,
+      "latency": 13.905,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。祝您生活愉快，再见！👋\n希望刚才的回答能帮到您！如果还有其他问题，随时告诉我哦～\n感谢您的信任与支持！如果您后续有任何问题，欢迎随时联系我们。祝您生活愉快，智能家居体验顺心如意～再见！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的，谢谢，拜拜",
+      "category": "ending",
+      "user_id": "test_user_4",
+      "session_id": "e2e-d15d2780",
+      "index": 129
+    },
+    {
+      "ok": true,
+      "latency": 58.469,
+      "data": {
+        "reply": "这是**蓝牙模块异常**（E006），请按以下步骤操作：\n\n1. **重启音箱** — 断电30秒后重新通电开机。\n2. **恢复出厂设置** — 长按复位键5-10秒，清除旧配对记录后重试连接。\n3. **检查固件** — 如可通过APP更新，请升级到最新固件版本。\n\n✅ **如果以上操作后仍显示E0：**  \n属于硬件故障，**整机保修1年内免费维修**。请提供购买凭证联系客服报修，无需自行处理。\n\n> 💡 提示：重启和恢复出厂设置可解决80%的蓝牙模块异常，建议优先尝试。",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "蓝牙连不上，显示 e0",
+      "category": "product",
+      "user_id": "test_user_47",
+      "session_id": "e2e-16165e6a",
+      "index": 126
+    },
+    {
+      "ok": true,
+      "latency": 62.855,
+      "data": {
+        "reply": "您好！关于商品的发货时间，具体取决于您的下单时间和商品类型：\n\n**1. 普通商品**\n*   **工作日 16:00 前**支付成功的订单，**当日发货**。\n*   **16:00 后**及**节假日**支付的订单，将在 **24 小时内**（顺延至下一个工作日）发货。\n\n**2. 预售商品**\n*   请查看商品页面标注的**预计发货日**，按该日期发货。\n\n**3. 定制类商品**\n*   生产周期为 **5-7 个工作日**，之后按标准时效发出。\n\n**4. 大促期间（如 618、双 11）**\n*   发货可能延迟 **1-2 天**，请以订单页面提示为准。\n\n如果您想查询具体订单的发货状态，可以登录 App 进入「我的订单」查看物流轨迹。如有其他疑问，欢迎随时咨询！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "商品什么时候发货？",
+      "category": "consult",
+      "user_id": "test_user_35",
+      "session_id": "e2e-b9629718",
+      "index": 128
+    },
+    {
+      "ok": true,
+      "latency": 68.366,
+      "data": {
+        "reply": "您好！关于退款到账时间，具体取决于您选择的**退款方式**和**原支付渠道**，以下是明确的时间预期：\n\n### 1. 原路退回（默认方式）\n这是最常见的退款方式，钱款会退回到您当初支付的账户：\n- **微信、支付宝**：通常 **1–3 个工作日** 到账。\n- **银联卡、信用卡**：通常需要 **3–7 个工作日**，具体视银行处理速度而定。\n\n### 2. 退至账户余额（推荐）\n如果您希望更快收到退款，可以选择将款项退至**智联科技账户余额**：\n- **到账时间：即时到账**。\n- 余额可直接用于后续消费，也可随时提现至原支付账户。\n\n---\n\n### 📌 重要提示\n- **发起退款时间**：验货通过后，我们会在 **3 个工作日内** 为您发起退款。\n- **分期订单**：如为分期购买，退款后银行/花呗会撤销相应分期；已产生的手续费按各机构规则处理。\n- **优惠券/积分**：使用优惠券的订单退还实付金额，券在有效期内会自动返还；积分抵扣部分也会返还积分。\n\n如您对退款进度有疑问，或超过上述时间仍未收到款项，建议先查看支付渠道账单，或联系我们的客服进一步核实。",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "退款要多久到账？",
+      "category": "consult",
+      "user_id": "test_user_8",
+      "session_id": "e2e-c4cbf027",
+      "index": 130
+    },
+    {
+      "ok": true,
+      "latency": 72.9,
+      "data": {
+        "reply": "您可以通过以下方式更新 S400 的固件：\n\n**1. App 内手动更新**\n*   **自动提醒**：当有新版本时，App 会弹出提醒，点击“立即更新”即可。\n*   **手动检查**：进入 App → “设备管理” → 选择 S400 设备 → 点击“固件更新”。\n\n**2. 自动更新（推荐）**\n建议在 App 中开启“自动更新”，系统会在凌晨 **3:00-5:00** 静默安装，无需人工干预。\n\n**注意事项：**\n*   更新期间指示灯会**红灯闪烁**，耗时约 **3-8 分钟**，请勿断电。\n*   若遇到错误码 **E005**（下载/校验失败），设备会自动回滚到旧版本并正常使用。您可靠近路由器保证网络稳定后重试；若连续失败 3 次，请记录机身 SN 联系客服处理。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "S400 的固件怎么更新？",
+      "category": "product",
+      "user_id": "test_user_15",
+      "session_id": "e2e-d6b6cf85",
+      "index": 127
+    },
+    {
+      "ok": true,
+      "latency": 38.25,
+      "data": {
+        "reply": "非常抱歉给您带来了这么糟糕的体验！我完全理解您现在的心情，买到新东西却遇到质量问题，确实让人非常生气和失望。请您消消气，我们一定会负责到底，帮您把这个问题解决好。\n\n为了尽快为您办理退货，麻烦您提供一下以下信息：\n\n1. **订单编号**（可以在您的购买记录或订单详情页找到）\n2. **产品具体名称或型号**\n3. **出现的问题描述**（比如是坏了、无法使用，还是有瑕疵？）\n4. **是否有照片或视频证据？**（如果有，请发给我们，方便我们确认情况）\n\n您放心，只要是产品质量问题，我们支持无理由退货，运费也由我们来承担。一旦信息确认无误，我会立即为您启动退货流程，并跟进物流取件事宜，确保您能快速收到退款。\n\n再次向您诚恳道歉，感谢您的耐心！",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "产品坏了，我要退货！",
+      "category": "complaint",
+      "user_id": "test_user_34",
+      "session_id": "e2e-af6057e4",
+      "index": 133
+    },
+    {
+      "ok": true,
+      "latency": 41.291,
+      "data": {
+        "reply": "您太客气了！😊 能为您提供帮助是我的荣幸。\n\n如果您还有其他问题，或者需要进一步的协助，请随时告诉我。祝您一切顺利！\n请问您对刚才的服务还满意吗？如果还有其他问题，随时告诉我哦～\n感谢您选择智联科技！很高兴能为您服务。祝您生活愉快，智能科技为您的每一天带来便利与温馨。再见！",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "辛苦了",
+      "category": "chitchat",
+      "user_id": "test_user_39",
+      "session_id": "e2e-4287b818",
+      "index": 134
+    },
+    {
+      "ok": true,
+      "latency": 58.553,
+      "data": {
+        "reply": "您好！关于是否能发顺丰，说明如下：\n\n**默认情况下不支持指定快递公司**，系统会根据您的收货地址就近分配仓库，并由仓库按线路自动选择合作快递（主要合作：**顺丰、京东物流、中通**）。\n\n但如果您**需要发顺丰**，可以在下单时选择 **“顺丰特快”** 服务：\n- **时效**：次日达\n- **运费**：¥25\n- **适用地区**：限一二线城市\n\n另外，如果是**质量问题退换货**，寄回时可选**顺丰到付**（需使用我方提供的地址）。\n\n如有其他疑问，欢迎继续咨询！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "能发顺丰吗？",
+      "category": "consult",
+      "user_id": "test_user_47",
+      "session_id": "e2e-0d8f7bb3",
+      "index": 132
+    },
+    {
+      "ok": true,
+      "latency": 72.84,
+      "data": {
+        "reply": "请确认是**“音箱播放没声音”**还是**“麦克风无法唤醒/收音”**：\n\n### 情况一：音箱播放没声音\n1. **查音量**：说“音量调到 50”或进 App 确认音量未设为 0。\n2. **查静音模式**：检查 App 中是否开启了“勿扰模式”。\n3. **查连接状态**：顶部红灯常亮表示断网；若为蓝牙模式，请说“退出蓝牙模式”切回 Wi-Fi。\n4. **查外接设备**：检查 3.5mm 接口是否插着线（插入时内置扬声器自动关闭），拔出即可恢复。\n5. **重启**：以上无效请重启设备。若仍无声且伴随破音/滋滋声，可能是扬声器故障（E004），需报修（保修 2 年）。\n\n### 情况二：麦克风无法唤醒/收音（唤醒不灵敏或完全唤不醒）\n1. **查静音键**：确认顶部橙灯未亮（橙灯=麦克风静音），若亮起请再次按下静音键解除。\n2. **清洁麦克风孔**：用软毛刷清理顶部麦克风开孔灰尘。\n3. **重启并恢复出厂设置**：长按复位键或按 App 指引恢复出厂设置一次。\n4. **报修**：以上自查无效，属硬件故障（E003），请联系售后，保修期内免费维修上门取送。\n\n---\n👉 **请告诉我具体是哪种情况？** 或者您可以先尝试：**“音量调到 50”** + **“重启音箱”**，通常能解决大部分问题。",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "N500 麦克风没声音",
+      "category": "product",
+      "user_id": "test_user_28",
+      "session_id": "e2e-f81c3a76",
+      "index": 135
+    },
+    {
+      "ok": true,
+      "latency": 82.828,
+      "data": {
+        "reply": "根据您提供的参考资料，其中并未包含关于 **L600 底座** 及其适配型号的详细信息。\n\n资料中主要涵盖了以下内容：\n- [1] 智能音箱支持的音乐平台\n- [2] X-300 Pro 的详细参数\n- [3] 换修与换新判定标准\n- [4] 智能音箱开箱与摆放建议\n- [5] 维修配件供应承诺\n\n**建议：**\n由于 L600 底座的具体适配型号未在现有知识库中，请您：\n1. 查看产品包装或说明书上的“适用范围”章节；\n2. 访问智联科技官网的“服务支持”→“配件查询”页面；\n3. 或直接联系官方客服提供具体设备序列号进行确认。\n\n如需进一步帮助，请提供更多关于 L600 底座的背景信息或相关文档片段。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "escalated"
+      },
+      "message": "L600 底座适配什么型号？",
+      "category": "product",
+      "user_id": "test_user_27",
+      "session_id": "e2e-058fe530",
+      "index": 131
+    },
+    {
+      "ok": true,
+      "latency": 13.818,
+      "data": {
+        "reply": "好的，祝您生活愉快！再见！👋\n请问您对刚才的服务还满意吗？如有其他需要，随时告诉我哦~\n感谢您的信任与支持！祝您生活愉快，科技让美好触手可及。如有需要，随时联系我们，再见！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_15",
+      "session_id": "e2e-b27f7e4a",
+      "index": 138
+    },
+    {
+      "ok": true,
+      "latency": 68.715,
+      "data": {
+        "reply": "根据现有资料，智能音箱系列目前没有红色款。各型号可选颜色如下：\n\n- **X-100（青春版）**：曜石黑、云朵白\n- **X-200（标准版）**：曜石黑、云朵白、雾霾蓝\n- **X-300 Pro**：资料未明确列出，但通常与 X-200 保持一致配色\n\n如果您特别喜欢红色，建议关注官方是否会有特别版或限定色发布。您也可以考虑搭配红色的音箱套或装饰来点缀空间。需要我帮您对比一下这几个型号的性价比吗？",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "这个产品有红色吗？",
+      "category": "consult",
+      "user_id": "test_user_26",
+      "session_id": "e2e-583e16bc",
+      "index": 137
+    },
+    {
+      "ok": true,
+      "latency": 82.049,
+      "data": {
+        "reply": "您好！请放心，我们的退款流程是规范且透明的。以下是详细的退款时效说明和操作建议：\n\n### ✅ 退款到账时间（按支付方式区分）\n\n| 支付方式 | 预计到账时间 | 说明 |\n|----------|--------------|------|\n| **微信 / 支付宝** | **1–3 个工作日** | 最常见，处理较快 |\n| **银联卡 / 信用卡** | **3–7 个工作日** | 具体取决于银行处理速度 |\n| **退至账户余额** | **即时到账** | 可选择退到智联科技账户余额，立即可用或提现 |\n\n> 📌 **发起退款时间**：验货通过后 **3 个工作日内** 我们会发起退款。\n\n---\n\n### 📋 如果您使用了优惠券或积分\n- **优惠券**：如仍在有效期内，会自动返还到您的账户；\n- **积分抵扣部分**：相应积分也会原路返还。\n\n### 💳 如果是分期订单\n退款后由银行或花呗撤销分期，已产生的手续费按各机构规则处理，具体可咨询相关支付平台。\n\n---\n\n### 🔍 建议您这样跟进：\n1. **确认验货状态**：联系售后确认商品是否已完成验货；\n2. **查看退款进度**：登录账户 → 订单详情 → 查看退款状态；\n3. **耐心等待银行处理**：如超过上述时效仍未到账，可携带订单号联系我们的客服进一步核查。\n\n如有其他疑问，欢迎随时告诉我！😊",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "退款要多久到账？",
+      "category": "consult",
+      "user_id": "test_user_30",
+      "session_id": "e2e-7766ac36",
+      "index": 136
+    },
+    {
+      "ok": true,
+      "latency": 98.052,
+      "data": {
+        "reply": "您好！WiFi 信号弱**不一定**是路由器故障，更多时候是**环境因素**或**设备摆放位置**导致的。\n\n为了帮您快速定位问题并解决，请按照以下步骤排查：\n\n### 第一步：判断是“路由器故障”还是“环境问题”\n\n| 症状 | 可能原因 | 建议操作 |\n| :--- | :--- | :--- |\n| **所有设备**都信号弱、网速慢 | 路由器性能不足或过热 | 重启路由器；检查是否长时间未重启导致缓存堆积 |\n| **只有某个特定设备**（如音箱、摄像头）信号弱/掉线 | 距离太远或有墙体阻隔 | 参考第二步“缩短距离” |\n| **在路由器旁边**信号依然很差 | 路由器硬件故障或设置错误 | 尝试恢复出厂设置；联系售后检测 |\n\n---\n\n### 第二步：家用 WiFi 覆盖小的常见原因及解决方案\n\n#### 1. 距离太远或墙体阻隔（最常见）\n*   **现象**：设备离路由器越远，信号格数越少。\n*   **解决**：\n    *   将路由器放在**房屋中心位置**，避免角落。\n    *   确保设备和路由器之间**尽量无承重墙**阻隔。\n    *   **预期结果**：距离缩短后，信号强度应明显提升，连接更稳定。\n\n#### 2. 电磁干扰\n*   **现象**：微波炉、无线电话、金属柜附近信号不稳定。\n*   **解决**：将路由器远离微波炉、蓝牙设备、大型金属物体。\n*   **预期结果**：干扰源移除后，WiFi 速率波动减少。\n\n#### 3. 路由器带机量过载\n*   **现象**：连接设备超过 30 台时，网速变慢或掉线。\n*   **解决**：重启路由器；在路由器后台关闭不常用的设备连接。\n*   **预期结果**：重启后网络响应速度恢复流畅。\n\n#### 4. 频段设置问题（针对智能音箱/摄像头等子设备）\n*   **现象**：X-100 等设备仅支持 **2.4GHz**，若路由器开启“双频合一”或只发 5GHz 信号，会导致配网失败或连接不稳定。\n*   **解决**：\n    *   进入路由器后台，**将 2.",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "WiFi 信号很弱，是不是路由器问题？",
+      "category": "product",
+      "user_id": "test_user_49",
+      "session_id": "e2e-eb33244b",
+      "index": 140
+    },
+    {
+      "ok": true,
+      "latency": 108.922,
+      "data": {
+        "reply": "您好！完全理解您的担心，WiFi 信号弱确实会影响使用体验。不过**不一定就是路由器坏了**，很多时候是部署或设置问题导致的。\n\n请按照以下明确步骤排查，大多数情况下可以自行解决：\n\n### ✅ 第一步：自查信号弱的常见原因（非硬件故障）\n\n1. **距离与障碍物**\n   - 路由器是否离设备太远？建议保持在 **10–15 米内**。\n   - 是否有墙体、金属柜、微波炉等干扰源？**减少墙体阻隔**，将路由器放在开阔位置。\n\n2. **频段选择（重要！）**\n   - 如果您使用的是 **X-100 音箱等设备**，它**仅支持 2.4GHz WiFi**，请确认路由器已开启 2.4GHz 频段。\n   - X-200/X-300 Pro 等双频设备则兼容 2.4GHz 和 5GHz。\n\n3. **连接设备过多**\n   - 如果路由器连接设备超过 **30 台**，可能会拥塞导致信号感知变弱。尝试断开部分非必要设备后再测试。\n\n4. **重启设备**\n   - 请**同时重启路由器和您的终端设备**（手机/音箱等），这是最简单有效的初步排查手段。\n\n5. **检查密码与网络类型**\n   - 确认 WiFi 密码正确（区分大小写）。\n   - **暂不支持需网页认证的 Portal 网络**（如酒店、商场式登录页面），请确保是普通家庭 WiFi。\n\n6. **企业级路由器设置**\n   - 如果您使用的是企业级路由器并开启了 **MAC 白名单**，请在路由器后台添加设备的 MAC 地址（可在 App 设备详情页查到）。\n\n---\n\n### ✅ 第二步：判断是否需要更换或报修\n\n如果完成以上步骤后信号依然很弱，请观察：\n\n- **网关/路由器指示灯状态**：\n  - 红灯 = 离线；白灯 = 正常。\n  - 如果一直是红灯且无法恢复，可能是网络配置问题（如改过 WiFi 密码需重新配网）或硬件故障。\n\n- **是否频繁掉线**：\n  - 如果排查网络后仍每天离线多次，建议提交工单报修。\n\n---\n\n### 📞 如需进一步帮助\n\n您可以选择以下方式联系我们：\n\n- **App 在线客服**：“我的",
+        "intent": "consult",
+        "emotion": "anxious",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "WiFi 信号很弱，是不是路由器问题？",
+      "category": "product",
+      "user_id": "test_user_37",
+      "session_id": "e2e-16210503",
+      "index": 139
+    },
+    {
+      "ok": true,
+      "latency": 29.453,
+      "data": {
+        "reply": "早上好！很高兴为您服务。请问今天有什么我可以帮您的吗？",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "早上好",
+      "category": "chitchat",
+      "user_id": "test_user_3",
+      "session_id": "e2e-85e088a5",
+      "index": 142
+    },
+    {
+      "ok": true,
+      "latency": 30.087,
+      "data": {
+        "reply": "您好！请问有什么我可以帮您的吗？\n\n无论是关于订单查询、产品咨询，还是售后服务问题，我都乐意为您解答。请告诉我您需要什么帮助？\n请问您对刚才的服务还满意吗？如有其他问题，随时告诉我哦~\n感谢您的信任与支持！如果后续还有任何问题，欢迎随时联系我们。祝您生活愉快，智能家居为您带来便捷与温馨！再见～",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的",
+      "category": "chitchat",
+      "user_id": "test_user_14",
+      "session_id": "e2e-43d70d70",
+      "index": 143
+    },
+    {
+      "ok": true,
+      "latency": 41.069,
+      "data": {
+        "reply": "您好！很高兴为您服务。请问有什么我可以帮您的吗？\n感谢您的耐心等待！请问刚才的解答是否帮到您了呢？如果还有其他疑问，随时告诉我哦～\n感谢您的信任与选择！如果您之后有任何问题，随时欢迎联系我们。祝您生活愉快，智能科技为您带来更多便利与美好！再见～",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的",
+      "category": "chitchat",
+      "user_id": "test_user_10",
+      "session_id": "e2e-98eeefce",
+      "index": 145
+    },
+    {
+      "ok": true,
+      "latency": 43.473,
+      "data": {
+        "reply": "非常抱歉给您带来了这样的困扰！我完全理解您的失望和不满，收到与描述不符的商品确实让人非常生气，换作是我也会很着急。\n\n为了能尽快帮您解决这个问题，麻烦您告诉我更多一点细节：\n\n1. **具体哪里不符？**（比如：颜色、尺寸、功能、材质还是外观？）\n2. **您方便拍几张照片发给我吗？** 这样我可以更准确地判断情况。\n3. **您的订单号是多少？**（如果方便提供的话）\n\n我们一定会负责到底，根据具体情况为您安排**退货退款**或**补发/更换**，确保您满意为止。请您消消气，我这就帮您处理！",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "这跟描述完全不一样啊",
+      "category": "complaint",
+      "user_id": "test_user_24",
+      "session_id": "e2e-5f9d4861",
+      "index": 144
+    },
+    {
+      "ok": true,
+      "latency": 68.224,
+      "data": {
+        "reply": "您好！关于批量购买的优惠，我们确实有相应的政策支持：\n\n📌 **企业采购折扣**  \n- 购买 **50–199 台** 可享 **9 折** 优惠  \n- 具体折扣力度可根据采购数量进一步协商\n\n💼 **采购流程建议**  \n请将您的需求发送至企业邮箱：**b2b@smartlinktech.com**，我们的企业客户经理会为您提供专属方案，包括：\n- 对公转账支持  \n- 增值税专用发票开具  \n- 定制化报价与合同服务\n\n如有其他疑问，欢迎随时联系我们！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "批量购买有优惠吗？",
+      "category": "consult",
+      "user_id": "test_user_24",
+      "session_id": "e2e-d85c09ee",
+      "index": 141
+    },
+    {
+      "ok": true,
+      "latency": 124.407,
+      "data": {
+        "reply": "好的，很高兴为您服务！如果您之后还有任何问题，欢迎随时联系我们。祝您生活愉快，再见！👋\n请问您对刚才的服务还满意吗？如果还有其他问题，随时告诉我哦～\n感谢您的信任与支持！如果之后有任何关于智能音箱、智能家居或云服务的问题，随时欢迎联系我们。祝您生活愉快，科技让生活更美好，再见！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_35",
+      "session_id": "e2e-c899bd85",
+      "index": 146
+    },
+    {
+      "ok": true,
+      "latency": 127.281,
+      "data": {
+        "reply": "非常抱歉给您带来了这样的困扰，我完全理解您此刻的 frustration。花钱买的东西还要自己掏运费退回去，换做是我也会觉得很不公平、很生气，真的对不起！\n\n为了帮您尽快解决这个问题，能否请您提供一下具体的订单信息（如订单号）或说明一下退货的具体原因呢？\n\n通常来说：\n1. **如果是商品质量问题、发错货或描述不符**：运费应该由我们承担，您可以申请平台介入或直接联系我进行运费补偿/垫付。\n2. **如果是个人原因（如不喜欢、不合适）**：按照平台规则可能需要买家承担，但我们可以看看是否有运费险覆盖，或者为您申请一张运费优惠券作为安抚。\n\n请告诉我具体情况，我一定尽力帮您争取最大的权益，不会让您白受这份委屈！",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "退货时还非要我自己出运费",
+      "category": "complaint",
+      "user_id": "test_user_42",
+      "session_id": "e2e-bf3fd01f",
+      "index": 149
+    },
+    {
+      "ok": false,
+      "latency": 129.348,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "M300 开不了机怎么办？",
+      "category": "product",
+      "user_id": "test_user_49",
+      "session_id": "e2e-aa6dd4d1",
+      "index": 147
+    },
+    {
+      "ok": false,
+      "latency": 134.832,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "M300 开不了机怎么办？",
+      "category": "product",
+      "user_id": "test_user_12",
+      "session_id": "e2e-cd2e5a07",
+      "index": 150
+    },
+    {
+      "ok": false,
+      "latency": 139.91,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "晚安",
+      "category": "chitchat",
+      "user_id": "test_user_4",
+      "session_id": "e2e-a2699f7b",
+      "index": 148
+    },
+    {
+      "ok": true,
+      "latency": 35.284,
+      "data": {
+        "reply": "早上好！很高兴为您服务。请问有什么我可以帮您的吗？😊",
+        "intent": "chat",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "早上好",
+      "category": "chitchat",
+      "user_id": "test_user_26",
+      "session_id": "e2e-d671f291",
+      "index": 155
+    },
+    {
+      "ok": true,
+      "latency": 74.454,
+      "data": {
+        "reply": "好的，我完全理解您的心情。\n\n有时候，事情确实不如预期顺利，感到失落或疲惫是很正常的反应。请您不要对自己太苛刻，您已经尽力了，这本身就很值得肯定。\n\n如果之后您想聊聊，或者需要其他方面的帮助，随时都可以找我。我会一直在这里陪着你。\n\n请记得照顾好自己，深呼吸，给自己一点时间和空间去放松一下。🌿\n请问您对刚才的服务还满意吗？如有其他问题，随时告诉我哦！\n感谢您的信任与支持！如果您后续还有其他产品问题或需要帮助，随时欢迎联系我们。祝您生活愉快，智能家居体验顺心如意！👋",
+        "intent": "ending",
+        "emotion": "sad",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "可以了，就这样吧",
+      "category": "ending",
+      "user_id": "test_user_49",
+      "session_id": "e2e-9f44c091",
+      "index": 154
+    },
+    {
+      "ok": true,
+      "latency": 74.602,
+      "data": {
+        "reply": "非常抱歉给您带来了这样糟糕的体验，我完全理解您此刻的愤怒和不满。退换货本就该是顺畅的事，如果还要让消费者额外承担运费，确实让人感到委屈和不公平，真的对不起。\n\n为了尽快帮您解决这个问题，能否请您提供一下**订单号**以及**退货的原因**（比如：商品质量问题、发错货、还是七天无理由不喜欢）？\n\n通常来说：\n1. **如果是商品质量问题或商家发错货**：运费理应完全由我们承担，您可以申请平台介入或直接联系我为您处理运费垫付/报销。\n2. **如果是个人原因（如不喜欢、不合适）**：根据平台常规规则，退回运费可能需要买家自理，但我们可以看看是否有运费险覆盖，或者为您申请优惠券作为补偿。\n\n请告诉我具体情况，我一定尽力帮您争取最大权益，尽快处理好！",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "退货时还非要我自己出运费",
+      "category": "complaint",
+      "user_id": "test_user_41",
+      "session_id": "e2e-0ca0e3d5",
+      "index": 153
+    },
+    {
+      "ok": true,
+      "latency": 80.994,
+      "data": {
+        "reply": "非常抱歉给您带来了这么糟糕的体验，我完全理解您现在的愤怒和无奈。买东西本来就是为了方便，结果退货还要自己掏腰包，确实让人很难接受，换做是我也会觉得很委屈、很生气。真的对不起！\n\n为了尽快帮您解决这个问题，我需要先了解一些具体情况，看看我们能否为您申请运费减免或补偿：\n\n1. **退货原因是什么？** 是商品本身有质量问题、发错货，还是您个人不喜欢/不合适呢？\n2. **订单号是多少？** 方便我查询您的具体订单记录。\n3. **您之前是否和客服沟通过？** 是否有承诺过包邮退等说明？\n\n**一般来说，以下几种情况我们可以为您争取免运费：**\n- 商品存在质量问题或瑕疵；\n- 我们发错了货；\n- 您购买时享有“七天无理由退货且平台/商家承担运费”的服务（如PLUS会员、部分品牌旗舰店政策等）；\n- 某些地区或活动期间有特殊售后政策。\n\n请您告诉我以上信息，我会立即为您核实并尽力协调，争取让您不用承担这笔运费。如果确实需要您先行垫付，我也会帮您申请运费券或现金补偿等方式弥补您的损失。\n\n再次向您致歉，感谢您的耐心！",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 3,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "退货时还非要我自己出运费",
+      "category": "complaint",
+      "user_id": "test_user_15",
+      "session_id": "e2e-eaf8f546",
+      "index": 151
+    },
+    {
+      "ok": false,
+      "latency": 131.041,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "能关掉状态灯吗？太亮了",
+      "category": "product",
+      "user_id": "test_user_13",
+      "session_id": "e2e-2dbc52aa",
+      "index": 152
+    },
+    {
+      "ok": true,
+      "latency": 22.72,
+      "data": {
+        "reply": "是啊！☀️ 这种好天气真的让人心情也跟着亮起来～\n\n你是准备出门去享受阳光，还是正悠闲地待着呢？不管做什么都希望你这会儿能过得轻松愉快！🌿",
+        "intent": "chat",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "天气真好",
+      "category": "chitchat",
+      "user_id": "test_user_36",
+      "session_id": "e2e-ea0c083c",
+      "index": 158
+    },
+    {
+      "ok": true,
+      "latency": 60.888,
+      "data": {
+        "reply": "非常抱歉给您带来了这么糟糕的体验！我完全理解您现在的焦急和不满，换了件衣服等了半个月还没收到，换做是我也会非常生气，真的对不起！😓\n\n请您消消气，我一定尽快帮您核实清楚具体情况并解决。为了不让您的等待继续白费，麻烦您提供一下以下信息：\n\n1. **订单编号**（可以在您的订单详情页找到）\n2. **换货申请的单号**（如果有单独的物流追踪号更好）\n\n收到信息后，我会**立即优先处理**，帮您联系仓库或物流公司查询包裹的最新状态，并给您一个明确的答复和处理方案。\n\n如果确实出现了丢件或延误严重的情况，我们也会为您提供相应的补偿或加快重新发货。请相信我们一定会负责到底！🙏",
+        "intent": "complaint",
+        "emotion": "angry",
+        "emotion_intensity": 4,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "换货等了半个月都没收到",
+      "category": "complaint",
+      "user_id": "test_user_32",
+      "session_id": "e2e-6014bd60",
+      "index": 156
+    },
+    {
+      "ok": true,
+      "latency": 64.847,
+      "data": {
+        "reply": "您好！目前我们**暂无线下直营门店**。\n\n您可以通过以下官方渠道购买产品，价格统一且享受完整保修服务：\n\n*   **官网**：www.smartlinktech.com\n*   **电商平台**：京东旗舰店、天猫旗舰店\n*   **海外用户**：亚马逊全球购（部分型号）\n\n⚠️ 温馨提示：请认准官方渠道购买，非官方渠道的产品可能无法享受全国联保服务。如有其他问题，欢迎随时咨询！",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "有线下门店吗？",
+      "category": "consult",
+      "user_id": "test_user_9",
+      "session_id": "e2e-8fa2c2f7",
+      "index": 159
+    },
+    {
+      "ok": true,
+      "latency": 123.257,
+      "data": {
+        "reply": "根据我们的免邮规则，**单笔订单实付金额满 ¥99** 即可免除标准快递运费。\n\n请注意以下几点：\n*   **计算方式**：实付金额是指扣除优惠券和积分抵扣后的金额。\n*   **会员权益**：如果您是金卡会员（累计消费满 ¥5000），免邮门槛降至 **¥59**；黑卡会员（累计消费满 ¥20000）则所有订单均免运费。\n*   **特殊快递**：加急快递（¥15）和顺丰特快（¥25）的运费不参与免邮活动，需在标准免邮基础上额外支付。\n*   **退货说明**：如果因退货导致订单实付金额低于免邮门槛，我们不会追收已免除的运费。\n\n您可以查看 App 中的“会员中心”确认您的会员等级及当前免邮额度。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "需要多少钱才能免运费？",
+      "category": "consult",
+      "user_id": "test_user_50",
+      "session_id": "e2e-0c6cf6b9",
+      "index": 157
+    },
+    {
+      "ok": false,
+      "latency": 130.967,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "运费怎么算？",
+      "category": "consult",
+      "user_id": "test_user_31",
+      "session_id": "e2e-fa92002f",
+      "index": 160
+    },
+    {
+      "ok": true,
+      "latency": 36.823,
+      "data": {
+        "reply": "好的，没问题。如果您之后有任何其他需要，随时欢迎回来找我。祝您生活愉快，一切顺利！🌸\n很高兴能为您服务！请问还有其他问题吗？\n感谢您的信任与支持！如果后续还有任何疑问，欢迎随时联系我们。祝您生活愉快，科技为家带来更多便利与温馨！🌟",
+        "intent": "ending",
+        "emotion": "sad",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "可以了，就这样吧",
+      "category": "ending",
+      "user_id": "test_user_22",
+      "session_id": "e2e-1a1f7e4e",
+      "index": 163
+    },
+    {
+      "ok": true,
+      "latency": 39.445,
+      "data": {
+        "reply": "哈哈，看来今天心情很棒呀！😊\n\n有什么我可以帮你的吗？无论是查询订单、解决小问题，还是单纯想聊聊天，我都在这里随时待命哦～ 🎉",
+        "intent": "chat",
+        "emotion": "happy",
+        "emotion_intensity": 2,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "哈哈",
+      "category": "chitchat",
+      "user_id": "test_user_45",
+      "session_id": "e2e-b71ce592",
+      "index": 162
+    },
+    {
+      "ok": true,
+      "latency": 41.541,
+      "data": {
+        "reply": "不客气！很高兴能帮到您。祝您生活愉快，再见！👋\n请问以上的服务能让您满意吗？如有任何疑问，欢迎随时告诉我！\n感谢您的信任与支持！祝您生活愉快，智能家居体验顺心如意～如有任何问题，随时联系我们，再见！",
+        "intent": "ending",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": true,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "好的，谢谢，拜拜",
+      "category": "ending",
+      "user_id": "test_user_22",
+      "session_id": "e2e-59d74a6b",
+      "index": 161
+    },
+    {
+      "ok": true,
+      "latency": 55.356,
+      "data": {
+        "reply": "您可以通过以下方式更新 S400 的固件：\n\n1. **App 推送提醒**：当有新版本时，App 会弹出提醒，直接点击“立即更新”即可。\n2. **手动检查更新**：在 App 中进入 **“设备管理”** → 选择您的 S400 设备 → 点击 **“固件更新”** 进行手动检查并更新。\n\n**注意事项：**\n*   **耗时**：更新过程通常需要 **3-8 分钟**。\n*   **状态指示**：更新期间指示灯会**红灯闪烁**，请保持设备通电，切勿断电。\n*   **自动更新**：建议开启“自动更新”功能，系统会在每天凌晨 3:00-5:00 静默安装新版本。\n*   **失败处理**：如果更新失败（报错码 E005），设备会自动回滚到旧版本以保证正常使用。您可以尝试靠近路由器确保网络稳定，重启设备后再次手动重试。若连续失败 3 次，请记录机身 SN 码联系客服后台推送定向修复包。",
+        "intent": "consult",
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "interrupted": false,
+        "ending": false,
+        "escalate": false,
+        "reply_type": "reply"
+      },
+      "message": "S400 的固件怎么更新？",
+      "category": "product",
+      "user_id": "test_user_46",
+      "session_id": "e2e-ce88024f",
+      "index": 164
+    },
+    {
+      "ok": false,
+      "latency": 105.542,
+      "error": "Remote end closed connection without response",
+      "message": "L600 底座适配什么型号？",
+      "category": "product",
+      "user_id": "test_user_48",
+      "session_id": "e2e-02953ae5",
+      "index": 165
+    },
+    {
+      "ok": false,
+      "latency": 126.132,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "能开发票吗？",
+      "category": "consult",
+      "user_id": "test_user_44",
+      "session_id": "e2e-be9caa13",
+      "index": 169
+    },
+    {
+      "ok": false,
+      "latency": 130.187,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "S400 的固件怎么更新？",
+      "category": "product",
+      "user_id": "test_user_5",
+      "session_id": "e2e-6eec726d",
+      "index": 167
+    },
+    {
+      "ok": false,
+      "latency": 134.233,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "谢谢",
+      "category": "chitchat",
+      "user_id": "test_user_48",
+      "session_id": "e2e-f35d90c8",
+      "index": 170
+    },
+    {
+      "ok": false,
+      "latency": 138.516,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "我没什么问题了",
+      "category": "chitchat",
+      "user_id": "test_user_36",
+      "session_id": "e2e-a34007f4",
+      "index": 166
+    },
+    {
+      "ok": false,
+      "latency": 142.537,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "L600 底座适配什么型号？",
+      "category": "product",
+      "user_id": "test_user_40",
+      "session_id": "e2e-7eba9b4f",
+      "index": 168
+    },
+    {
+      "ok": false,
+      "latency": 126.43,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "辛苦了",
+      "category": "chitchat",
+      "user_id": "test_user_22",
+      "session_id": "e2e-4c7ddb7d",
+      "index": 175
+    },
+    {
+      "ok": false,
+      "latency": 130.485,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "好的",
+      "category": "chitchat",
+      "user_id": "test_user_45",
+      "session_id": "e2e-3f155fa3",
+      "index": 171
+    },
+    {
+      "ok": false,
+      "latency": 135.979,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "尺寸选哪个好？",
+      "category": "consult",
+      "user_id": "test_user_35",
+      "session_id": "e2e-b80d1593",
+      "index": 172
+    },
+    {
+      "ok": false,
+      "latency": 138.814,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "我没什么问题了",
+      "category": "chitchat",
+      "user_id": "test_user_18",
+      "session_id": "e2e-78929e6e",
+      "index": 173
+    },
+    {
+      "ok": false,
+      "latency": 142.396,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "M300 开不了机怎么办？",
+      "category": "product",
+      "user_id": "test_user_4",
+      "session_id": "e2e-09e60bc3",
+      "index": 174
+    },
+    {
+      "ok": false,
+      "latency": 34.339,
+      "status": 500,
+      "error": "HTTP Error 500: Internal Server Error",
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_14",
+      "session_id": "e2e-e451aff0",
+      "index": 179
+    },
+    {
+      "ok": false,
+      "latency": 45.871,
+      "status": 500,
+      "error": "HTTP Error 500: Internal Server Error",
+      "message": "可以了，就这样吧",
+      "category": "ending",
+      "user_id": "test_user_49",
+      "session_id": "e2e-baf1a390",
+      "index": 177
+    },
+    {
+      "ok": false,
+      "latency": 130.599,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "你真可爱",
+      "category": "chitchat",
+      "user_id": "test_user_3",
+      "session_id": "e2e-60e00761",
+      "index": 180
+    },
+    {
+      "ok": false,
+      "latency": 134.265,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "X200 的电池能用多久？",
+      "category": "product",
+      "user_id": "test_user_21",
+      "session_id": "e2e-cfaafa8a",
+      "index": 176
+    },
+    {
+      "ok": false,
+      "latency": 138.279,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "明白了，谢谢",
+      "category": "ending",
+      "user_id": "test_user_48",
+      "session_id": "e2e-1c15f888",
+      "index": 178
+    },
+    {
+      "ok": false,
+      "latency": 31.59,
+      "status": 500,
+      "error": "HTTP Error 500: Internal Server Error",
+      "message": "好的，谢谢，拜拜",
+      "category": "ending",
+      "user_id": "test_user_43",
+      "session_id": "e2e-13cba597",
+      "index": 181
+    },
+    {
+      "ok": false,
+      "latency": 130.318,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "WiFi 信号很弱，是不是路由器问题？",
+      "category": "product",
+      "user_id": "test_user_33",
+      "session_id": "e2e-24e2bf95",
+      "index": 184
+    },
+    {
+      "ok": false,
+      "latency": 134.709,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "用什么支付方式？",
+      "category": "consult",
+      "user_id": "test_user_9",
+      "session_id": "e2e-c42a59e7",
+      "index": 182
+    },
+    {
+      "ok": false,
+      "latency": 138.331,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "N500 麦克风没声音",
+      "category": "product",
+      "user_id": "test_user_16",
+      "session_id": "e2e-ecfd5ad0",
+      "index": 185
+    },
+    {
+      "ok": false,
+      "latency": 143.705,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "明白了，谢谢",
+      "category": "ending",
+      "user_id": "test_user_45",
+      "session_id": "e2e-d4d2b192",
+      "index": 183
+    },
+    {
+      "ok": false,
+      "latency": 30.958,
+      "status": 500,
+      "error": "HTTP Error 500: Internal Server Error",
+      "message": "你好",
+      "category": "chitchat",
+      "user_id": "test_user_10",
+      "session_id": "e2e-9843036a",
+      "index": 190
+    },
+    {
+      "ok": false,
+      "latency": 130.212,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "你真可爱",
+      "category": "chitchat",
+      "user_id": "test_user_46",
+      "session_id": "e2e-a1710e3d",
+      "index": 189
+    },
+    {
+      "ok": false,
+      "latency": 134.336,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "N500 麦克风没声音",
+      "category": "product",
+      "user_id": "test_user_48",
+      "session_id": "e2e-ee19e928",
+      "index": 188
+    },
+    {
+      "ok": false,
+      "latency": 138.399,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "产品坏了，我要退货！",
+      "category": "complaint",
+      "user_id": "test_user_12",
+      "session_id": "e2e-8234d540",
+      "index": 187
+    },
+    {
+      "ok": false,
+      "latency": 142.518,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "S400 的固件怎么更新？",
+      "category": "product",
+      "user_id": "test_user_48",
+      "session_id": "e2e-61bbf3d7",
+      "index": 186
+    },
+    {
+      "ok": false,
+      "latency": 35.212,
+      "status": 500,
+      "error": "HTTP Error 500: Internal Server Error",
+      "message": "天气真好",
+      "category": "chitchat",
+      "user_id": "test_user_30",
+      "session_id": "e2e-157bb585",
+      "index": 194
+    },
+    {
+      "ok": false,
+      "latency": 126.116,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "联系三天了都没人理我",
+      "category": "complaint",
+      "user_id": "test_user_25",
+      "session_id": "e2e-e320b1de",
+      "index": 191
+    },
+    {
+      "ok": false,
+      "latency": 134.27,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "N500 麦克风没声音",
+      "category": "product",
+      "user_id": "test_user_29",
+      "session_id": "e2e-8c9d9333",
+      "index": 192
+    },
+    {
+      "ok": false,
+      "latency": 138.585,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "订单状态怎么看？",
+      "category": "consult",
+      "user_id": "test_user_43",
+      "session_id": "e2e-25ce08bc",
+      "index": 195
+    },
+    {
+      "ok": false,
+      "latency": 142.409,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "你真可爱",
+      "category": "chitchat",
+      "user_id": "test_user_5",
+      "session_id": "e2e-df9cabe5",
+      "index": 193
+    },
+    {
+      "ok": false,
+      "latency": 34.004,
+      "status": 500,
+      "error": "HTTP Error 500: Internal Server Error",
+      "message": "没有其他问题了，再见",
+      "category": "ending",
+      "user_id": "test_user_22",
+      "session_id": "e2e-cc32c030",
+      "index": 197
+    },
+    {
+      "ok": false,
+      "latency": 38.043,
+      "status": 500,
+      "error": "HTTP Error 500: Internal Server Error",
+      "message": "早上好",
+      "category": "chitchat",
+      "user_id": "test_user_15",
+      "session_id": "e2e-0cc0dcd5",
+      "index": 198
+    },
+    {
+      "ok": false,
+      "latency": 126.379,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "保修期多久？",
+      "category": "consult",
+      "user_id": "test_user_43",
+      "session_id": "e2e-f0f7867f",
+      "index": 196
+    },
+    {
+      "ok": false,
+      "latency": 138.341,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "S400 的固件怎么更新？",
+      "category": "product",
+      "user_id": "test_user_6",
+      "session_id": "e2e-57a56bd9",
+      "index": 200
+    },
+    {
+      "ok": false,
+      "latency": 142.383,
+      "status": 504,
+      "error": "HTTP Error 504: Gateway Timeout",
+      "message": "哈哈",
+      "category": "chitchat",
+      "user_id": "test_user_28",
+      "session_id": "e2e-c5763b23",
+      "index": 199
+    }
+  ],
+  "summary": {
+    "ok": 159,
+    "fail": 41,
+    "avg_latency": 33.34
+  }
+}
