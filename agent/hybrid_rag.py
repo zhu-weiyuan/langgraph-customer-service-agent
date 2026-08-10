@@ -207,6 +207,7 @@ def map_children_to_parents(child_hits: Sequence[Dict[str, Any]],
         merged["text"] = merged["content"]
         merged["parent_id"] = pid
         merged["title"] = hit.get("title") or parent.get("title", pid)
+        merged["section"] = hit.get("section") or parent.get("section", "")
         seen[pid] = len(out)
         out.append(merged)
     if top_n is not None:
@@ -629,7 +630,9 @@ class HybridRetriever:
     def _normalize(r: Dict[str, Any]) -> Dict[str, Any]:
         content = str(r.get("content") or r.get("text") or "")
         return {
+            "id": str(r.get("id", "")),
             "title": str(r.get("title", "")),
+            "section": str(r.get("section", "")),
             "content": content,
             "text": content,  # 兼容 nodes/context_assembler 消费的 text 字段
             "score": round(float(r.get("rerank_score",

@@ -16,12 +16,25 @@ HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$", re.MULTILINE)
 
 
 def normalize(text: str) -> str:
-    """去空白、去标点，用于宽松匹配。"""
+    """去空白、去标点（含 = ≥ ≤ > < 等符号），用于宽松匹配。"""
     if not text:
         return ""
     compact = re.sub(r"\s+", "", text)
-    compact = re.sub(r"[，。！？、；：,.!?;:'\"“”‘’()（）\[\]【】\-—_/\\|]", "", compact)
+    compact = re.sub(
+        r"[，。！？、；：,.!?;:'\"“”‘’()（）\[\]【】\-—_/\\|=>≥≤<>×·～~≈%％¥￥]",
+        "", compact)
     return compact.lower()
+
+
+def _bigram_overlap_ratio(needle: str, haystack: str) -> float:
+    """needle 的二元组在 haystack 中的覆盖率（0~1）。"""
+    if len(needle) < 4 or not haystack:
+        return 0.0
+    nb = {needle[i:i + 2] for i in range(len(needle) - 1)}
+    hb = {haystack[i:i + 2] for i in range(len(haystack) - 1)}
+    if not nb:
+        return 0.0
+    return len(nb & hb) / len(nb)
 
 
 def parse_markdown_sections(md_text: str) -> List[Dict]:
@@ -85,16 +98,31 @@ def derive_golden_sections(item: Dict, kb_dir: Optional[Path] = None) -> List[st
     if not sources or not key_points:
         return []
     hits: List[str] = []
-    for src in sources:
-        for sec in load_sections(src, kb_dir):
-            sec_norm = normalize(sec.get("text", ""))
-            if not sec_norm:
-                continue
-            for kp in key_points:
-                kp_norm = normalize(str(kp))
-                if kp_norm and (kp_norm in sec_norm or sec_norm in kp_norm):
-                    hits.append(f"{src}::{sec.get('title', sec.get('id',''))}")
-                    break
+    for kp in key_points:
+        kp_norm = normalize(str(kp))
+        if not kp_norm:
+            continue
+        best: Optional[Tuple[float, str]] = None  # (score, src::title)
+        for src in sources:
+            for sec in load_sections(src, kb_dir):
+                sec_norm = normalize(sec.get("text", ""))
+                if not sec_norm:
+                    continue
+                title_norm = normalize(sec.get("title", ""))
+                score = 0.0
+                if kp_norm and kp_norm in title_norm:
+                    # 小节标题直接命中（如错误码 E013 的专属小节）→ 最高
+                    score = 3.0
+                elif kp_norm in sec_norm:
+                    score = 2.0  # 正文精确子串
+                else:
+                    ratio = _bigram_overlap_ratio(kp_norm, sec_norm)
+                    if ratio >= 0.5:
+                        score = 0.5 + ratio  # 最高 1.5，永远低于精确匹配
+                if score > 0 and (best is None or score > best[0]):
+                    best = (score, f"{src}::{sec.get('title', sec.get('id', ''))}")
+        if best is not None:
+            hits.append(best[1])
     return sorted(set(hits))
 
 

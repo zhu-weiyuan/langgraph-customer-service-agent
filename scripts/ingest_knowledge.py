@@ -89,6 +89,16 @@ def run_ingest(kb_dir: Path, child_size: int, parent_size: int,
     print(f"[ingest] ensuring schema (equivalent to migrations/001_hybrid_rag.sql)")
     store.ensure_schema()
 
+    # 语料清单 + 指纹（防删除危险：manifest 外旧文档会被清理）
+    import hashlib
+    manifest = {md.stem: md.name for md in md_files}
+    h = hashlib.sha256()
+    for md in md_files:
+        h.update(md.name.encode("utf-8"))
+        h.update(md.read_bytes())
+    corpus_hash = h.hexdigest()[:12]
+    print(f"[ingest] manifest={len(manifest)} files, corpus_hash={corpus_hash}")
+
     total = {"parents": 0, "children": 0}
     for i, md in enumerate(md_files, 1):
         text = md.read_text(encoding="utf-8")
@@ -102,8 +112,25 @@ def run_ingest(kb_dir: Path, child_size: int, parent_size: int,
         total["parents"] += counts["parents"]
         total["children"] += counts["children"]
 
+    # 陈旧文档检测：库中 doc_id 不在当前 manifest → 删除（级联删 chunk）
+    with store._connect().cursor() as cur:
+        cur.execute("SELECT doc_id FROM rag_documents")
+        existing = {r[0] for r in cur.fetchall()}
+        stale = sorted(existing - set(manifest))
+        if stale:
+            print(f"[ingest] stale docs (deleted from KB but still indexed): {stale}")
+            cur.execute(
+                "DELETE FROM rag_documents WHERE doc_id = ANY(%s)", (stale,))
+            print(f"[ingest] deleted {len(stale)} stale doc(s) + their chunks")
+        else:
+            print("[ingest] no stale docs")
+        cur.execute(
+            "UPDATE rag_documents SET corpus_hash = %s WHERE doc_id = ANY(%s)",
+            (corpus_hash, list(manifest)))
+
     print(f"[ingest] DONE files={len(md_files)} parents={total['parents']} "
-          f"children={total['children']} index_version={index_version}")
+          f"children={total['children']} index_version={index_version} "
+          f"corpus_hash={corpus_hash}")
     print("[ingest] 验证：python scripts/eval_retrieval.py --backend pgvector")
     return 0
 

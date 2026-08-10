@@ -1,4 +1,4 @@
--- ============================================================================
+﻿-- ============================================================================
 -- 001_hybrid_rag.sql — 混合检索（pgvector + 全文）基础表结构
 -- 幂等：可重复执行。与 agent/pgvector_hybrid.py 中 SCHEMA_SQL_TEMPLATE 保持一致。
 -- 向量维度默认 1024（nvidia/llama-nemotron-embed-vl-1b-v2）；
@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS rag_chunks (
     is_parent      BOOLEAN NOT NULL DEFAULT FALSE,
     title          TEXT NOT NULL DEFAULT '',
     source         TEXT NOT NULL DEFAULT '',
+    section        TEXT NOT NULL DEFAULT '',   -- 小节标题（markdown heading），section 级命中评测用
     tenant_id      TEXT,
     tags           TEXT[] NOT NULL DEFAULT '{}',
     content        TEXT NOT NULL,
