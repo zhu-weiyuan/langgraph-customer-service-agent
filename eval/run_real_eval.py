@@ -72,6 +72,7 @@ REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_K = 5
 LLM_MAX_TOKENS = 2048  # reasoning 模型需要足够 token 才输出正式回答
 LLM_TIMEOUT = 240
+JUDGE_MAX_TOKENS = 4096  # judge 输出限长放宽：verbose reason 截断是 CP/CR 解析失败的根因
 
 # ── LLM prompts ──────────────────────────────────────────────
 
@@ -103,7 +104,7 @@ CITATION_CHECK_PROMPT = """你是引用准确性评审。下面是一个回答�
 
 请对回答中的每个 [n] 引用判断：该位置的结论是否确实由编号为 n 的资料支撑。
 
-返回 JSON（只输出 JSON，不要 markdown）：
+返回 JSON（只输出 JSON，不要 markdown，reason 不超过 15 字）：
 {{"citations": [{{"n": 1, "supported": true, "reason": "简述"}}], "citation_accuracy": 0.75}}
 其中 citation_accuracy = 被支撑的引用数 / 总引用数；回答中没有任何 [n] 引用时返回 citation_accuracy=0。"""
 
@@ -117,8 +118,8 @@ FAITHFULNESS_PROMPT = """你是事实核查专家。判断回答中的每个陈�
 
 请逐句分析回答中的陈述，判断是否有无根据的内容（参考资料中未提及或与之矛盾的信息）。
 
-返回 JSON（只输出 JSON）：
-{{"faithful": true/false, "unfounded_claims": ["无依据的陈述1", ...], "faithfulness": 0.8, "reason": "简述"}}
+返回 JSON（只输出 JSON，reason 不超过 20 字）：
+{{"faithful": true/false, "unfounded_claims": ["无依据的陈述1"], "faithfulness": 0.8, "reason": "简述"}}
 其中 faithfulness = 有依据的陈述占比（0~1）"""
 
 ANSWER_RELEVANCY_PROMPT = """你是回答相关性评审。判断回答是否真正回应了用户的问题。
@@ -136,23 +137,23 @@ ANSWER_RELEVANCY_PROMPT = """你是回答相关性评审。判断回答是否真
 - 2：勉强相关，大部分内容答非所问
 - 1：完全不相关或答非所问
 
-返回 JSON（只输出 JSON）：
+返回 JSON（只输出 JSON，reason 不超过 15 字）：
 {{"score": 4, "reason": "简述"}}"""
 
-CONTEXT_PRECISION_PROMPT = """你是上下文质量评审。判断以下每个参考资料条目是否与用户问题相关（有用信息）。
+CONTEXT_PRECISION_SINGLE_PROMPT = """你是上下文质量评审。判断下面这一个参考资料条目是否与用户问题相关（包含回答该问题所需的信息）。
 
 【用户问题】
 {query}
 
-【参考资料条目】
-{context}
+【单个参考资料条目】
+{entry}
 
-对每个条目判断 relevance：
+判定：
 - 包含回答问题所需的信息 → relevant=true
 - 与问题无关或只是噪声 → relevant=false
 
-返回 JSON（只输出 JSON）：
-{{"relevance": [{{"n": 1, "relevant": true, "reason": "简述"}}, ...]}}"""
+只输出 JSON（不要 markdown，reason 不超过 15 字）：
+{{"relevant": true/false, "reason": "简述"}}"""
 
 CONTEXT_RECALL_PROMPT = """你是上下文召回完整性评审。判断参考资料是否覆盖了回答该问题所需的全部关键信息。
 
@@ -167,7 +168,7 @@ CONTEXT_RECALL_PROMPT = """你是上下文召回完整性评审。判断参考�
 
 请判断：参考资料是否包含了上述每个要点所需的信息？
 
-返回 JSON（只输出 JSON）：
+只输出 JSON（不要 markdown，每条 reason 不超过 15 字）：
 {{"points": [{{"point": "要点简述", "covered": true/false, "reason": "简述"}}], "context_recall": 0.75}}
 其中 context_recall = 被覆盖的要点占比"""
 
@@ -221,7 +222,7 @@ class RealEvaluator:
     def __init__(self, k: int = DEFAULT_K, max_items: Optional[int] = None,
                  layer_filter: Optional[str] = None, ids: Optional[List[str]] = None,
                  dataset: Optional[Path] = None, verbose: bool = True,
-                 multi_turn: bool = False):
+                 multi_turn: bool = False, repeat: int = 1):
         self.k = k
         self.max_items = max_items
         self.layer_filter = layer_filter
@@ -229,6 +230,7 @@ class RealEvaluator:
         self.dataset = dataset or GOLDEN_SET
         self.verbose = verbose
         self.multi_turn = bool(multi_turn)
+        self.repeat = max(1, int(repeat))
         self.llm = self._build_llm()
         self._llm_warm = False
         self.judge_raw_log: List[Dict[str, Any]] = []  # 每次 judge 调用的原始响应（步骤2分析用）
@@ -299,12 +301,13 @@ class RealEvaluator:
 
     # ── LLM call ─────────────────────────────────────────────
 
-    def _chat(self, prompt: str, system: str = SYSTEM_JUDGE) -> str:
+    def _chat(self, prompt: str, system: str = SYSTEM_JUDGE,
+              max_tokens: int = LLM_MAX_TOKENS) -> str:
         return self.llm.chat(
             [{"role": "system", "content": system},
              {"role": "user", "content": prompt}],
             temperature=0.1,
-            max_tokens=LLM_MAX_TOKENS,
+            max_tokens=max_tokens,
         )
 
     def _chat_json_full(self, prompt: str, metric: str) -> Tuple[Dict[str, Any], str, bool]:
@@ -312,12 +315,13 @@ class RealEvaluator:
 
         Returns: (data, raw_text, parse_ok)
         """
-        raw = self._chat(prompt)
+        raw = self._chat(prompt, max_tokens=JUDGE_MAX_TOKENS)
         data = extract_json(raw)
         retries = 0
         if data is None:
             retries = 1
-            raw2 = self._chat(prompt + "\n\n只输出合法 JSON，不要包含任何解释或 markdown。")
+            raw2 = self._chat(prompt + "\n\n只输出合法 JSON，不要包含任何解释或 markdown。",
+                              max_tokens=JUDGE_MAX_TOKENS)
             data = extract_json(raw2)
             if data is not None:
                 raw = raw2
@@ -464,27 +468,52 @@ class RealEvaluator:
             raw_score = float(data.get("score"))
         except (TypeError, ValueError):
             raw_score = None
-        rel = (raw_score / 5.0) if raw_score is not None else (None if not parse_ok else 3.0 / 5.0)
-        return {"answer_relevancy": rel, "raw_score": raw_score,
+        if raw_score is None:
+            # 解析成功但缺 score 字段：不猜默认分，记 None（诚实）
+            return {"answer_relevancy": None, "raw_score": None,
+                    "reason": data.get("reason", "") or "judge 返回缺 score 字段",
+                    "parse_ok": False, "judge_raw": raw}
+        return {"answer_relevancy": raw_score / 5.0, "raw_score": raw_score,
                 "reason": data.get("reason", ""), "parse_ok": parse_ok,
                 "judge_raw": raw if not parse_ok else ""}
 
     def judge_context_precision(self, query: str,
                                 contexts: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """上下文精度：逐条目独立调用 judge（避免长上下文截断导致解析失败）。
+
+        每个条目一次短调用（单条 ≤2000 字符），relevance 判定互不影响；
+        任一条目解析失败 → 该条目记为 None，整体 CP 记 None（诚实，不猜 0）。
+        """
         if not contexts:
             return {"context_precision": 0.0, "reason": "no contexts", "parse_ok": True}
-        prompt = CONTEXT_PRECISION_PROMPT.format(
-            query=query, context="\n\n".join(self._ctx_parts(contexts)))
-        data, raw, parse_ok = self._chat_json_full(prompt, metric="context_precision")
-        relevance = data.get("relevance") or []
-        if not relevance:
-            return {"context_precision": None if not parse_ok else 0.0,
-                    "reason": "no relevance data" if parse_ok else "judge parse failed",
-                    "parse_ok": parse_ok, "judge_raw": raw if not parse_ok else ""}
-        relevant = sum(1 for r in relevance if r.get("relevant"))
-        return {"context_precision": relevant / len(relevance),
-                "relevant_count": relevant, "total": len(relevance),
-                "parse_ok": parse_ok, "judge_raw": raw if not parse_ok else ""}
+        relevances: List[Optional[bool]] = []
+        failed = 0
+        details = []
+        for i, h in enumerate(contexts, 1):
+            content = (h.get("content") or h.get("text") or "")[:2000]
+            src = h.get("source", "")
+            entry = f"[{i}] (来源: {src})\n{content}"
+            data, raw, parse_ok = self._chat_json_full(
+                CONTEXT_PRECISION_SINGLE_PROMPT.format(query=query, entry=entry),
+                metric=f"context_precision[{i}]",
+            )
+            rel = data.get("relevant")
+            if rel is None:
+                failed += 1
+                relevances.append(None)
+            else:
+                relevances.append(bool(rel))
+            details.append({"n": i, "source": src, "relevant": rel,
+                            "reason": data.get("reason", "")[:120]})
+        if failed:
+            return {"context_precision": None,
+                    "reason": f"{failed}/{len(contexts)} 条目 judge 解析失败",
+                    "parse_ok": False, "details": details,
+                    "judge_raw": ""}
+        relevant = sum(1 for r in relevances if r)
+        return {"context_precision": relevant / len(relevances),
+                "relevant_count": relevant, "total": len(relevances),
+                "details": details, "parse_ok": True, "judge_raw": ""}
 
     def judge_context_recall(self, query: str, item: Dict[str, Any],
                              contexts: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -560,6 +589,36 @@ class RealEvaluator:
                 return i
         return None
 
+    def section_hit_at_k(self, retrieved: List[Dict[str, Any]],
+                         golden_sections: set) -> Optional[float]:
+        """小节级命中：检索条目的 (source::section) 配对 ∈ golden_sections。
+
+        golden_sections 由 derive_golden_sections 生成，格式为 "src::小节标题"；
+        若数据集是纯标题（不含 ::），则退化为按 section 标题匹配。
+        """
+        if not golden_sections:
+            return None
+        use_pairs = any("::" in str(g) for g in golden_sections)
+        for h in retrieved[: self.k]:
+            if use_pairs:
+                pair = f"{h.get('source', '')}::{h.get('section', '')}"
+                if pair in golden_sections:
+                    return 1.0
+            else:
+                if h.get("section") in golden_sections:
+                    return 1.0
+        return 0.0
+
+    def chunk_hit_at_k(self, retrieved: List[Dict[str, Any]],
+                       golden_chunk_ids: set) -> Optional[float]:
+        """块级命中：任一检索条目的 chunk_id ∈ golden_chunk_ids。"""
+        if not golden_chunk_ids:
+            return None
+        for h in retrieved[: self.k]:
+            if h.get("id") in golden_chunk_ids:
+                return 1.0
+        return 0.0
+
     # ── per-item evaluation ──────────────────────────────────
 
     def evaluate_item(self, item: Dict[str, Any]) -> Dict[str, Any]:
@@ -578,8 +637,12 @@ class RealEvaluator:
             "difficulty": item.get("difficulty", ""), "query": query,
             "should_refuse": should_refuse,
             "golden_sources": sorted(golden),
+            "golden_sections": sorted(item.get("golden_sections") or []),
+            "golden_chunk_ids": sorted(item.get("golden_chunk_ids") or []),
             "retrieved_sources": [h.get("source", "") for h in retrieved],
             "retrieved_titles": [h.get("title", "") for h in retrieved],
+            "retrieved_sections": [h.get("section", "") for h in retrieved],
+            "retrieved_chunk_ids": [h.get("id", "") for h in retrieved],
             "rerank_scores": [round(float(h.get("rerank_score", 0) or 0), 4) for h in retrieved],
             "reranker_provider": (retrieved[0].get("reranker_provider", "") if retrieved else ""),
             **backend_info,
@@ -589,6 +652,10 @@ class RealEvaluator:
         result["hit_rate_at_k"] = self.hit_rate_at_k(retrieved, golden)
         result["mrr"] = self.mrr(retrieved, golden)
         result["hit_position"] = self.first_hit_position(retrieved, golden)
+        result["section_hit_at_k"] = self.section_hit_at_k(
+            retrieved, set(item.get("golden_sections") or []))
+        result["chunk_hit_at_k"] = self.chunk_hit_at_k(
+            retrieved, set(item.get("golden_chunk_ids") or []))
 
         # 3. generation 层（需 LLM）
         if layer == "generation":
@@ -665,20 +732,28 @@ class RealEvaluator:
         items = self.load_dataset()
         self._conversation_ids = {it["id"] for it in items if it.get("conversation")}
         print(f"评估数据集: {self.dataset} ({len(items)} 条, k={self.k}, "
-              f"multi_turn={self.multi_turn})")
+              f"multi_turn={self.multi_turn}, repeat={self.repeat})")
         meta = self.collect_meta()
         meta["dataset_items"] = len(items)
+        meta["repeat"] = self.repeat
         results = []
-        for idx, item in enumerate(items, 1):
-            print(f"[{idx}/{len(items)}] {item['id']} ({item['layer']}/{item['difficulty']}) {item['query'][:40]} ...")
-            try:
-                r = self.evaluate_item(item)
-                results.append(r)
-                self._print_item_summary(r)
-            except Exception as exc:  # noqa: BLE001
-                print(f"    [ERROR] {exc}")
-                results.append({"id": item["id"], "error": str(exc),
-                                "query": item["query"]})
+        total = len(items) * self.repeat
+        idx = 0
+        for attempt in range(1, self.repeat + 1):
+            for item in items:
+                idx += 1
+                tag = f" (att {attempt}/{self.repeat})" if self.repeat > 1 else ""
+                print(f"[{idx}/{total}]{tag} {item['id']} "
+                      f"({item['layer']}/{item['difficulty']}) {item['query'][:40]} ...")
+                try:
+                    r = self.evaluate_item(item)
+                    r["attempt"] = attempt
+                    results.append(r)
+                    self._print_item_summary(r)
+                except Exception as exc:  # noqa: BLE001
+                    print(f"    [ERROR] {exc}")
+                    results.append({"id": item["id"], "error": str(exc),
+                                    "query": item["query"], "attempt": attempt})
         return self._aggregate(results, meta)
 
     def _print_item_summary(self, r: Dict[str, Any]) -> None:
@@ -734,6 +809,13 @@ class RealEvaluator:
                 # 检索指标：只统计非拒答题（有 golden 的）
                 "hit_rate_at_k": mean([r["hit_rate_at_k"] for r in normal]),
                 "mrr": mean([r["mrr"] for r in normal]),
+                # 小节/块级命中：数据集有 golden_sections/chunk_ids 才算
+                "section_hit_rate_at_k": mean(
+                    [r["section_hit_at_k"] for r in normal
+                     if r.get("golden_sections")]),
+                "chunk_hit_rate_at_k": mean(
+                    [r["chunk_hit_at_k"] for r in normal
+                     if r.get("golden_chunk_ids")]),
                 # 生成指标：只统计非拒答 generation 题
                 "context_recall": mean([r["generation"]["context_recall"] for r in gen_normal]),
                 "context_precision": mean([r["generation"]["context_precision"] for r in gen_normal]),
@@ -770,8 +852,32 @@ class RealEvaluator:
             },
             "by_difficulty": {},
             "by_category": {},
+            "by_item": {},
             "items": results,
         }
+
+        # 重复运行（--repeat>1）：按 id 汇总均值 ± 标准差，量化单条波动
+        if self.repeat > 1:
+            from statistics import mean as _mean, stdev as _stdev
+            by_id = defaultdict(list)
+            for r in ok:
+                by_id[r["id"]].append(r)
+            for iid, grp in by_id.items():
+                gen_grp = [r["generation"] for r in grp if "generation" in r]
+                entry: Dict[str, Any] = {"n": len(grp)}
+                for key in ("hit_rate_at_k", "mrr"):
+                    vals = [r[key] for r in grp if r.get(key) is not None]
+                    entry[key] = (round(_mean(vals), 4) if vals else None)
+                    if len(vals) > 1:
+                        entry[f"{key}_std"] = round(_stdev(vals), 4)
+                if gen_grp:
+                    for key in ("context_recall", "context_precision", "faithfulness",
+                                "answer_relevancy", "citation_accuracy"):
+                        vals = [g[key] for g in gen_grp if g.get(key) is not None]
+                        entry[key] = (round(_mean(vals), 4) if vals else None)
+                        if len(vals) > 1:
+                            entry[f"{key}_std"] = round(_stdev(vals), 4)
+                agg["by_item"][iid] = entry
 
         for key in ("by_difficulty", "by_category"):
             groups = defaultdict(list)
@@ -833,6 +939,10 @@ class RealEvaluator:
             "|------|------|------|",
             f"| Hit Rate@{meta.get('k', '?')} | 正确证据是否出现在前 K 个结果里 | **{pct(m['hit_rate_at_k'])}** |",
             f"| MRR | 第一个正确证据排得有多靠前 | **{('N/A' if m['mrr'] is None else format(m['mrr'], '.3f'))}** |",
+            (f"| Section Hit@{meta.get('k', '?')} | 正确小节是否出现在前 K 个结果里（测精排） | **{pct(m.get('section_hit_rate_at_k'))}** |"
+             if m.get('section_hit_rate_at_k') is not None else ""),
+            (f"| Chunk Hit@{meta.get('k', '?')} | 正确块是否出现在前 K 个结果里 | **{pct(m.get('chunk_hit_rate_at_k'))}** |"
+             if m.get('chunk_hit_rate_at_k') is not None else ""),
             f"| Context Recall | 回答所需证据是否被找全 | **{pct(m['context_recall'])}** |",
             f"| Context Precision | 放入上下文的内容有多少真的相关 | **{pct(m['context_precision'])}** |",
             f"| Faithfulness | 答案能否被上下文支撑 | **{pct(m['faithfulness'])}** |",
@@ -887,12 +997,30 @@ class RealEvaluator:
                     f"{fmt(g.get('citation_accuracy'))} | {fmt(g.get('refusal_correctness'))} |")
             lines.append("")
 
-        lines += ["## 逐条明细", "",
-                  "| ID | 难度 | 问题 | 拒答 | Hit | MRR | 引用 | 忠实 | 相关 | 召回 | 精度 |",
-                  "|----|------|------|------|-----|-----|------|------|------|------|------|"]
+        if agg.get("by_item"):
+            lines += ["## 逐题重复统计（--repeat>1，均值±std）", "",
+                      "| ID | N | Hit | MRR | C.Recall | C.Precision | Faith. | Rel. | Cit.Acc |",
+                      "|----|---|-----|-----|----------|-------------|--------|------|---------|"]
+            for iid, g in sorted(agg["by_item"].items()):
+                def fmt2(v, std=None):
+                    if v is None:
+                        return "N/A"
+                    s = f"±{std:.2f}" if std is not None else ""
+                    return f"{v:.2f}{s}"
+                lines.append(
+                    f"| {iid} | {g['n']} | {fmt2(g.get('hit_rate_at_k'))} | {fmt2(g.get('mrr'))} | "
+                    f"{fmt2(g.get('context_recall'), g.get('context_recall_std'))} | "
+                    f"{fmt2(g.get('context_precision'), g.get('context_precision_std'))} | "
+                    f"{fmt2(g.get('faithfulness'), g.get('faithfulness_std'))} | "
+                    f"{fmt2(g.get('answer_relevancy'), g.get('answer_relevancy_std'))} | "
+                    f"{fmt2(g.get('citation_accuracy'), g.get('citation_accuracy_std'))} |")
+            lines.append("")
+            lines += ["## 逐条明细", "",
+                      "| ID | 难度 | 问题 | 拒答 | Hit | MRR | SecHit | 引用 | 忠实 | 相关 | 召回 | 精度 |",
+                      "|----|------|------|------|-----|-----|--------|------|------|------|------|------|"]
         for r in agg["items"]:
             if "error" in r:
-                lines.append(f"| {r['id']} | - | {r.get('query','')[:30]} | ERROR | | | | | | | |")
+                lines.append(f"| {r['id']} | - | {r.get('query','')[:30]} | ERROR | | | | | | | | |")
                 continue
             g = r.get("generation", {})
             fmt = lambda v: ("N/A" if v is None else f"{v:.2%}")  # noqa: E731
@@ -900,11 +1028,13 @@ class RealEvaluator:
                 f" {g.get('refusal_detected')}" if r.get("should_refuse") else "")
             hit = r.get("hit_rate_at_k")
             mrr = r.get("mrr")
+            sec_hit = r.get("section_hit_at_k")
             hit_s = "N/A" if hit is None else f"{hit:.0%}"
             mrr_s = "N/A" if mrr is None else f"{mrr:.2f}"
+            sec_s = "N/A" if sec_hit is None else f"{sec_hit:.0%}"
             lines.append(
-                f"| {r['id']} | {r['difficulty']} | {r['query'][:24]} | {refuse_cell} | "
-                f"{hit_s} | {mrr_s} | {fmt(g.get('citation_accuracy'))} | "
+                f"| {r['id']} | {r['difficulty']} | {r['query'][:22]} | {refuse_cell} | "
+                f"{hit_s} | {mrr_s} | {sec_s} | {fmt(g.get('citation_accuracy'))} | "
                 f"{fmt(g.get('faithfulness'))} | {fmt(g.get('answer_relevancy'))} | "
                 f"{fmt(g.get('context_recall'))} | {fmt(g.get('context_precision'))} |")
         lines.append("")
@@ -923,6 +1053,8 @@ def main() -> None:
     ap.add_argument("--quiet", action="store_true", help="不打印逐条明细")
     ap.add_argument("--multi-turn", action="store_true",
                     help="多轮模式：注入数据集中 conversation 前缀轮次作为历史")
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="每条重复跑 N 次（量化单条波动，均值±std）")
     ap.add_argument("--permissive", action="store_true",
                     help="关闭严格模式（不强制 RAG_STRICT=1 / 缓存 TTL=0；pgvector 失败将静默回落 TF-IDF）")
     args = ap.parse_args()
@@ -942,7 +1074,8 @@ def main() -> None:
 
     ev = RealEvaluator(k=args.k, max_items=limit, layer_filter=layer, ids=ids,
                        dataset=Path(args.dataset) if args.dataset else None,
-                       verbose=not args.quiet, multi_turn=args.multi_turn)
+                       verbose=not args.quiet, multi_turn=args.multi_turn,
+                       repeat=args.repeat)
     agg = ev.run()
 
     md = RealEvaluator.to_markdown(agg)

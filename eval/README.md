@@ -72,13 +72,19 @@
 - 引用校验：`n` 越界（> 检索条目数）一律记为不支持，并记录
   `citation_out_of_range`；逐条记录 `citation_markers_in_answer` 与
   `citation_detail` 对照（审计发现 41/85 条数量不一致，现在可量化）。
+- **Judge 上下文预算**：CP 改为逐条目独立调用（每条 ≤2000 字符），CR/CA/Faith/AR
+  限制 judge 输出长度 + judge max_tokens 4096 —— 本地 27B-Q2 上长上下文截断
+  导致的解析失败已消除（实测 2 次运行 0 失败）。
+- **小节/块级命中**：数据集已补 `golden_sections`（`src::小节标题`，由
+  key_points 对 KB 章节推导）与 `golden_chunk_ids`（pgvector 小节对应块）；
+  报告新增 SecHit / ChunkHit 指标（README 早年声称的“文件+小节级”终于落实）。
+- `--repeat N`：关键题重复 N 次跑，报告输出逐题均值±std（量化 LLM 波动）。
 - 每次运行记录 meta：git commit、语料 corpus hash、embedding/reranker/LLM 模型、
   RAG_STRICT/TTL、multi_turn，报告头部可溯源。
 
-### 已知局限（步骤 2/3 处理）
+### 已知局限（步骤 4/5 处理）
 
-- 小节级/块级 golden 命中（golden_sections / golden_chunk_ids）尚未实现——数据集
-  目前只有文件级 `golden_context_ids`，rerank 的真实增益仍需同题 A/B 才能量化。
-- 误拒答率为规则启发式，可能有误报；judge 侧对超长上下文的截断导致部分
-  CP/CR 解析失败（已可见、可计数）。
+- parent(1200字符) 合并导致部分小节标签不精确（如 E013 内容所在 parent 块可能标为
+  E011）——SecHit 与 ChunkHit 结合看，ChunkHit 更接近真实命中。
+- 误拒答率为规则启发式，可能有误报。
 - `--all` 默认跑 v2 85 条；旧 `golden_set.jsonl`（63 条）需 `--dataset` 显式指定。
