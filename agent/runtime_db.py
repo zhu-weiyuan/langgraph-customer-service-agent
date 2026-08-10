@@ -187,7 +187,10 @@ def init_runtime_schema() -> None:
     with connection() as conn:
         for path in migration_files:
             if path.exists():
-                conn.execute(path.read_text(encoding="utf-8"))
+                # 防御：剥离 UTF-8 BOM（Windows 编辑器/脚本重写易带入），
+                # 否则 SQL 首字符为 BOM 导致 syntax error at or near "?"
+                sql = path.read_text(encoding="utf-8-sig")
+                conn.execute(sql)
 
 
 def json_value(value: Any, default: Any) -> Any:

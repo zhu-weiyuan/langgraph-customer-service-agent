@@ -93,7 +93,7 @@ def main() -> None:
             return
 
         for f in pending:
-            sql = f.read_text(encoding="utf-8")
+            sql = f.read_text(encoding="utf-8-sig")  # 剥离 BOM，防 syntax error at or near "?"
             with conn.cursor() as cur:
                 print(f"[apply] {f.name} ...", end="", flush=True)
                 try:
