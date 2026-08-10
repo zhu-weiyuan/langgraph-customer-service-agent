@@ -417,10 +417,13 @@ class MemoryStore:
                     source_session TEXT,
                     dedup_key      TEXT UNIQUE,
                     embedding_error TEXT,
-                    is_deleted     BOOLEAN NOT NULL DEFAULT FALSE
+                    is_deleted     BOOLEAN NOT NULL DEFAULT FALSE,
+                    superseded_at  DOUBLE PRECISION
                 );
                 ALTER TABLE user_memories
                     ADD COLUMN IF NOT EXISTS embedding_error TEXT;
+                ALTER TABLE user_memories
+                    ADD COLUMN IF NOT EXISTS superseded_at DOUBLE PRECISION;
                 CREATE INDEX IF NOT EXISTS idx_um_user
                     ON user_memories(user_id, tenant_id);
             """)

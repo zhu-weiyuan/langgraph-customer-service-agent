@@ -182,6 +182,7 @@ def init_runtime_schema() -> None:
         ROOT / "migrations" / "002_runtime_postgres.sql",
         ROOT / "migrations" / "003_complete_postgres_runtime.sql",
         ROOT / "migrations" / "004_refresh_tokens.sql",
+        ROOT / "migrations" / "005_user_memory_schema_fix.sql",
     ]
     with connection() as conn:
         for path in migration_files:

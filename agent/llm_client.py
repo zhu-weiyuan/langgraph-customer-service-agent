@@ -35,6 +35,16 @@ BASE_DELAY = 1.0       # 首次重试等待1秒
 MAX_DELAY = 30.0       # 最长等待30秒
 JITTER = 1.0           # 随机抖动±1秒
 
+# ── 超时配置 ─────────────────────────────────────────────
+def _resolve_timeout() -> float:
+    """Resolve LLM HTTP timeout from env or default (120s)."""
+    try:
+        return max(1.0, float(os.getenv("LLM_TIMEOUT", "120")))
+    except (TypeError, ValueError):
+        return 120.0
+
+DEFAULT_LLM_TIMEOUT = _resolve_timeout()
+
 # 可重试的HTTP状态码
 RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
 
@@ -50,6 +60,7 @@ class LLMClient:
         temperature: float = 0.7,
         max_tokens: int = 2000,  # mimov2.5 needs higher tokens due to reasoning
         use_gateway: Optional[bool] = None,
+        timeout: Optional[float] = None,
     ):
         # An explicit endpoint keeps the legacy direct HTTP client for compatibility;
         # the application singleton (no explicit arguments) uses the unified gateway.
@@ -76,6 +87,7 @@ class LLMClient:
         self.model = model or os.getenv("OPENAI_MODEL") or "mimo-v2.5"
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.timeout = timeout if timeout is not None else DEFAULT_LLM_TIMEOUT
 
     def _load_env(self, path: Path):
         """Load .env file."""
@@ -184,7 +196,7 @@ class LLMClient:
         last_exception = None
         for attempt in range(max_retries + 1):
             try:
-                response = requests.post(url, headers=headers, json=payload, timeout=120)
+                response = requests.post(url, headers=headers, json=payload, timeout=self.timeout)
 
                 # 成功
                 if response.status_code == 200:
@@ -424,7 +436,7 @@ class LLMClient:
             try:
                 with requests.post(
                     url, headers=headers, json=payload,
-                    timeout=120, stream=True
+                    timeout=self.timeout, stream=True
                 ) as resp:
                     resp.raise_for_status()
                     # 关键修复：不依赖 requests 的自动解码（可能用 Latin-1 损坏 UTF-8），
