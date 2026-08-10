@@ -221,22 +221,37 @@ export const useUiStore = defineStore('ui', {
     },
 
     /**
+     * Force a fresh access JWT from the HttpOnly rotating refresh cookie.
+     *
+     * This is also needed when the browser still holds an access token that
+     * was issued before a backend restart or has expired while the backend is
+     * running in local development mode. In that mode an invalid token can be
+     * resolved as an anonymous request instead of returning 401.
+     */
+    async refreshAccessSession(): Promise<boolean> {
+      try {
+        const refreshed = await refreshSession()
+        if (!refreshed) return false
+        this.auth.userId = refreshed.user_id
+        this.auth.username = this.auth.username || refreshed.user_id
+        this.auth.token = refreshed.access_token
+        this.auth.isLoggedIn = true
+        this._syncClientAuth()
+        this._persistAuth()
+        return true
+      } catch {
+        return false
+      }
+    },
+
+    /**
      * Establish and verify the current browser session before user-scoped data
      * is loaded. Access JWTs are memory-only, so a page reload first exchanges
      * the HttpOnly rotating refresh cookie for a fresh access token.
      */
     async verifyMe(): Promise<boolean> {
       try {
-        if (!this.auth.token) {
-          const refreshed = await refreshSession()
-          if (!refreshed) return false
-          this.auth.userId = refreshed.user_id
-          this.auth.username = this.auth.username || refreshed.user_id
-          this.auth.token = refreshed.access_token
-          this.auth.isLoggedIn = true
-          this._syncClientAuth()
-          this._persistAuth()
-        }
+        if (!this.auth.token && !(await this.refreshAccessSession())) return false
 
         const me = await fetchMe()
         if (!me.authenticated || me.auth_scheme !== 'jwt') return false

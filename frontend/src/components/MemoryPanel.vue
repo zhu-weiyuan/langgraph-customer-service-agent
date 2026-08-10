@@ -67,18 +67,25 @@ function close() {
         助手将不再据此为你服务。
       </p>
 
-      <div v-if="chat.memoriesLoading" class="memory-empty">
+      <div v-if="chat.memoriesError" class="memory-load-error" role="alert">
+        <strong>长期记忆刷新失败</strong>
+        <p>{{ chat.memoriesError }}</p>
+        <small v-if="chat.memories.length">已保留上次成功加载的 {{ chat.memories.length }} 条记忆。</small>
+      </div>
+
+      <div v-if="chat.memoriesLoading && !chat.memories.length" class="memory-empty">
         <div class="orb">◌</div>
         <p>正在加载记忆…</p>
       </div>
 
-      <div v-else-if="!chat.memories.length" class="memory-empty">
+      <div v-else-if="!chat.memories.length && !chat.memoriesError" class="memory-empty">
         <div class="orb">◌</div>
         <p>还没有任何长期记忆</p>
         <small>多和助手聊聊，它会记住你的偏好、身份与历史问题。</small>
       </div>
 
-      <div v-else class="memory-groups">
+      <div v-else-if="chat.memories.length" class="memory-groups">
+        <p v-if="chat.memoriesLoading" class="memory-refreshing" aria-live="polite">正在刷新记忆…</p>
         <section v-for="group in groups" :key="group.kind" class="memory-group">
           <div class="memory-group-heading">
             <span class="memory-group-icon">{{ group.icon }}</span>

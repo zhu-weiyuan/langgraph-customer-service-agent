@@ -181,3 +181,77 @@ def test_create_token_weak_secret_rejected():
             raise AssertionError("Expected ValueError for weak secret")
         except ValueError as e:
             assert "at least 32 bytes" in str(e)
+
+
+# ── Auth endpoint rate limiter ────────────────────────────────────────
+
+
+def test_auth_rate_limiter_blocks_after_max_attempts():
+    """IP should be blocked after max_attempts failures."""
+    from app_fastapi import _AuthRateLimiter
+    limiter = _AuthRateLimiter(max_attempts=3, window_seconds=60.0)
+    ip = "192.168.1.100"
+
+    # First 2 failures -- not blocked
+    limiter.record_failure(ip)
+    assert limiter.is_blocked(ip) is None
+    limiter.record_failure(ip)
+    assert limiter.is_blocked(ip) is None
+
+    # 3rd failure -- blocked
+    limiter.record_failure(ip)
+    retry_after = limiter.is_blocked(ip)
+    assert retry_after is not None
+    assert retry_after > 0
+
+
+def test_auth_rate_limiter_different_ips_independent():
+    """Rate limit is per-IP; different IPs are independent."""
+    from app_fastapi import _AuthRateLimiter
+    limiter = _AuthRateLimiter(max_attempts=2, window_seconds=60.0)
+
+    limiter.record_failure("10.0.0.1")
+    limiter.record_failure("10.0.0.1")
+    assert limiter.is_blocked("10.0.0.1") is not None
+    assert limiter.is_blocked("10.0.0.2") is None  # different IP
+
+
+def test_auth_rate_limiter_clear_resets():
+    """clear() should reset failure history for an IP."""
+    from app_fastapi import _AuthRateLimiter
+    limiter = _AuthRateLimiter(max_attempts=2, window_seconds=60.0)
+    ip = "10.0.0.1"
+
+    limiter.record_failure(ip)
+    limiter.record_failure(ip)
+    assert limiter.is_blocked(ip) is not None
+
+    limiter.clear(ip)
+    assert limiter.is_blocked(ip) is None
+
+
+def test_auth_rate_limiter_window_expiry():
+    """Expired entries should be cleaned up."""
+    import time as _time
+    from app_fastapi import _AuthRateLimiter
+    limiter = _AuthRateLimiter(max_attempts=2, window_seconds=0.1)  # 100ms window
+    ip = "10.0.0.1"
+
+    limiter.record_failure(ip)
+    limiter.record_failure(ip)
+    assert limiter.is_blocked(ip) is not None
+
+    _time.sleep(0.15)  # wait for window to expire
+    assert limiter.is_blocked(ip) is None
+
+
+def test_auth_rate_limiter_custom_config():
+    """Auth rate limiter respects env config."""
+    from app_fastapi import _AuthRateLimiter
+    limiter = _AuthRateLimiter(max_attempts=1, window_seconds=30.0)
+    ip = "10.0.0.1"
+
+    limiter.record_failure(ip)
+    retry_after = limiter.is_blocked(ip)
+    assert retry_after is not None
+    assert retry_after <= 30.0

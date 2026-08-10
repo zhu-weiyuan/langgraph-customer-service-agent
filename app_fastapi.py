@@ -31,6 +31,7 @@ import hashlib
 import json
 import logging
 import os
+import threading
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -131,6 +132,72 @@ _LIGHTWEIGHT_PROBE_PATHS = frozenset({
 
 def _is_lightweight_probe(path: str) -> bool:
     return path in _LIGHTWEIGHT_PROBE_PATHS
+
+
+# ── Auth endpoint rate limiter (per-IP sliding window) ────────────────
+# Prevents brute-force password attacks and mass account enumeration on
+# /api/auth/login and /api/auth/register.  Uses a simple in-memory
+# sliding-window counter — no Redis dependency, thread-safe via Lock.
+
+class _AuthRateLimiter:
+    """Per-IP sliding-window rate limiter for auth endpoints.
+
+    Tracks failed login + registration attempts per IP address.
+    When the count exceeds ``max_attempts`` within ``window_seconds``
+    seconds, subsequent requests are rejected with 429.
+
+    Successful logins do NOT count toward the limit (only failures).
+    This prevents legitimate users from being locked out by brute-force
+    attempts against other accounts from the same IP.
+    """
+
+    def __init__(self, max_attempts: int = 10, window_seconds: float = 60.0):
+        self._max_attempts = max_attempts
+        self._window_seconds = window_seconds
+        self._attempts: Dict[str, list[float]] = {}  # ip -> [timestamps]
+        self._lock = threading.Lock()
+
+    def _clean(self, ip: str, now: float) -> None:
+        """Remove expired entries for *ip*."""
+        cutoff = now - self._window_seconds
+        timestamps = self._attempts.get(ip, [])
+        # Prune from the front (timestamps are inserted in order)
+        self._attempts[ip] = [t for t in timestamps if t > cutoff]
+        if not self._attempts[ip]:
+            del self._attempts[ip]
+
+    def record_failure(self, ip: str) -> None:
+        """Record a failed auth attempt from *ip*."""
+        now = time.monotonic()
+        with self._lock:
+            self._clean(ip, now)
+            self._attempts.setdefault(ip, []).append(now)
+
+    def is_blocked(self, ip: str) -> Optional[float]:
+        """Return ``retry_after`` seconds if *ip* is blocked, else ``None``."""
+        now = time.monotonic()
+        with self._lock:
+            self._clean(ip, now)
+            timestamps = self._attempts.get(ip, [])
+            if len(timestamps) >= self._max_attempts:
+                oldest = timestamps[0]
+                retry_after = self._window_seconds - (now - oldest)
+                if retry_after > 0:
+                    return retry_after
+        return None
+
+    def clear(self, ip: str) -> None:
+        """Clear failure history for *ip* (e.g. after a successful login)."""
+        with self._lock:
+            self._attempts.pop(ip, None)
+
+
+_AUTH_RATE_LIMIT_MAX = int(os.getenv("AUTH_RATE_LIMIT_MAX", "10"))
+_AUTH_RATE_LIMIT_WINDOW = float(os.getenv("AUTH_RATE_LIMIT_WINDOW", "60"))
+_auth_limiter = _AuthRateLimiter(
+    max_attempts=_AUTH_RATE_LIMIT_MAX,
+    window_seconds=_AUTH_RATE_LIMIT_WINDOW,
+)
 
 try:
     READINESS_CACHE_SECONDS = max(
@@ -1433,20 +1500,41 @@ async def memory_list(request: Request) -> dict:
 
     褰㈢姸锛歿"user_id", "memories": [{id, content, kind, importance, created_at}]}
     """
+    user_id = _user_id_for_request(request)
+    tenant = _tenant_for_request(request)
     try:
         from agent.user_memory import get_memory_store
     except Exception:
-        return {"user_id": _user_id_for_request(request), "memories": [],
-                "error": "memory store unavailable"}
-    user_id = _user_id_for_request(request)
-    tenant = _tenant_for_request(request)
+        # A dependency failure must not look like a legitimate empty memory
+        # list. Keep the response shape stable while returning a 503 so the
+        # client can preserve the last known-good memories and show an error.
+        logger.exception("memory store unavailable")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "user_id": user_id,
+                "memories": [],
+                "error": "\u957f\u671f\u8bb0\u5fc6\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5",
+                "code": "memory_store_unavailable",
+            },
+        )
     try:
         items = await asyncio.to_thread(
             get_memory_store().list_memories, user_id, tenant)
         return {"user_id": user_id, "memories": items}
-    except Exception as exc:
-        logger.error("memory list failed: %s", exc)
-        return {"user_id": user_id, "memories": [], "error": str(exc)}
+    except Exception:
+        # Never convert a database/schema outage into []: that would make the
+        # UI claim that the user has no memories and can hide a real failure.
+        logger.exception("memory list failed")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "user_id": user_id,
+                "memories": [],
+                "error": "\u957f\u671f\u8bb0\u5fc6\u6682\u65f6\u65e0\u6cd5\u52a0\u8f7d\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5",
+                "code": "memory_query_failed",
+            },
+        )
 
 
 @app.post("/api/memory/backfill")
@@ -1529,13 +1617,33 @@ def _issue_user_token(user_id: str, tenant_id: str) -> Optional[str]:
 
 @app.post("/api/auth/register")
 async def auth_register(data: RegisterRequest, request: Request):
-    """创建用户；若 username/user_id 已存在，则返回 created=False。"""
+    """Create user; if username/user_id already exists, return created=False."""
     from agent import memory
     user_id = data.username.strip()
     tenant_id = data.tenant_id.strip() or "default"
+    client_ip = _client_ip(request)
+
+    # Per-IP auth rate limit (prevent mass account creation)
+    retry_after = _auth_limiter.is_blocked(client_ip)
+    if retry_after is not None:
+        logger.warning("auth_register rate-limited for ip=%s retry_after=%.1f",
+                       client_ip, retry_after)
+        raise HTTPException(
+            status_code=429,
+            detail="Too many registration attempts. Please try again later.",
+            headers={"Retry-After": str(int(retry_after) + 1)},
+        )
+
     res = await asyncio.to_thread(
         memory.create_user, user_id, data.password,
         data.display_name, tenant_id)
+    if not res["created"]:
+        # Existing user -- this is not a failure, just a no-op.
+        pass
+    else:
+        # New account created -- clear any failure history for this IP
+        # (successful creation means the IP is not an attacker).
+        _auth_limiter.clear(client_ip)
     token = _issue_user_token(user_id, tenant_id)
     payload = {"ok": True, "user_id": user_id, "created": res["created"],
                "access_token": token, "token_type": "bearer"}
@@ -1546,7 +1654,7 @@ async def auth_register(data: RegisterRequest, request: Request):
             user_id,
             tenant_id,
             user_agent=request.headers.get("user-agent", ""),
-            client_ip=_client_ip(request),
+            client_ip=client_ip,
         )
         _set_auth_cookies(response, grant.token)
     else:
@@ -1565,15 +1673,31 @@ async def auth_login(data: LoginRequest, request: Request):
     from agent import memory
     user_id = data.username.strip()
     tenant_id = data.tenant_id.strip() or "default"
+    client_ip = _client_ip(request)
+
+    # Per-IP auth rate limit (brute-force defence)
+    retry_after = _auth_limiter.is_blocked(client_ip)
+    if retry_after is not None:
+        logger.warning("auth_login rate-limited for ip=%s retry_after=%.1f",
+                       client_ip, retry_after)
+        raise HTTPException(
+            status_code=429,
+            detail="Too many login attempts. Please try again later.",
+            headers={"Retry-After": str(int(retry_after) + 1)},
+        )
+
     try:
         res = await asyncio.to_thread(
             memory.authenticate_user, user_id, data.password, True)
         if not res["ok"]:
+            _auth_limiter.record_failure(client_ip)
             raise HTTPException(status_code=401, detail=res["reason"])
+        # Successful login -- clear any failure history for this IP.
+        _auth_limiter.clear(client_ip)
         token = _issue_user_token(user_id, tenant_id)
     except HTTPException:
         raise
-    except Exception as exc:  # 鎶婄湡瀹炲師鍥犳毚闇插嚭鏉?涓嶅啀瑁?500
+    except Exception as exc:
         logger.exception("auth_login failed for %s", user_id)
         raise HTTPException(status_code=500,
                             detail=f"login failed: {type(exc).__name__}: {exc}")
@@ -1614,12 +1738,14 @@ async def auth_refresh(request: Request):
         # failures. Do not rotate further credentials in this state.
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     if grant is None:
-        response = JSONResponse(
+        # Do not send a deletion cookie here. A second browser tab can be
+        # finishing a valid rotation while this request presents the previous
+        # one; deleting the cookie in that stale response would log out the
+        # still-valid tab. The client will replace the cookie on the next login.
+        return JSONResponse(
             status_code=401,
             content={"error": "Refresh session is missing, expired, or revoked"},
         )
-        _clear_auth_cookies(response)
-        return response
     token = _issue_user_token(grant.user_id, grant.tenant_id)
     if not token:
         await asyncio.to_thread(refresh_tokens.revoke_refresh_token, grant.token)

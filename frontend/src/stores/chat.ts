@@ -96,6 +96,7 @@ export const useChatStore = defineStore('chat', {
     observabilityLoading: false,
     memories: [] as MemoryItem[],
     memoriesLoading: false,
+    memoriesError: '',
     loading: false,
     _abort: null as AbortController | null,
   }),
@@ -157,6 +158,7 @@ export const useChatStore = defineStore('chat', {
       this.messages = []
       this.sessions = []
       this.memories = []
+      this.memoriesError = ''
       this.analytics = null
       this.observability = null
       this.sessionSearch = ''
@@ -188,9 +190,33 @@ export const useChatStore = defineStore('chat', {
     async reloadMemories() {
       this.memoriesLoading = true
       try {
-        this.memories = await fetchMemories()
-      } catch {
-        this.memories = []
+        const ui = useUiStore()
+        let result = await fetchMemories()
+        let expectedUserId = ui.auth.userId.trim()
+
+        // In local development, an expired/stale bearer token may be resolved
+        // as an anonymous request with HTTP 200. Refresh once and retry before
+        // reporting an identity mismatch; never turn that response into []
+        // and never display another user's memories.
+        if (!expectedUserId || result.user_id !== expectedUserId) {
+          const refreshed = await ui.refreshAccessSession()
+          if (refreshed) {
+            result = await fetchMemories()
+            expectedUserId = ui.auth.userId.trim()
+          }
+        }
+
+        if (!expectedUserId || result.user_id !== expectedUserId) {
+          throw new ApiError('长期记忆身份校验失败，请重新登录后重试', 401, 'http')
+        }
+
+        this.memories = result.memories
+        this.memoriesError = ''
+      } catch (err) {
+        this.memoriesError = err instanceof Error ? err.message : '长期记忆加载失败，请稍后重试'
+        console.error('Failed to load memories', err)
+        // Keep the last successfully loaded list. A network hiccup must not
+        // be presented to the user as if every persisted memory were deleted.
       } finally {
         this.memoriesLoading = false
       }

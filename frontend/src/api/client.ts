@@ -111,6 +111,12 @@ export interface MemoryItem {
   created_at?: string
 }
 
+/** Full GET /api/memory payload. Keep user_id for client-side identity validation. */
+export interface MemoryListResult {
+  user_id: string
+  memories: MemoryItem[]
+}
+
 export interface DeleteMemoryResult {
   ok?: boolean
   deleted?: string
@@ -273,6 +279,76 @@ function authHeaders(): Record<string, string> {
 
 let refreshInFlight: Promise<RefreshResult | null> | null = null
 
+// Refresh-token rotation is single-use. A normal user can have two tabs open,
+// and both tabs may try to restore the session after a hard reload at the same
+// time. Coordinate only the refresh request through localStorage; the raw
+// refresh token remains HttpOnly and is never written to browser storage.
+const REFRESH_LEASE_KEY = 'aster_refresh_lease_v1'
+const REFRESH_LEASE_TTL_MS = 15_000
+const REFRESH_LEASE_WAIT_MS = 20_000
+const REFRESH_LEASE_OWNER = `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+type RefreshLease = { owner: string; expiresAt: number }
+
+function waitForRefreshLease(ms: number): Promise<void> {
+  return new Promise(resolve => window.setTimeout(resolve, ms))
+}
+
+function readRefreshLease(): RefreshLease | null {
+  try {
+    const raw = window.localStorage.getItem(REFRESH_LEASE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<RefreshLease>
+    if (typeof parsed.owner !== 'string' || typeof parsed.expiresAt !== 'number') return null
+    return parsed as RefreshLease
+  } catch {
+    return null
+  }
+}
+
+async function withRefreshLease<T>(work: () => Promise<T>): Promise<T> {
+  // This client only runs in a browser, but keep the fallback safe for tests.
+  if (typeof window === 'undefined') return work()
+
+  const deadline = Date.now() + REFRESH_LEASE_WAIT_MS
+  let acquired = false
+  try {
+    while (!acquired && Date.now() < deadline) {
+      const current = readRefreshLease()
+      if (!current || current.expiresAt <= Date.now() || current.owner === REFRESH_LEASE_OWNER) {
+        const candidate: RefreshLease = {
+          owner: REFRESH_LEASE_OWNER,
+          expiresAt: Date.now() + REFRESH_LEASE_TTL_MS,
+        }
+        try {
+          window.localStorage.setItem(REFRESH_LEASE_KEY, JSON.stringify(candidate))
+          acquired = readRefreshLease()?.owner === REFRESH_LEASE_OWNER
+        } catch {
+          // Storage may be disabled; the in-tab single-flight still prevents
+          // duplicate refreshes within this page.
+          return work()
+        }
+      }
+      if (!acquired) {
+        await waitForRefreshLease(120 + Math.floor(Math.random() * 100))
+      }
+    }
+
+    if (!acquired) throw new Error('refresh coordination timed out')
+    return await work()
+  } finally {
+    if (acquired) {
+      try {
+        if (readRefreshLease()?.owner === REFRESH_LEASE_OWNER) {
+          window.localStorage.removeItem(REFRESH_LEASE_KEY)
+        }
+      } catch {
+        // Best effort; the lease expires automatically if the tab disappears.
+      }
+    }
+  }
+}
+
 /** Replace the in-memory access JWT after a successful cookie-backed refresh. */
 function applyRefreshedAccessToken(result: RefreshResult): void {
   if (authIdentity) {
@@ -284,16 +360,18 @@ async function refreshAccessToken(): Promise<RefreshResult | null> {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
-        const res = await fetch('/api/auth/refresh', {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
+        return await withRefreshLease(async () => {
+          const res = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+          })
+          if (!res.ok) return null
+          const result = (await res.json()) as RefreshResult
+          if (!result.access_token || !result.user_id) return null
+          applyRefreshedAccessToken(result)
+          return result
         })
-        if (!res.ok) return null
-        const result = (await res.json()) as RefreshResult
-        if (!result.access_token || !result.user_id) return null
-        applyRefreshedAccessToken(result)
-        return result
       } catch {
         return null
       } finally {
@@ -697,9 +775,26 @@ export function logout(): Promise<OkResult> {
 }
 
 /** GET /api/memory — the current user's long-term memories. */
-export async function fetchMemories(): Promise<MemoryItem[]> {
-  const data = await requestJson<{ memories?: MemoryItem[] }>('/api/memory')
-  return data.memories ?? []
+export async function fetchMemories(): Promise<MemoryListResult> {
+  const data = await requestJson<{
+    user_id?: string
+    memories?: MemoryItem[]
+    error?: string
+  }>('/api/memory')
+
+  // The endpoint may return an application-level failure with HTTP 200 so it
+  // can include a safe diagnostic. Do not turn that into a fake empty list.
+  if (data.error) {
+    throw new ApiError(`长期记忆加载失败：${data.error}`, 500, 'http')
+  }
+  if (!data.user_id) {
+    throw new ApiError('长期记忆响应缺少用户身份', 500, 'http')
+  }
+  if (!Array.isArray(data.memories)) {
+    throw new ApiError('长期记忆响应格式异常', 500, 'http')
+  }
+
+  return { user_id: data.user_id, memories: data.memories }
 }
 
 /** DELETE /api/memory/{id} — remove one of the current user's memories. */
