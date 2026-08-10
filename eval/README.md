@@ -80,6 +80,13 @@
   prompt 不限 reason 长度 + 一次性输出 5 条长 reason 的 verbose JSON，Q2 模型
   长输出不稳定在 JSON 中段提前停（原始输出仅 700/396 字符，远未到 2048 上限）→
   解析失败。修复有效因 reason 限长+逐条调用缩短输出，4096 只是兑底。
+  ⚠️⚠️ 再纠正（21:26 用户“关思考重试”后实测 _probe_thinking.py）：
+  根因实为 **llama.cpp thinking 开关**——默认/显式 True 时 reasoning 占满
+  max_tokens（B 组 reasoning 6951 字符 content=0；C 组 reasoning 5805 content=0），
+  judge 拿空 content 必然解析失败；enable_thinking=False 后 reasoning=0、content
+  正常输出（A 组 789 字符）。eval 走 LLMClient direct HTTP 已带 enable_thinking
+  =False（初始提交就有），但 gateway 分支与早期版本未带→历史失败。验证：
+  3 题重跑 27 次 judge 调用 0 失败。
 - **小节/块级命中**：数据集已补 `golden_sections`（`src::小节标题`，由
   key_points 对 KB 章节推导）与 `golden_chunk_ids`（pgvector 小节对应块）；
   报告新增 SecHit / ChunkHit 指标（README 早年声称的“文件+小节级”终于落实）。
