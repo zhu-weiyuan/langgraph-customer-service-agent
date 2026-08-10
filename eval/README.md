@@ -75,6 +75,11 @@
 - **Judge 上下文预算**：CP 改为逐条目独立调用（每条 ≤2000 字符），CR/CA/Faith/AR
   限制 judge 输出长度 + judge max_tokens 4096 —— 本地 27B-Q2 上长上下文截断
   导致的解析失败已消除（实测 2 次运行 0 失败）。
+  ⚠️ 根因纠正（21:16 用户质询后查证）：输入侧从来不是问题——llama-server
+  -c 50000，5×2000 字符 ≈ 7k tokens 绰绰有余；真正断的是**输出侧**：旧版 judge
+  prompt 不限 reason 长度 + 一次性输出 5 条长 reason 的 verbose JSON，Q2 模型
+  长输出不稳定在 JSON 中段提前停（原始输出仅 700/396 字符，远未到 2048 上限）→
+  解析失败。修复有效因 reason 限长+逐条调用缩短输出，4096 只是兑底。
 - **小节/块级命中**：数据集已补 `golden_sections`（`src::小节标题`，由
   key_points 对 KB 章节推导）与 `golden_chunk_ids`（pgvector 小节对应块）；
   报告新增 SecHit / ChunkHit 指标（README 早年声称的“文件+小节级”终于落实）。
