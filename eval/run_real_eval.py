@@ -230,6 +230,7 @@ class RealEvaluator:
         self.dataset = dataset or GOLDEN_SET
         self.verbose = verbose
         self.multi_turn = bool(multi_turn)
+        self.query_rewrite = False
         self.repeat = max(1, int(repeat))
         self.llm = self._build_llm()
         self._llm_warm = False
@@ -287,6 +288,7 @@ class RealEvaluator:
             "dataset_items": None,  # run() 里填
             "k": self.k,
             "multi_turn": self.multi_turn,
+            "query_rewrite": self.query_rewrite,
             "git_commit": commit,
             "corpus_hash": h.hexdigest()[:12],
             "llm_model": self.llm.model,
@@ -339,6 +341,47 @@ class RealEvaluator:
         return data
 
     # ── retrieval ────────────────────────────────────────────
+
+    @staticmethod
+    def rewrite_query_with_history(query: str, item: Dict[str, Any]) -> str:
+        """多轮 query rewrite（轻量规则版，不额外调 LLM）：
+        把 conversation 历史中的关键信息补进检索 query，解决指代类问题
+        （'它/那/我这情况'）检索不到上下文的问题。
+
+        规则：
+        1. 历史里所有出现过的型号（X-100/X-200/X-300 Pro）、错误码（E\d{3}）、
+           关键主题词（保修/发票/退货/积分/配网/云服务等）提取出来
+        2. 若当前 query 含指代词（它/这/那/刚才/这个/该/我这种情况），
+           把最近几轮历史里的实体追加到 query 尾部
+        """
+        import re
+        conv = item.get("conversation") if item else None
+        if not isinstance(conv, list) or not conv:
+            return query
+
+        # 收集历史里用户与客服消息中的关键实体
+        entities = []
+        model_pat = re.compile(r"X-\d{3}(?:\s*Pro)?")
+        err_pat = re.compile(r"E\d{3}")
+        topic_words = ["保修", "发票", "退货", "退款", "积分", "配网", "WiFi", "云服务",
+                       "固件", "网关", "音箱", "传感器", "密码", "账号", "注销"]
+        for m in conv[-4:]:  # 最近 4 轮
+            text = m.get("content", "") or ""
+            entities.extend(model_pat.findall(text))
+            entities.extend(err_pat.findall(text))
+            for w in topic_words:
+                if w in text and w not in entities:
+                    entities.append(w)
+
+        # 指代检测：query 里有指代词
+        pron_pat = re.compile(r"[它她他那这其]|这个|那个|刚才|情况|问题")
+        has_pron = bool(pron_pat.search(query))
+        if has_pron and entities:
+            # 去重保序，最多补 6 个实体
+            seen = set()
+            ents = [e for e in entities if not (e in seen or seen.add(e))][:6]
+            return f"{query} （历史提及：{'、'.join(ents)}）"
+        return query
 
     def retrieve_observed(self, query: str) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
         """检索 + 后端可观测性：RAG_STRICT=1 下 pgvector 失败会抛错，这里记录
@@ -623,6 +666,10 @@ class RealEvaluator:
 
     def evaluate_item(self, item: Dict[str, Any]) -> Dict[str, Any]:
         query = item["query"]
+        # 多轮 query rewrite：用对话历史补全指代，仅当开关开启且有多轮历史
+        search_query = query
+        if self.query_rewrite and item.get("conversation"):
+            search_query = self.rewrite_query_with_history(query, item)
         item_id = item["id"]
         layer = item["layer"]
         should_refuse = bool(item.get("should_refuse"))
@@ -630,11 +677,12 @@ class RealEvaluator:
         start = time.time()
 
         # 1. 真实检索（pgvector + rerank，带后端可观测性）
-        retrieved, backend_info = self.retrieve_observed(query)
+        retrieved, backend_info = self.retrieve_observed(search_query)
 
         result: Dict[str, Any] = {
             "id": item_id, "layer": layer, "category": item.get("category", ""),
             "difficulty": item.get("difficulty", ""), "query": query,
+            "search_query": search_query,
             "should_refuse": should_refuse,
             "golden_sources": sorted(golden),
             "golden_sections": sorted(item.get("golden_sections") or []),
@@ -1053,6 +1101,8 @@ def main() -> None:
     ap.add_argument("--quiet", action="store_true", help="不打印逐条明细")
     ap.add_argument("--multi-turn", action="store_true",
                     help="多轮模式：注入数据集中 conversation 前缀轮次作为历史")
+    ap.add_argument("--query-rewrite", action="store_true",
+                    help="多轮 query rewrite：用对话历史补全指代（'它/这/刚才'）后再检索，需配合 --multi-turn")
     ap.add_argument("--repeat", type=int, default=1,
                     help="每条重复跑 N 次（量化单条波动，均值±std）")
     ap.add_argument("--permissive", action="store_true",
@@ -1076,6 +1126,7 @@ def main() -> None:
                        dataset=Path(args.dataset) if args.dataset else None,
                        verbose=not args.quiet, multi_turn=args.multi_turn,
                        repeat=args.repeat)
+    ev.query_rewrite = args.query_rewrite
     agg = ev.run()
 
     md = RealEvaluator.to_markdown(agg)
