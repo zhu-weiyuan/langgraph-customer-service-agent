@@ -77,7 +77,8 @@ GENERATE_PROMPT = """你是智能客服助手。请根据【参考资料】回�
 要求：
 1. 只依据参考资料回答；资料中没有的，明确说明"资料中未提及"。
 2. 回答中必须标注引用来源编号 [n]（n 对应参考资料条目编号），每个结论后紧跟引用。
-3. 用中文回答，简洁准确，不要复述"根据参考资料"这类话。
+3. 引用编号必须指向实际包含该信息的条目；不得凭空指定或使用无关条目编号。
+4. 用中文回答，简洁准确，不要复述"根据参考资料"这类话。
 
 直接输出回答正文："""
 
@@ -282,7 +283,7 @@ class RealEvaluator:
             return {"citation_accuracy": 0.0, "citations": [], "error": "empty answer"}
         ctx_parts = []
         for i, h in enumerate(contexts, 1):
-            content = (h.get("content") or h.get("text") or "")[:400]
+            content = (h.get("content") or h.get("text") or "")[:2000]
             src = h.get("source", "")
             ctx_parts.append(f"[{i}] (来源: {src})\n{content}")
         prompt = CITATION_CHECK_PROMPT.format(
@@ -303,7 +304,7 @@ class RealEvaluator:
         if not answer:
             return {"faithfulness": 0.0, "reason": "empty answer"}
         context_str = "\n\n".join(
-            (h.get("content") or h.get("text") or "")[:800] for h in contexts)
+            (h.get("content") or h.get("text") or "")[:2000] for h in contexts)
         data = self._chat_json(FAITHFULNESS_PROMPT.format(context=context_str, answer=answer[:1500]))
         score = data.get("faithfulness")
         if score is None:
@@ -327,7 +328,7 @@ class RealEvaluator:
             return {"context_precision": 0.0, "reason": "no contexts"}
         ctx_parts = []
         for i, h in enumerate(contexts, 1):
-            content = (h.get("content") or h.get("text") or "")[:400]
+            content = (h.get("content") or h.get("text") or "")[:2000]
             ctx_parts.append(f"[{i}]\n{content}")
         data = self._chat_json(CONTEXT_PRECISION_PROMPT.format(
             query=query, context="\n\n".join(ctx_parts)))
@@ -346,7 +347,7 @@ class RealEvaluator:
         if not key_points:
             return {"context_recall": None, "reason": "no key_points in dataset"}
         context_str = "\n\n".join(
-            (h.get("content") or h.get("text") or "")[:600] for h in contexts)
+            (h.get("content") or h.get("text") or "")[:2000] for h in contexts)
         points_str = "\n".join(f"- {p}" for p in key_points)
         data = self._chat_json(CONTEXT_RECALL_PROMPT.format(
             query=query, key_points=points_str, context=context_str))
