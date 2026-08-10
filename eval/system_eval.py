@@ -196,9 +196,10 @@ def main() -> int:
     tok_a = iso["a"].get("token") or ""
     tok_b = iso["b"].get("token") or ""
     if tok_a and tok_b:
-        # A 存一条记忆
-        _post(base, "/api/chat", {"message": "我的用户名是 Alice，最喜欢的颜色是蓝色。",
-                                  "stream": False}, token=tok_a, timeout=120)
+        # A 存一条记忆（显式记忆指令）
+        _post(base, "/api/chat",
+              {"message": "帮我记一下：我的用户名是 Alice，最喜欢的颜色是蓝色。",
+               "stream": False}, token=tok_a, timeout=120)
         st_a, body_a, _ = _get(base, "/api/memory", token=tok_a)
         st_b, body_b, _ = _get(base, "/api/memory", token=tok_b)
         mems_a = (body_a or {}).get("memories") or []
@@ -255,7 +256,8 @@ def main() -> int:
 
     # 5. 成本估算（按回复字符数，中文 ≈1.5 char/token；响应带 usage 则直接用）
     total_chars = sum(len(r.get("reply_head", "")) for r in mem["steps"]) \
-        + sum(len(r.get("reply_len", 0)) for r in out.get("concurrency", {}).get("details", [])
+        + sum(r.get("reply_len", 0)
+              for r in out.get("concurrency", {}).get("details", [])
               if isinstance(r, dict))
     out["cost_estimate"] = {
         "note": "本地 llama.cpp 无计费；若接 API 按 ~1.5 char/token 估算",
