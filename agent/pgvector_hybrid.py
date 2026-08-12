@@ -292,8 +292,8 @@ class PgHybridStore:
         chunked = chunk_document(text, child_size=child_size,
                                  parent_size=parent_size, doc_id=doc_id)
         tags = tags or []
-        # 小节标注：按字符偏移把每个 chunk 映射到所在 markdown 小节标题
-        section_map = _section_for_chunk(text)  # chunk_start -> section title
+        # 小节标注：chunk_document 已按 markdown 小节边界切分，每个 chunk 的
+        # section 字段就是其所属小节标题（与知识库 heading 一致，唯一且正确）。
         conn = self._connect()
         with conn.cursor() as cur:
             cur.execute(
@@ -312,7 +312,7 @@ class PgHybridStore:
             cur.execute("DELETE FROM rag_chunks WHERE doc_id = %s", (doc_id,))
 
             for pid, parent in chunked["parents"].items():
-                sec = section_map.get(parent.get("start", 0), "")
+                sec = parent.get("section", "")
                 self._insert_chunk(cur, pid, doc_id, None, True, title, source,
                                    sec, tenant_id, tags, parent["text"],
                                    embedding=None, index_version=index_version)
@@ -323,7 +323,7 @@ class PgHybridStore:
                         emb = self.embed_fn(child["text"])
                     except Exception:
                         emb = None
-                sec = section_map.get(child.get("start", 0), "")
+                sec = child.get("section", "")
                 self._insert_chunk(cur, child["child_id"], doc_id,
                                    child["parent_id"], False, title, source,
                                    sec, tenant_id, tags, child["text"],

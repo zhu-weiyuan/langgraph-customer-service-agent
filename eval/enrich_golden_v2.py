@@ -92,7 +92,11 @@ def main(argv=None) -> int:
 
     stats = {"with_sections": 0, "with_chunk_ids": 0, "no_section": []}
     for it in items:
-        secs = derive_golden_sections(it)
+        # 人工标注优先：若是手写 golden_sections（非 derive 推导），保留
+        secs = it.get("golden_sections")
+        if not secs:
+            secs = derive_golden_sections(it)
+        secs = sorted(set(secs))
         it["golden_sections"] = secs
         if secs:
             stats["with_sections"] += 1

@@ -106,14 +106,21 @@ def chunk_document(text: str,
                    child_size: int = CHILD_SIZE,
                    parent_size: int = PARENT_SIZE,
                    doc_id: str = "doc") -> Dict[str, Any]:
-    """将文档切成 parent（~parent_size 字）与 child（~child_size 字）两级块。
+    """将文档切成 parent 与 child 两级块。
 
-    纯函数。切分优先在段落/句子边界（\n\n > \n > 。！？!? > 硬切）。
+    **小节边界为主，parent 扩展相邻小节**：
+      * child：按 markdown 小节切（≤child_size 字，超长首尾切），
+        section 唯一 = 所属小节标题（与知识库 heading 一致，检索/引用/评测口径统一）。
+      * parent：= 该小节 + 紧邻下一小节（上下文扩展，供 LLM 补充背景），
+        主 section = 首个小节标题。不跨多个小节 → 上下文不污染。
+      * 无 heading → 整篇一个小节正常切。
+
+    纯函数。长度切分优先在段落/句子边界（\n\n > \n > 。！？!? > 硬切）。
 
     Returns:
         {
-          "parents": {parent_id: {"parent_id", "text", "start"}},
-          "children": [{"child_id", "parent_id", "text", "start"}],
+          "parents": {parent_id: {"parent_id", "text", "start", "section"}},
+          "children": [{"child_id", "parent_id", "text", "start", "section"}],
         }
     """
     if child_size <= 0 or parent_size <= 0:
@@ -124,18 +131,65 @@ def chunk_document(text: str,
     parents: Dict[str, Dict[str, Any]] = {}
     children: List[Dict[str, Any]] = []
 
-    parent_spans = _split_spans(text, parent_size)
-    for p_idx, (p_start, p_text) in enumerate(parent_spans):
+    secs = _markdown_sections(text)
+    p_idx = 0
+    for idx, sec in enumerate(secs):
+        sec_text = sec.get("text", "") or ""
+        sec_title = sec.get("title", "") or ""
+        if not sec_text.strip():
+            continue
+
+        # parent = 该小节 + 紧邻下一非空小节（上下文扩展，不跨太多小节）
         parent_id = f"{doc_id}:p{p_idx}"
-        parents[parent_id] = {"parent_id": parent_id, "text": p_text, "start": p_start}
-        for c_idx, (c_start, c_text) in enumerate(_split_spans(p_text, child_size)):
+        cur = sec_text
+        nxt = ""
+        for nxt_sec in secs[idx + 1:]:
+            nxt_t = nxt_sec.get("text", "") or ""
+            if nxt_t.strip():
+                nxt = nxt_t
+                break
+        p_text = f"{cur}\n\n{nxt}" if nxt else cur
+        parents[parent_id] = {
+            "parent_id": parent_id, "text": p_text,
+            "start": sec.get("start", 0),
+            "section": sec_title,
+        }
+        for c_idx, (c_start, c_text) in enumerate(_split_spans(sec_text, child_size)):
             children.append({
                 "child_id": f"{parent_id}:c{c_idx}",
                 "parent_id": parent_id,
                 "text": c_text,
-                "start": p_start + c_start,
+                "start": sec.get("start", 0) + c_start,
+                "section": sec_title,
             })
+        p_idx += 1
     return {"parents": parents, "children": children}
+
+
+def _markdown_sections(text: str) -> List[Dict[str, Any]]:
+    """按 markdown heading 切小节（复用 knowledge_sections 的纯解析）。
+
+    无 heading 时整篇作为一个小节。返回 [{title, text, start}]，title 为
+    heading 文本（去井号）；heading 前的引言归 "（文档引言）"。
+    """
+    try:
+        from .knowledge_sections import parse_markdown_sections
+        parsed = parse_markdown_sections(text)
+        if parsed:
+            out = []
+            for s in parsed:
+                title = s.get("title", "") or ""
+                body = s.get("text", "") or ""
+                # heading 行本身不在 body 里：拼回标题，让小节标题文本也参与检索
+                if title and title != "（文档引言）" and not body.startswith(title):
+                    body = f"{title}\n\n{body}"
+                out.append({"title": title, "text": body,
+                            "start": int(s.get("start", 0))})
+            return out
+    except Exception:  # noqa: BLE001 — 解析失败降级为整篇一个小节
+        pass
+    stripped = text.strip()
+    return [{"title": "（文档引言）", "text": stripped, "start": 0}] if stripped else []
 
 
 def _split_spans(text: str, size: int) -> List[tuple]:
@@ -182,6 +236,10 @@ def map_children_to_parents(child_hits: Sequence[Dict[str, Any]],
     """child 命中映射回 parent 输出，同 parent 去重（分数取最大，保序）。纯函数。
 
     child_hits 每条需含 parent_id；无 parent_id 或 parent 缺失则原样透传。
+
+    输出条目额外携带 child_ids：该 parent 下所有命中 child 的 id（保序去重，
+    首个为 id 字段）。这样 parent 合并后，检索层判定（ChunkHit）仍能识别
+    同 parent 下被"代表"掉的兄弟 child——内容确实被召回，只是 id 被合并。
     """
     seen: Dict[Any, int] = {}
     out: List[Dict[str, Any]] = []
@@ -195,10 +253,15 @@ def map_children_to_parents(child_hits: Sequence[Dict[str, Any]],
                 out[idx]["score"] = max(out[idx].get("score", 0.0), hit.get("score", 0.0))
                 continue
             seen[key] = len(out)
-            out.append(dict(hit))
+            merged = dict(hit)
+            merged["child_ids"] = [hit.get("id")] if hit.get("id") else []
+            out.append(merged)
             continue
         if pid in seen:
             idx = seen[pid]
+            cid = hit.get("id")
+            if cid and cid not in out[idx].setdefault("child_ids", []):
+                out[idx]["child_ids"].append(cid)
             out[idx]["score"] = max(out[idx].get("score", 0.0),
                                     float(hit.get("score", 0.0) or 0.0))
             continue
@@ -208,6 +271,7 @@ def map_children_to_parents(child_hits: Sequence[Dict[str, Any]],
         merged["parent_id"] = pid
         merged["title"] = hit.get("title") or parent.get("title", pid)
         merged["section"] = hit.get("section") or parent.get("section", "")
+        merged["child_ids"] = [hit.get("id")] if hit.get("id") else []
         seen[pid] = len(out)
         out.append(merged)
     if top_n is not None:
@@ -639,6 +703,8 @@ class HybridRetriever:
                                        r.get("score", 0.0)) or 0.0), 6),
             "source": str(r.get("source", "")),
             "parent_id": r.get("parent_id"),
+            # 同 parent 合并后，被代表掉的兄弟 child id（检索判定用）
+            "child_ids": list(r.get("child_ids") or []),
             # Preserve ranking diagnostics for the API/metrics dashboard.
             "rrf_score": round(float(r.get("rrf_score", 0.0) or 0.0), 6),
             "orig_score": round(float(r.get("orig_score", 0.0) or 0.0), 6),

@@ -92,9 +92,15 @@ def derive_golden_sections(item: Dict, kb_dir: Optional[Path] = None) -> List[st
 
     只把“要点文本确实出现在该文件某章节”的章节算作黄金章节；
     要点是数值/片段时允许模糊匹配（归一化后包含）。
+
+    **必需要点优先**：若条目带 required_key_points（回答 query 真正必需的
+    要点，区别于理想答案里的附加说明），只用它推导 golden_sections。
+    避免“附加知识点”把不相关小节拉进 golden 导致 SecHit 误伤。
     """
     sources: Sequence[str] = item.get("golden_context_ids") or item.get("golden_context") or []
-    key_points: Sequence[str] = item.get("key_points") or item.get("reference_points") or []
+    key_points: Sequence[str] = (item.get("required_key_points")
+                                 or item.get("key_points")
+                                 or item.get("reference_points") or [])
     if not sources or not key_points:
         return []
     hits: List[str] = []

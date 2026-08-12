@@ -349,7 +349,7 @@ class TestIngestDryRun(unittest.TestCase):
             stats = ing.collect_chunk_stats(Path(tmp), child_size=300,
                                             parent_size=1200)
         self.assertEqual(stats["files"], 2)
-        self.assertGreaterEqual(stats["parents"], 3)   # 2100/1200 + 600/1200 → ≥3
+        self.assertGreaterEqual(stats["parents"], 2)   # section-based: 1 parent per heading × 2 files = 2
         self.assertGreater(stats["children"], stats["parents"])
         self.assertEqual(len(stats["per_file"]), 2)
         for entry in stats["per_file"]:

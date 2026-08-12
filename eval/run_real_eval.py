@@ -654,12 +654,19 @@ class RealEvaluator:
 
     def chunk_hit_at_k(self, retrieved: List[Dict[str, Any]],
                        golden_chunk_ids: set) -> Optional[float]:
-        """块级命中：任一检索条目的 chunk_id ∈ golden_chunk_ids。"""
+        """块级命中：任一检索条目的 chunk_id ∈ golden_chunk_ids。
+
+        parent 合并后的条目带 child_ids（同 parent 被代表掉的兄弟 child），
+        一并参与判定——内容已被召回，只是 id 被合并。
+        """
         if not golden_chunk_ids:
             return None
         for h in retrieved[: self.k]:
             if h.get("id") in golden_chunk_ids:
                 return 1.0
+            for cid in (h.get("child_ids") or []):
+                if cid in golden_chunk_ids:
+                    return 1.0
         return 0.0
 
     # ── per-item evaluation ──────────────────────────────────

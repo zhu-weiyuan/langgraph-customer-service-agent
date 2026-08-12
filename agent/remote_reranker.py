@@ -54,9 +54,9 @@ class RemoteReranker:
                     or "https://api.siliconflow.cn/v1")
         model = os.getenv("RERANKER_MODEL", "Qwen/Qwen3-Reranker-8B").strip()
         try:
-            timeout = float(os.getenv("RERANKER_TIMEOUT_SECONDS", "15"))
+            timeout = float(os.getenv("RERANKER_TIMEOUT_SECONDS", "60"))
         except ValueError:
-            timeout = 15.0
+            timeout = 60.0
         return cls(api_key, base_url, model, timeout, fallback=fallback)
 
     @property

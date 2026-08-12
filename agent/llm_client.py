@@ -469,10 +469,10 @@ class LLMClient:
                 time.sleep(delay)
                 attempt += 1
             except requests.exceptions.HTTPError as e:
-                if e.response is not None and e.response.status_code in (429, 502, 503):
+                if self._should_retry(e.response.status_code if e.response else None, e):
                     last_error = e
                     delay = self._calculate_delay(attempt)
-                    logger.warning(f"chat_stream HTTP {e.response.status_code}, retry {attempt+1}/{max_retries}")
+                    logger.warning(f"chat_stream HTTP {e.response.status_code if e.response else 'unknown'}, retry {attempt+1}/{max_retries}")
                     time.sleep(delay)
                     attempt += 1
                 else:
