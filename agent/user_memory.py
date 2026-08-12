@@ -33,7 +33,10 @@ import logging
 import math
 import os
 import re
+<<<<<<< HEAD
 import sqlite3
+=======
+>>>>>>> origin/master
 import time
 import uuid
 from datetime import datetime, timezone
@@ -49,10 +52,13 @@ DEFAULT_DB_PATH = Path(__file__).parent.parent / "user_memory.db"
 
 VALID_KINDS = ("fact", "preference", "issue")
 
+<<<<<<< HEAD
 # Supersede: same-kind memories with cosine similarity > threshold are
 # marked superseded (excluded from recall) when a newer memory is stored.
 SUPERSEDE_SIMILARITY_THRESHOLD: float = 0.7
 
+=======
+>>>>>>> origin/master
 logger = logging.getLogger("agent.user_memory")
 
 # 衰减常数：半衰期 ~30 天 → λ = ln2 / (30*86400)
@@ -275,6 +281,7 @@ class MemoryStore:
                  embed_fn: Optional[EmbedFn] = None,
                  backend: Optional[str] = None,
                  ttl_days: float = 180.0):
+<<<<<<< HEAD
         self._embed_fn = embed_fn
         self.ttl_days = ttl_days
         # PostgreSQL + pgvector is the production default. An explicit local
@@ -295,6 +302,18 @@ class MemoryStore:
             self.backend = "pgvector"
             self.db_path = "postgresql"
             self._pg = None  # lazy pgvector store
+=======
+        self.db_path = "postgresql"
+        self._embed_fn = embed_fn
+        self.ttl_days = ttl_days
+        requested = (backend or os.environ.get("RAG_BACKEND", "pgvector")).strip().lower()
+        if requested != "pgvector":
+            raise RuntimeError("User memory requires PostgreSQL + pgvector; SQLite fallback is disabled")
+        self.backend = "pgvector"
+        self._pg = None  # 延迟建立的 pgvector store
+
+    # ── embedding ────────────────────────────────────────────
+>>>>>>> origin/master
 
     def _embed(self, text: str) -> List[float]:
         fn = self._embed_fn
@@ -323,6 +342,7 @@ class MemoryStore:
     # ── SQLite 后端 ──────────────────────────────────────────
 
     def _connect(self):
+<<<<<<< HEAD
         if self.backend != "sqlite":
             raise RuntimeError("SQLite connection requested for pgvector backend")
         conn = sqlite3.connect(self.db_path, timeout=10)
@@ -360,6 +380,12 @@ class MemoryStore:
             conn.commit()
         finally:
             conn.close()
+=======
+        raise RuntimeError("SQLite user-memory backend is disabled")
+
+    def _init_sqlite(self) -> None:
+        raise RuntimeError("SQLite user-memory backend is disabled")
+>>>>>>> origin/master
 
     def _pg_store(self):
         """惰性建立 pgvector store（三方守卫）。
@@ -417,6 +443,7 @@ class MemoryStore:
                     source_session TEXT,
                     dedup_key      TEXT UNIQUE,
                     embedding_error TEXT,
+<<<<<<< HEAD
                     is_deleted     BOOLEAN NOT NULL DEFAULT FALSE,
                     superseded_at  DOUBLE PRECISION
                 );
@@ -424,6 +451,12 @@ class MemoryStore:
                     ADD COLUMN IF NOT EXISTS embedding_error TEXT;
                 ALTER TABLE user_memories
                     ADD COLUMN IF NOT EXISTS superseded_at DOUBLE PRECISION;
+=======
+                    is_deleted     BOOLEAN NOT NULL DEFAULT FALSE
+                );
+                ALTER TABLE user_memories
+                    ADD COLUMN IF NOT EXISTS embedding_error TEXT;
+>>>>>>> origin/master
                 CREATE INDEX IF NOT EXISTS idx_um_user
                     ON user_memories(user_id, tenant_id);
             """)
@@ -492,11 +525,15 @@ class MemoryStore:
                  json.dumps(vec), importance, _iso(), expires_at,
                  source_session, key))
             conn.commit()
+<<<<<<< HEAD
             if cur.rowcount > 0:
                 self._supersede_old(user_id, kind, vec, _now_ts(),
                                     exclude_id=mem_id, tenant_id=tenant_id)
                 return mem_id
             return None
+=======
+            return mem_id if cur.rowcount > 0 else None
+>>>>>>> origin/master
         finally:
             conn.close()
 
@@ -518,11 +555,15 @@ class MemoryStore:
                 (mem_id, user_id, tenant_id, content, kind, emb_literal,
                  importance, expires_at, source_session, key, embedding_error))
             row = cur.fetchone()
+<<<<<<< HEAD
         if row:
             self._supersede_old(user_id, kind, vec, _now_ts(),
                                 exclude_id=row[0], tenant_id=tenant_id)
             return row[0]
         return None
+=======
+        return row[0] if row else None
+>>>>>>> origin/master
 
     def extract_and_store(self, user_id: str, messages: Sequence[Any],
                           source_session: str = "",
@@ -575,6 +616,7 @@ class MemoryStore:
         return {"stored": stored, "skipped_hypothetical": skipped,
                 "deduped": deduped}
 
+<<<<<<< HEAD
     def _supersede_old(
         self,
         user_id: str,
@@ -700,6 +742,8 @@ class MemoryStore:
             conn.commit()
         return superseded
 
+=======
+>>>>>>> origin/master
     # ── 召回路径 ──────────────────────────────────────────────
 
     def recall(self, user_id: str, query: str, top_k: int = 5,
@@ -748,12 +792,20 @@ class MemoryStore:
         conn = self._connect()
         try:
             sql = """SELECT id, user_id, content, kind, embedding, importance,
+<<<<<<< HEAD
                              created_at, superseded_at
+=======
+                             created_at
+>>>>>>> origin/master
                       FROM user_memories
                       WHERE user_id = ? AND tenant_id = ?"""
             params = [user_id, tenant_id]
             if not include_deleted:
+<<<<<<< HEAD
                 sql += " AND is_deleted = 0 AND superseded_at IS NULL"
+=======
+                sql += " AND is_deleted = 0"
+>>>>>>> origin/master
             rows = conn.execute(sql, params).fetchall()
         finally:
             conn.close()
@@ -772,12 +824,20 @@ class MemoryStore:
         conn = self._pg_store()
         with conn.cursor() as cur:
             sql = """SELECT id, user_id, content, kind, importance,
+<<<<<<< HEAD
                              created_at, embedding, superseded_at
+=======
+                             created_at, embedding
+>>>>>>> origin/master
                       FROM user_memories
                       WHERE user_id = %s AND tenant_id = %s"""
             params = [user_id, tenant_id]
             if not include_deleted:
+<<<<<<< HEAD
                 sql += " AND is_deleted = FALSE AND superseded_at IS NULL"
+=======
+                sql += " AND is_deleted = FALSE"
+>>>>>>> origin/master
             cur.execute(sql, params)
             rows = cur.fetchall()
         out = []
@@ -790,8 +850,12 @@ class MemoryStore:
                     emb = []
             out.append({"id": r[0], "user_id": r[1], "content": r[2],
                         "kind": r[3], "importance": r[4],
+<<<<<<< HEAD
                         "created_at": r[5], "embedding": emb or [],
                         "superseded_at": r[7]})
+=======
+                        "created_at": r[5], "embedding": emb or []})
+>>>>>>> origin/master
         return out
 
     # ── 维护 / 管理（供 /api/memory 用户编辑）─────────────────

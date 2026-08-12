@@ -1,0 +1,48 @@
+{"id": "n01", "tier": "normal", "category": "配网", "query": "音箱怎么连WiFi", "golden_context_ids": ["installation-guide", "product-manual", "troubleshooting"], "expected_keywords": ["WiFi", "2.4GHz", "配网"], "weight": 1}
+{"id": "n02", "tier": "normal", "category": "退换货", "query": "退货要多久", "golden_context_ids": ["returns-refunds", "faq"], "expected_keywords": ["7 天", "退货", "无理由"], "weight": 1}
+{"id": "n03", "tier": "normal", "category": "计费", "query": "支持哪些支付方式", "golden_context_ids": ["billing-invoices", "faq"], "expected_keywords": ["微信", "支付宝", "支付"], "weight": 1}
+{"id": "n04", "tier": "normal", "category": "发票", "query": "怎么开发票", "golden_context_ids": ["billing-invoices"], "expected_keywords": ["电子普通发票", "开具", "抬头"], "weight": 1}
+{"id": "n05", "tier": "normal", "category": "保修", "query": "产品保修期是多久", "golden_context_ids": ["warranty-service", "faq"], "expected_keywords": ["保修", "1 年", "部件"], "weight": 1}
+{"id": "n06", "tier": "normal", "category": "物流", "query": "下单后多久发货", "golden_context_ids": ["shipping-logistics", "faq"], "expected_keywords": ["发货", "时效", "工作日"], "weight": 1}
+{"id": "n07", "tier": "normal", "category": "账号", "query": "怎么修改密码", "golden_context_ids": ["account-security"], "expected_keywords": ["密码", "修改", "原密码"], "weight": 1}
+{"id": "n08", "tier": "normal", "category": "故障", "query": "音箱没声音怎么办", "golden_context_ids": ["troubleshooting"], "expected_keywords": ["音量", "静音", "扬声器"], "weight": 1}
+{"id": "n09", "tier": "normal", "category": "固件", "query": "如何更新固件", "golden_context_ids": ["product-manual", "faq"], "expected_keywords": ["固件", "更新", "App"], "weight": 1}
+{"id": "n10", "tier": "normal", "category": "产品", "query": "智能音箱有哪几个型号", "golden_context_ids": ["product-manual", "faq"], "expected_keywords": ["X-100", "X-200", "X-300 Pro"], "weight": 1}
+{"id": "n11", "tier": "normal", "category": "优惠", "query": "优惠券怎么用能叠加吗", "golden_context_ids": ["billing-invoices", "faq", "promotions-membership"], "expected_keywords": ["优惠券", "叠加", "使用"], "weight": 1}
+{"id": "n12", "tier": "normal", "category": "客服", "query": "怎么联系客服", "golden_context_ids": ["faq"], "expected_keywords": ["客服", "在线", "电话"], "weight": 1}
+{"id": "n13", "tier": "normal", "category": "退款", "query": "退款多久到账", "golden_context_ids": ["returns-refunds"], "expected_keywords": ["退款", "到账", "工作日"], "weight": 1}
+{"id": "n14", "tier": "normal", "category": "安装", "query": "网关G1怎么安装配网", "golden_context_ids": ["installation-guide", "product-manual"], "expected_keywords": ["网关", "G1", "配网"], "weight": 1}
+{"id": "n15", "tier": "normal", "category": "账号", "query": "忘记密码怎么办", "golden_context_ids": ["account-security", "faq"], "expected_keywords": ["忘记密码", "找回", "验证码"], "weight": 1}
+{"id": "n16", "tier": "normal", "category": "云服务", "query": "云服务套餐有哪些", "golden_context_ids": ["product-manual"], "expected_keywords": ["云服务", "套餐", "价格"], "weight": 1}
+{"id": "n17", "tier": "normal", "category": "退换货", "query": "怎么申请退货", "golden_context_ids": ["returns-refunds"], "expected_keywords": ["退货", "申请", "RMA"], "weight": 1}
+{"id": "n18", "tier": "normal", "category": "产品", "query": "智能音箱支持什么音乐平台", "golden_context_ids": ["faq", "product-manual"], "expected_keywords": ["音乐平台", "音箱", "支持"], "weight": 1}
+{"id": "n19", "tier": "normal", "category": "会员", "query": "会员等级有哪些权益", "golden_context_ids": ["promotions-membership"], "expected_keywords": ["会员", "等级", "权益"], "weight": 1}
+{"id": "n20", "tier": "normal", "category": "物流", "query": "怎么查订单物流", "golden_context_ids": ["shipping-logistics"], "expected_keywords": ["物流", "订单", "跟踪"], "weight": 1}
+{"id": "n21", "tier": "normal", "category": "蓝牙", "query": "蓝牙怎么连接音箱", "golden_context_ids": ["product-manual", "troubleshooting"], "expected_keywords": ["蓝牙", "配对", "连接"], "weight": 1}
+{"id": "n22", "tier": "normal", "category": "故障", "query": "怎么恢复出厂设置", "golden_context_ids": ["troubleshooting"], "expected_keywords": ["恢复出厂", "重置", "长按"], "weight": 1}
+{"id": "n23", "tier": "normal", "category": "开发者", "query": "API认证方式是什么", "golden_context_ids": ["api-developer"], "expected_keywords": ["API", "认证", "密钥"], "weight": 1}
+{"id": "n24", "tier": "normal", "category": "优惠", "query": "以旧换新怎么参加", "golden_context_ids": ["promotions-membership", "faq"], "expected_keywords": ["以旧换新", "折价", "参加"], "weight": 1}
+{"id": "e01", "tier": "edge", "category": "缺主语", "query": "它不工作了", "golden_context_ids": ["troubleshooting"], "expected_keywords": ["排查", "重启", "故障"], "weight": 1}
+{"id": "e02", "tier": "edge", "category": "多义词", "query": "网关", "golden_context_ids": ["error-codes", "installation-guide", "troubleshooting", "product-manual"], "expected_keywords": ["网关", "G1", "G2 Pro"], "weight": 1}
+{"id": "e03", "tier": "edge", "category": "跨产品线", "query": "音箱和网关都连不上整个套装瘫痪了", "golden_context_ids": ["troubleshooting"], "expected_keywords": ["离线", "网关", "排查"], "weight": 1}
+{"id": "e04", "tier": "edge", "category": "指代不清", "query": "那个灯一直闪是什么意思", "golden_context_ids": ["product-manual", "troubleshooting", "faq"], "expected_keywords": ["指示灯", "状态", "颜色"], "weight": 1}
+{"id": "e05", "tier": "edge", "category": "跨领域", "query": "我要退货还想问保修", "golden_context_ids": ["returns-refunds", "warranty-service"], "expected_keywords": ["退货", "保修", "售后"], "weight": 1}
+{"id": "e06", "tier": "edge", "category": "无上下文", "query": "之前那个问题还没解决", "golden_context_ids": ["troubleshooting", "faq"], "expected_keywords": ["排查", "客服", "故障"], "weight": 1}
+{"id": "e07", "tier": "edge", "category": "多义词", "query": "升级要怎么弄", "golden_context_ids": ["product-manual", "promotions-membership", "troubleshooting"], "expected_keywords": ["固件", "升级", "更新"], "weight": 1}
+{"id": "e08", "tier": "edge", "category": "多义模糊", "query": "数据安全吗", "golden_context_ids": ["account-security", "product-manual", "faq"], "expected_keywords": ["数据", "安全", "隐私"], "weight": 1}
+{"id": "e09", "tier": "edge", "category": "多义模糊", "query": "能便宜点吗有优惠没", "golden_context_ids": ["promotions-membership", "billing-invoices"], "expected_keywords": ["优惠", "会员", "折扣"], "weight": 1}
+{"id": "e10", "tier": "edge", "category": "跨领域", "query": "发票和物流的事", "golden_context_ids": ["billing-invoices", "shipping-logistics"], "expected_keywords": ["发票", "物流", "配送"], "weight": 1}
+{"id": "e11", "tier": "edge", "category": "多义词", "query": "我想换", "golden_context_ids": ["returns-refunds", "warranty-service", "account-security"], "expected_keywords": ["换货", "换新", "换绑"], "weight": 1}
+{"id": "e12", "tier": "edge", "category": "残缺输入", "query": "网关离线报错了", "golden_context_ids": ["error-codes", "troubleshooting"], "expected_keywords": ["E011", "网关", "离线"], "weight": 1}
+{"id": "a01", "tier": "adversarial", "category": "错别字", "query": "音象怎么脸wifi啊", "golden_context_ids": ["installation-guide", "product-manual", "troubleshooting"], "expected_keywords": ["WiFi", "配网", "音箱"], "weight": 1}
+{"id": "a02", "tier": "adversarial", "category": "口语极端", "query": "我那玩意儿咋整突然没动静了咋回事", "golden_context_ids": ["troubleshooting"], "expected_keywords": ["没声音", "排查", "重启"], "weight": 1}
+{"id": "a03", "tier": "adversarial", "category": "闲聊混入", "query": "今天天气不错顺便问下退货能退几天", "golden_context_ids": ["returns-refunds", "faq"], "expected_keywords": ["7 天", "退货", "无理由"], "weight": 1}
+{"id": "a04", "tier": "adversarial", "category": "超长啰嗦", "query": "就是我上周买的那个音箱一开始还好后来不知道怎么回事就一直连不上网我试了半天路由器也重启了还是不行到底该咋办", "golden_context_ids": ["troubleshooting", "installation-guide"], "expected_keywords": ["WiFi", "连接失败", "路由器"], "weight": 1}
+{"id": "a05", "tier": "adversarial", "category": "否定陷阱", "query": "我不想退货只想换个颜色怎么弄", "golden_context_ids": ["returns-refunds"], "expected_keywords": ["换货", "颜色", "运费"], "weight": 1}
+{"id": "a06", "tier": "adversarial", "category": "否定陷阱", "query": "不是保修的问题是想问付费维修怎么收费", "golden_context_ids": ["warranty-service"], "expected_keywords": ["有偿维修", "收费", "维修"], "weight": 1}
+{"id": "a07", "tier": "adversarial", "category": "错别字码", "query": "E0011错误马是啥意思", "golden_context_ids": ["error-codes"], "expected_keywords": ["E011", "网关", "错误码"], "weight": 1}
+{"id": "h01", "tier": "high_weight", "category": "退款金额", "query": "无理由退货会扣多少折旧费", "golden_context_ids": ["returns-refunds"], "expected_keywords": ["折旧", "20%", "扣费"], "weight": 3}
+{"id": "h02", "tier": "high_weight", "category": "保修期", "query": "音箱整机保修几年主要部件保修多久", "golden_context_ids": ["warranty-service", "faq"], "expected_keywords": ["1 年", "2 年", "部件"], "weight": 3}
+{"id": "h03", "tier": "high_weight", "category": "安全操作", "query": "音箱过热了还能继续用吗怎么处理", "golden_context_ids": ["error-codes"], "expected_keywords": ["E007", "过热", "保护"], "weight": 3}
+{"id": "h04", "tier": "high_weight", "category": "退货运费", "query": "7天无理由退货运费谁承担", "golden_context_ids": ["returns-refunds"], "expected_keywords": ["运费", "用户承担", "无理由"], "weight": 3}
+{"id": "h05", "tier": "high_weight", "category": "安全操作", "query": "智能插座过载了安全吗会不会烧掉", "golden_context_ids": ["error-codes", "troubleshooting"], "expected_keywords": ["E018", "过载", "保护"], "weight": 3}

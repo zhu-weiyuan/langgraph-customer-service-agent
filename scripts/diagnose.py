@@ -300,6 +300,7 @@ def check_data() -> None:
         ok(g, "prompt_registry", f"打开 {reg.db_path}，seed={seeded or '已就绪'}")
     except Exception as exc:
         fail(g, "prompt_registry", f"{type(exc).__name__}: {exc}", "检查 data/p4_self_improve.db 是否可写（或设 P4_DB_PATH）")
+<<<<<<< HEAD
     # feedback_store public API probe + cleanup
     # The live FeedbackStore is PostgreSQL-backed and no longer exposes the old
     # SQLite-only _conn helper. Use its public write/read APIs, then remove the
@@ -335,6 +336,26 @@ def check_data() -> None:
                      f"id={probe_id}: {type(cleanup_exc).__name__}: {cleanup_exc}",
                      "清理 session_id=diag-test 探针数据失败")
 
+=======
+    # feedback_store 插入 + 回滚
+    try:
+        from agent.feedback_store import FeedbackStore
+        store = FeedbackStore()
+        conn = store._conn()
+        try:
+            conn.execute(
+                "INSERT INTO bad_cases (ts, session_id, request_id, query, answer,"
+                " signal_type, score, comment, trace_ref, processed)"
+                " VALUES (?,?,?,?,?,?,?,?,?,0)",
+                (time.time(), "diag-test", "diag", "诊断测试", "测试",
+                 "rating", 5.0, "diagnose.py 探针", ""))
+            conn.rollback()   # 测试行不落库
+        finally:
+            conn.close()
+        ok(g, "feedback_store", f"{store.db_path} 插入+回滚成功")
+    except Exception as exc:
+        fail(g, "feedback_store", f"{type(exc).__name__}: {exc}", "检查 data/ 目录可写；schema 冲突可删 p4_self_improve.db 重建")
+>>>>>>> origin/master
 
 # E. 外部服务  # ══════
 
@@ -401,19 +422,27 @@ def check_services(deps: dict) -> bool:
                  "网络不通或超时(默认30s，本地大模型可 set DIAG_LLM_TIMEOUT=60)：检查代理/防火墙/base_url，"
                  "或确认本地模型服务已完成加载")
     # Embeddings ping
+<<<<<<< HEAD
     # Chat and embedding services may be separate. A chat-only local llama-server
     # returns 501 here; that is a degraded vector-ingest/query capability, not a
     # failure of the already-populated PostgreSQL keyword RAG path.
+=======
+>>>>>>> origin/master
     try:
         from agent.embedding_client import EmbeddingClient
         client = EmbeddingClient.from_env(strict=False)
         if client is None:
+<<<<<<< HEAD
             skip(g, "Embeddings ping", "embedding 客户端未配置/不可用",
                  "请配置 EMBEDDING_BASE_URL + EMBEDDING_API_KEY 后才能启用 embedding 检查")
+=======
+            skip(g, "Embeddings ping", "OPENAI_API_KEY 未设置")
+>>>>>>> origin/master
         else:
             client.timeout, client.max_retries = 10.0, 0
             req_dim = getattr(client, "dimensions", None)
             t0 = time.perf_counter()
+<<<<<<< HEAD
             vec = client.embed_one("diagnostic probe")
             ms = (time.perf_counter() - t0) * 1000
             detail = f"{client.model} ??={len(vec)}"
@@ -438,6 +467,22 @@ def check_services(deps: dict) -> bool:
         else:
             fail(g, "Embeddings ping", f"{type(exc).__name__}: {msg[:150]}",
                  "请检查 EMBEDDING_BASE_URL/EMBEDDING_MODEL；401 通常表示 embedding 密钥无效")
+=======
+            vec = client.embed_one("诊断测试")
+            ms = (time.perf_counter() - t0) * 1000
+            detail = f"{client.model} 维度={len(vec)}"
+            if req_dim:
+                detail += f" (请求降维至 {req_dim})"
+            detail += f" {ms:.0f}ms"
+            if len(vec) > 2000:
+                warn(g, "Embeddings ping",
+                     detail + " — 超过 pgvector 索引上限 2000 维",
+                     "在 .env 设置 EMBEDDING_DIMENSIONS=1024(MRL 降维),或换 1024 维模型如 Qwen/Qwen3-Embedding-0.6B")
+            else:
+                ok(g, "Embeddings ping", detail)
+    except Exception as exc:
+        fail(g, "Embeddings ping", f"{type(exc).__name__}: {str(exc)[:150]}", "检查 EMBEDDING_MODEL 是否被网关支持；401 则换 key")
+>>>>>>> origin/master
     # Redis
     if not deps.get("redis"):
         skip(g, "Redis PING", "redis 包未安装（限流将降级到本地保守限额）", "pip install redis")

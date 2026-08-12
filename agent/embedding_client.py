@@ -18,7 +18,10 @@ OPENAI_API_KEY/.env → 请求 401。本客户端统一走 OpenAI 兼容协议�
 
 from __future__ import annotations
 
+<<<<<<< HEAD
 import math
+=======
+>>>>>>> origin/master
 import os
 import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -99,8 +102,12 @@ class EmbeddingClient:
                  timeout: float = DEFAULT_TIMEOUT,
                  max_retries: int = DEFAULT_MAX_RETRIES,
                  transport: Optional[Transport] = None,
+<<<<<<< HEAD
                  dimensions: Optional[int] = None,
                  allow_truncation: bool = False):
+=======
+                 dimensions: Optional[int] = None):
+>>>>>>> origin/master
         if not api_key and not mock_embedding_enabled():
             raise ValueError(
                 "EmbeddingClient: missing api_key (set OPENAI_API_KEY in .env)")
@@ -115,10 +122,13 @@ class EmbeddingClient:
         # Qwen3-Embedding 等 MRL 模型支持请求时指定输出维度(OpenAI 兼容
         # 的 dimensions 参数);设置后请求带 dimensions,并校验返回维度。
         self.dimensions = int(dimensions) if dimensions else None
+<<<<<<< HEAD
         # Some llama.cpp embedding servers ignore the OpenAI-compatible
         # ``dimensions`` request parameter.  Truncation is deliberately
         # opt-in because changing vector dimensions changes retrieval quality.
         self.allow_truncation = bool(allow_truncation)
+=======
+>>>>>>> origin/master
 
     # -- construction --
 
@@ -171,12 +181,15 @@ class EmbeddingClient:
                 value = default
             return max(0, value)
 
+<<<<<<< HEAD
         def _env_bool(name: str, default: bool = False) -> bool:
             raw = os.environ.get(name, "").strip().lower()
             if not raw:
                 return default
             return raw in {"1", "true", "yes", "y", "on"}
 
+=======
+>>>>>>> origin/master
         return cls(
             api_key=api_key,
             base_url=base_url,
@@ -185,7 +198,10 @@ class EmbeddingClient:
             dimensions=dimensions,
             timeout=_env_float("EMBEDDING_TIMEOUT_SECONDS", DEFAULT_TIMEOUT),
             max_retries=_env_int("EMBEDDING_MAX_RETRIES", DEFAULT_MAX_RETRIES),
+<<<<<<< HEAD
             allow_truncation=_env_bool("EMBEDDING_ALLOW_TRUNCATION"),
+=======
+>>>>>>> origin/master
         )
 
     # -- API --
@@ -203,9 +219,12 @@ class EmbeddingClient:
         if mock_embedding_enabled():
             raw_dim = os.getenv("MOCK_EMBEDDING_DIM", "").strip()
             dim = int(raw_dim) if raw_dim.isdigit() else (self.dimensions or 1024)
+<<<<<<< HEAD
             # Mock tests intentionally choose small dimensions; do not apply
             # production pgvector dimension validation to the deterministic
             # mock path.
+=======
+>>>>>>> origin/master
             return fake_embeddings(list(texts), dim=dim)
 
         out: List[List[float]] = []
@@ -219,6 +238,7 @@ class EmbeddingClient:
 
     # -- internal --
 
+<<<<<<< HEAD
     def _coerce_vectors(self, vectors: List[List[float]]) -> List[List[float]]:
         """Validate dimensions and optionally reduce oversized vectors.
 
@@ -256,6 +276,8 @@ class EmbeddingClient:
                 f"embedding dim mismatch: requested {target}, got {actual}; {hint}")
         return coerced
 
+=======
+>>>>>>> origin/master
     def _embed_batch(self, batch: List[str]) -> List[List[float]]:
         if not batch:
             return []
@@ -276,7 +298,18 @@ class EmbeddingClient:
                         raise RuntimeError(
                             f"embeddings count mismatch: sent {len(batch)}, "
                             f"got {len(vectors)}")
+<<<<<<< HEAD
                     return self._coerce_vectors(vectors)
+=======
+                    if self.dimensions and vectors and \
+                            len(vectors[0]) != self.dimensions:
+                        raise RuntimeError(
+                            f"embedding dim mismatch: requested {self.dimensions}, "
+                            f"got {len(vectors[0])} — 该 embedding 服务可能不支持 "
+                            f"dimensions 参数(MRL 降维),请换支持的模型或调整 "
+                            f"PGVECTOR_DIM 与建表维度一致")
+                    return vectors
+>>>>>>> origin/master
                 last_err = f"HTTP {status}: {str(data)[:200]}"
                 if status == 401:
                     last_err += (" — check OPENAI_API_KEY / OPENAI_BASE_URL "

@@ -215,6 +215,7 @@ RAG_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT + """
 以上资料由 Agentic RAG 系统智能检索而来，已针对你的问题进行了多轮优化。
 请基于以上参考资料回答用户问题。如果参考资料中没有相关信息，诚实说明你不确定。"""
 
+<<<<<<< HEAD
 # 引用纪律：防幻觉 + 防错引（Faithfulness / Citation Accuracy 加固）
 RAG_SYSTEM_PROMPT_TEMPLATE += """
 
@@ -224,6 +225,8 @@ RAG_SYSTEM_PROMPT_TEMPLATE += """
 - 如果某条资料与问题无关或你未使用它，不要引用它
 - 不确定或资料缺失时，直接说"这个我暂时无法确认"，不要编造"""
 
+=======
+>>>>>>> origin/master
 
 def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT,
               max_tokens: int = 512, *, stream: bool = False) -> str:
@@ -455,8 +458,11 @@ def build_reply_context(
     retry_count: int = 0,
     state: dict = None,
     user_id: str = '',
+<<<<<<< HEAD
     need_rag: Optional[bool] = None,
     registry=None,
+=======
+>>>>>>> origin/master
 ) -> Dict[str, Any]:
     """Build context for reply generation (shared between graph node and streaming API).
 
@@ -504,8 +510,12 @@ def build_reply_context(
     # --- Agentic RAG: LLM-driven retrieval with adaptive re-search ---
     rag_context = ""
     rag_info = None
+<<<<<<< HEAD
     effective_need_rag = (intent == 'consult') if need_rag is None else bool(need_rag)
     if effective_need_rag and latest_user:
+=======
+    if intent == 'consult' and latest_user:
+>>>>>>> origin/master
         _emit_stream_progress("retrieving_knowledge")
         rag_info = agentic_rag(latest_user, max_rounds=2)
         if record_rag_query is not None:
@@ -520,7 +530,11 @@ def build_reply_context(
             print(f"[Agentic RAG] 未找到相关知识")
 
     # Use ContextAssembler to manage full component integration
+<<<<<<< HEAD
     assembler = ContextAssembler(registry=registry)
+=======
+    assembler = ContextAssembler()
+>>>>>>> origin/master
     
     # Prepare state-like structure for assembler input
     assembler_state = {
@@ -542,6 +556,7 @@ def build_reply_context(
     # Extract structured components from bundle
     context_messages = bundle.messages[1:]  # Exclude first system message
     system_prompt = bundle.messages[0]["content"]
+<<<<<<< HEAD
     tool_schema = list(bundle.tool_schema)
 
     # Apply the sentiment-aware tone guidance after the shared context
@@ -561,12 +576,15 @@ def build_reply_context(
             "\u5f53\u524d\u672a\u68c0\u7d22\u5230\u8db3\u591f\u7684\u77e5\u8bc6\u5e93\u8bc1\u636e\u3002\u4e0d\u5f97\u6839\u636e\u5e38\u8bc6\u3001\u731c\u6d4b\u6216\u8bad\u7ec3\u8bb0\u5fc6\u7f16\u9020\u4ea7\u54c1\u4e8b\u5b9e\uff1b"
             "\u8bf7\u660e\u786e\u8bf4\u660e\u6682\u672a\u627e\u5230\u76f8\u5173\u8d44\u6599\uff0c\u5e76\u5efa\u8bae\u7528\u6237\u63d0\u4f9b\u578b\u53f7\u6216\u8f6c\u4eba\u5de5\u3002"
         )
+=======
+>>>>>>> origin/master
 
     rag_label = f"agentic({rag_info['rounds']}轮)" if rag_info and rag_info.get('queries_tried') else ('yes' if rag_context else 'no')
     print(f"[Reply Context] intent={intent}, retry={retry_count}, rag={rag_label}")
 
     # ── Token 预算管理 ────────────────────────────────────────
     token_budget = estimate_total_tokens(context_messages, system_prompt)
+<<<<<<< HEAD
     # Surface the assembler's authoritative allocation metadata alongside the
     # legacy total/remaining fields used by the LLM gateway.
     token_budget.update({
@@ -575,6 +593,8 @@ def build_reply_context(
                     "degraded", "prompt_version")
         if key in bundle.metadata
     })
+=======
+>>>>>>> origin/master
     print(f"[Token Budget] total={token_budget['total']} (system={token_budget['system_tokens']}, msgs={token_budget['messages_tokens']}), remaining={token_budget['remaining_for_output']}")
 
     # 如果超出预算，按 Token 裁剪
@@ -591,7 +611,10 @@ def build_reply_context(
         'latest_user': latest_user,
         'token_budget': token_budget,
         'compaction': compaction,
+<<<<<<< HEAD
         'tool_schema': tool_schema,
+=======
+>>>>>>> origin/master
     }
 
 

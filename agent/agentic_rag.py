@@ -20,6 +20,7 @@ from .llm_client import get_llm_client
 # RAG_BACKEND=tfidf|hybrid|pgvector 后端选择（含运行期优雅降级 TF-IDF）。
 # rag_backend 不可用时保持旧行为（直接走 rag.retrieve）。
 try:
+<<<<<<< HEAD
     from .rag_backend import retrieve as _runtime_backend_retrieve
 except Exception:  # pragma: no cover
     _runtime_backend_retrieve = None
@@ -34,6 +35,12 @@ def _backend_retrieve(query, top_k=3):
     if _runtime_backend_retrieve is not None:
         return _runtime_backend_retrieve(query, top_k=top_k)
     return rag_retrieve(query, top_k=top_k)
+=======
+    from .rag_backend import retrieve as _backend_retrieve
+except Exception:  # pragma: no cover
+    def _backend_retrieve(query, top_k=3):
+        return rag_retrieve(query, top_k=top_k)
+>>>>>>> origin/master
 
 # ---------------------------------------------------------------------------
 # Prompts (Improved with Few-Shot and Entity Extraction)
@@ -120,11 +127,16 @@ def agentic_rag(user_query: str, max_rounds: int = 2) -> Dict[str, any]:
     # pgvector retrieval, reranking and lexical relevance filtering.
     initial_hits = _retrieve_queries([user_query], result)
     if mode == "fast":
+<<<<<<< HEAD
         # A non-empty score alone is not evidence. Fast mode still fails closed
         # when a named support object is absent from the retrieved evidence.
         grounded = _has_requested_entity_evidence(user_query, initial_hits)
         result["context"] = _build_context_string(initial_hits) if grounded else ""
         result["sufficient"] = grounded
+=======
+        result["context"] = _build_context_string(initial_hits) if initial_hits else ""
+        result["sufficient"] = bool(initial_hits)
+>>>>>>> origin/master
         return result
 
     # Deep mode only: let the LLM evaluate/rewrite weak retrieval results.
@@ -179,6 +191,7 @@ def agentic_rag(user_query: str, max_rounds: int = 2) -> Dict[str, any]:
     return result
 
 
+<<<<<<< HEAD
 def _has_requested_entity_evidence(query: str, hits: List[dict]) -> bool:
     """Require explicit evidence for a named support object when possible."""
     if not hits:
@@ -223,6 +236,8 @@ def _has_requested_entity_evidence(query: str, hits: List[dict]) -> bool:
     return True
 
 
+=======
+>>>>>>> origin/master
 def _retrieve_queries(queries: List[str], result: Dict[str, any]) -> List[dict]:
     """Retrieve each query, deduplicate by section, and preserve the best scored hits."""
     all_results = []
@@ -256,6 +271,7 @@ def _remember_hits(result: Dict[str, any], hits: List[dict]) -> None:
             "title": h.get("title", ""),
             "source": h.get("source", ""),
             "score": float(h.get("score") or 0.0),
+<<<<<<< HEAD
             # Keep the ranking diagnostics visible to the API and observability
             # panel; these fields are attached by the pgvector reranker.
             "rrf_score": float(h.get("rrf_score") or 0.0),
@@ -264,6 +280,8 @@ def _remember_hits(result: Dict[str, any], hits: List[dict]) -> None:
             "lexical_overlap": float(h.get("lexical_overlap") or 0.0),
             "reranker_provider": h.get("reranker_provider", ""),
             "reranker_model": h.get("reranker_model", ""),
+=======
+>>>>>>> origin/master
             "text": str(h.get("text") or "")[:800],
         })
 

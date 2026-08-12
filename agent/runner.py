@@ -15,7 +15,10 @@ run_stream()锛氱粍瑁?initial state + queue 鈫?绾跨▼涓?graph.invoke锛�
 from __future__ import annotations
 
 import asyncio
+<<<<<<< HEAD
 import inspect
+=======
+>>>>>>> origin/master
 import logging
 import os
 import time
@@ -143,6 +146,7 @@ def build_initial_state(
     -------
     State dict with messages / replies / intent / emotion / ending keys.
     """
+<<<<<<< HEAD
     previous = prev_values or {}
     if previous.get("messages"):
         history = list(previous["messages"])
@@ -157,22 +161,35 @@ def build_initial_state(
         emotion_intensity = int(previous.get("emotion_intensity", 1) or 1)
     except (TypeError, ValueError):
         emotion_intensity = 1
+=======
+    if prev_values and prev_values.get("messages"):
+        history = list(prev_values["messages"])
+    else:
+        history = []
+>>>>>>> origin/master
     state: Dict[str, Any] = {
         "messages": history + [HumanMessage(content=user_message)],
         "replies": [],
         "intent": "chat",
+<<<<<<< HEAD
         "emotion": emotion,
         "emotion_intensity": emotion_intensity,
         "ending": False,
         "satisfaction": previous.get("satisfaction"),
         "retry_count": retry_count,
         "escalate": bool(previous.get("escalate", False)),
+=======
+        "emotion": "neutral",
+        "emotion_intensity": 1,
+        "ending": False,
+>>>>>>> origin/master
         "human_input": user_message,
     "session_id": session_id,
     }
     # Note: do not put trace_session into graph state
     # checkpointer serialization will fail (TraceSession not msgpack-serializable)
     if idempotency_key is not None:
+<<<<<<< HEAD
         state["idempotency_key"] = idempotency_key
     if user_id:
         state["user_id"] = user_id
@@ -182,6 +199,11 @@ def build_initial_state(
         # Keep only the serializable correlation id, never the TraceSession
         # object itself.
         state["request_id"] = getattr(trace_session, "request_id", "") or ""
+=======
+        state["_idempotency_key"] = idempotency_key
+    if user_id:
+        state["user_id"] = user_id
+>>>>>>> origin/master
     return state
 
 
@@ -217,6 +239,7 @@ def coalesce_stream_tokens(token_iter, *, max_chars: int = 24,
 
 
 def classify_message(text: str) -> str:
+<<<<<<< HEAD
     """Classify a user-facing message for the lightweight stream fallback."""
     text = str(text or "")
     if any(w in text for w in ("\u6ee1\u610f", "\u6eff\u610f", "satisfied", "happy with")):
@@ -224,10 +247,15 @@ def classify_message(text: str) -> str:
     if any(w in text for w in ("\u518d\u89c1", "\u518d\u898b", "\u62dc\u62dc", "goodbye", "bye")):
         return "closing"
     if any(w in text for w in ("escalate", "\u8f6c\u4eba\u5de5", "\u8f49\u4eba\u5de5", "Ticket", "switch")):
+=======
+    """Simple reply type classification (stock fallback, not called by real graph)."""
+    if any(w in text for w in ("escalate", "]", "Ticket", "switch")):
+>>>>>>> origin/master
         return "escalated"
     return "reply"
 
 
+<<<<<<< HEAD
 def _message_content(value: Any) -> str:
     if isinstance(value, dict):
         return str(value.get("content") or value.get("text") or "")
@@ -276,10 +304,36 @@ def parse_result(values: Dict[str, Any], existing_count: int,
                 break
     if not reply_text:
         reply_text = str(values.get("bot_reply") or "")
+=======
+def parse_result(values: Dict[str, Any], existing_count: int,
+                 session_id: str,
+                 interrupted: Optional[bool] = None) -> Dict[str, Any]:
+    """Interpret the final graph.ainvoke / astream(updates) values dict.
+    Returns the dict used by the app/json layer.
+    """
+    replies: list = values.get("replies", []) or []
+    retry_count: int = values.get("retry_count", 0) or 0
+
+    if not isinstance(retry_count, int):
+        retry_count = int(retry_count) if retry_count else 0
+
+    reply_text = ""
+    for r in reversed(replies):
+        if isinstance(r, dict) and r.get("type") == "ai":
+            reply_text = r.get("content", "")
+            break
+    if not reply_text:
+        msgs = values.get("messages", []) or []
+        for msg in reversed(msgs):
+            if isinstance(msg, AIMessage):
+                reply_text = msg.content or ""
+                break
+>>>>>>> origin/master
 
     intent = values.get("intent") or ""
     emotion = values.get("emotion") or ""
     emotion_intensity = values.get("emotion_intensity", 1) or 1
+<<<<<<< HEAD
     try:
         emotion_intensity = int(emotion_intensity)
     except (TypeError, ValueError):
@@ -304,6 +358,25 @@ def parse_result(values: Dict[str, Any], existing_count: int,
         "escalate": bool(values.get("escalate", False)) or has_interrupt,
         "next_action": "Escalated" if has_interrupt else "Active",
         "session_id": session_id,
+=======
+    if isinstance(emotion_intensity, str):
+        try:
+            emotion_intensity = int(emotion_intensity)
+        except ValueError:
+            emotion_intensity = 1
+    interrupted = interrupted or bool(values.get("_interrupt_"))
+
+    return {
+        "reply": reply_text,
+        "intent": intent,
+        "emotion": emotion,
+        "emotion_intensity": emotion_intensity,
+        "reply_type": "escalated" if interrupted else "reply",
+        "interrupted": interrupted,
+        "retry_count": retry_count,
+        "ending": bool(values.get("ending", False)),
+        "escalate": bool(values.get("escalate", False)) or bool(values.get("_interrupt_", False)),
+>>>>>>> origin/master
     }
 
 
@@ -317,6 +390,7 @@ def _existing_message_count_sync(graph: Any, config: Dict[str, Any]) -> Dict[str
     return {"count": len(values.get("messages", []) or []), "values": values}
 
 
+<<<<<<< HEAD
 async def _existing_message_count(graph: Any, config: Dict[str, Any]) -> Dict[str, Any]:
     """Read a checkpoint from either an async or sync graph implementation."""
     aget_state = getattr(graph, "aget_state", None)
@@ -337,6 +411,8 @@ async def _existing_message_count(graph: Any, config: Dict[str, Any]) -> Dict[st
         None, _existing_message_count_sync, graph, config)
 
 
+=======
+>>>>>>> origin/master
 async def run(session_id: str, user_message: str, *,
               trace_session: Any = None,
               idempotency_key: Optional[str] = None,
@@ -344,10 +420,19 @@ async def run(session_id: str, user_message: str, *,
               graph: Any = None,
               user_id: Optional[str] = None,
               tenant_id: Optional[str] = None) -> Dict[str, Any]:
+<<<<<<< HEAD
     """Execute one round of conversation with sync and async graph support."""
     graph = graph or _get_graph_sync()
     config = {"configurable": {"thread_id": session_id}}
     snap = await _existing_message_count(graph, config)
+=======
+    """Execute one round of conversation (graph.invoke + total timeout)."""
+    graph = graph or _get_graph_sync()
+    config = {"configurable": {"thread_id": session_id}}
+    loop = asyncio.get_event_loop()
+    snap = await loop.run_in_executor(
+        None, _existing_message_count_sync, graph, config)
+>>>>>>> origin/master
     state = build_initial_state(session_id, user_message,
                                 prev_values=snap["values"],
                                 trace_session=trace_session,
@@ -359,6 +444,7 @@ async def run(session_id: str, user_message: str, *,
         trace_session.add_event("graph_execution", {"status": "started"})
 
     effective_timeout = timeout if timeout is not None else graph_timeout_seconds()
+<<<<<<< HEAD
     loop = asyncio.get_running_loop()
     has_sync_invoke = callable(getattr(graph, "invoke", None))
     has_async_invoke = callable(getattr(graph, "ainvoke", None))
@@ -375,6 +461,10 @@ async def run(session_id: str, user_message: str, *,
             reset_gateway_context(token)
 
     def _invoke_sync() -> Any:
+=======
+
+    def _run_sync() -> Dict[str, Any]:
+>>>>>>> origin/master
         token = set_gateway_context(tenant_id=tenant_id or "default", user_id=user_id,
                                     trace_id=getattr(trace_session, "request_id", "") or "",
                                     idempotency_key=idempotency_key, trace_session=trace_session,
@@ -384,6 +474,7 @@ async def run(session_id: str, user_message: str, *,
         finally:
             reset_gateway_context(token)
 
+<<<<<<< HEAD
     if has_async_invoke and not has_sync_invoke:
         result_values = await asyncio.wait_for(_invoke_async(), timeout=effective_timeout)
     else:
@@ -391,6 +482,14 @@ async def run(session_id: str, user_message: str, *,
         # it off the event loop while still accepting async-only test doubles.
         result_values = await asyncio.wait_for(
             loop.run_in_executor(None, _invoke_sync), timeout=effective_timeout)
+=======
+    try:
+        result_values = await asyncio.wait_for(
+            loop.run_in_executor(None, _run_sync),
+            timeout=effective_timeout)
+    except asyncio.TimeoutError:
+        raise
+>>>>>>> origin/master
 
     if not isinstance(result_values, dict):
         result_values = {}
@@ -427,6 +526,7 @@ async def run_stream(session_id: str, user_message: str, *,
                      graph: Any = None,
                      user_id: Optional[str] = None,
                      tenant_id: Optional[str] = None) -> AsyncIterator[Dict[str, Any]]:
+<<<<<<< HEAD
     """Stream progress/tokens from sync production graphs or async graph doubles."""
     request_t0 = time.monotonic()
     current_stage = {"name": None, "at": request_t0}
@@ -434,6 +534,11 @@ async def run_stream(session_id: str, user_message: str, *,
     first_token_ms: Optional[float] = None
     streamed_any = False
     output_chars = 0
+=======
+    """Real streaming: yield {"progress"} / {"token"} / {"done": True, ...} frames."""
+    request_t0 = time.monotonic()
+    current_stage = {"name": None, "at": request_t0}
+>>>>>>> origin/master
 
     def _mark_progress(stage: str) -> None:
         now = time.monotonic()
@@ -464,6 +569,7 @@ async def run_stream(session_id: str, user_message: str, *,
         _safe_trace_call(trace_session, "record_latency",
                          model_ttft_ms=first_token_ms)
 
+<<<<<<< HEAD
     def _emit_token(text: Any) -> Optional[Dict[str, Any]]:
         nonlocal streamed_any, output_chars
         text = str(text or "")
@@ -474,23 +580,43 @@ async def run_stream(session_id: str, user_message: str, *,
         output_chars += len(text)
         return {"token": text}
 
+=======
+>>>>>>> origin/master
     _mark_progress("analyzing")
     yield {"progress": "analyzing"}
 
     graph = graph or _get_graph_sync()
     config = {"configurable": {"thread_id": session_id}}
+<<<<<<< HEAD
     snap = await _existing_message_count(graph, config)
+=======
+    loop = asyncio.get_event_loop()
+    snap = await loop.run_in_executor(
+        None, _existing_message_count_sync, graph, config)
+>>>>>>> origin/master
     state = build_initial_state(session_id, user_message,
                                 prev_values=snap["values"],
                                 trace_session=trace_session,
                                 idempotency_key=idempotency_key,
                                 user_id=user_id)
+<<<<<<< HEAD
     deadline = time.monotonic() + (timeout if timeout is not None else graph_timeout_seconds())
 
+=======
+
+    deadline = time.monotonic() + (timeout if timeout is not None else graph_timeout_seconds())
+
+    import queue as queue_mod
+    sync_q: queue_mod.Queue = queue_mod.Queue()
+    from . import nodes as _nodes
+    sentinel = object()
+
+>>>>>>> origin/master
     if trace_session is not None:
         trace_session.add_event("graph_execution",
                                 {"status": "started", "stream": True})
 
+<<<<<<< HEAD
     result_values: Dict[str, Any] = {}
     interrupted = False
     astream = getattr(graph, "astream", None)
@@ -675,11 +801,96 @@ async def run_stream(session_id: str, user_message: str, *,
                     continue
                 if item is sentinel:
                     break
+=======
+    exc_info: list = []
+
+    def _run_in_thread() -> Dict[str, Any]:
+        _nodes._stream_queue_local.queue = sync_q
+        token = set_gateway_context(tenant_id=tenant_id or "default", user_id=user_id,
+                                    trace_id=getattr(trace_session, "request_id", "") or "",
+                                    idempotency_key=idempotency_key, trace_session=trace_session,
+                                    scene="chat")
+        try:
+            return graph.invoke(state, config=config)
+        except BaseException as e:
+            exc_info.append(e)
+            raise
+        finally:
+            reset_gateway_context(token)
+            try:
+                del _nodes._stream_queue_local.queue
+            except AttributeError:
+                pass
+            sync_q.put(sentinel)
+
+    main_loop = asyncio.get_event_loop()
+    result_future = main_loop.run_in_executor(None, _run_in_thread)
+
+    streamed_any = False
+    got_first_token = False
+    first_token_ms: Optional[float] = None
+    output_chars = 0
+    loop_finished = False
+    last_heartbeat = time.monotonic()
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                result_future.cancel()
+                raise asyncio.TimeoutError()
+
+            now = time.monotonic()
+            if not got_first_token and (now - last_heartbeat) >= 0.5:
+                yield {"progress": "analyzing"}
+                last_heartbeat = now
+
+            try:
+                item = sync_q.get(timeout=min(0.05, remaining))
+            except queue_mod.Empty:
+                if result_future.done():
+                    break
+                continue
+
+            if item is sentinel:
+                break
+
+            if isinstance(item, dict):
+                if item.get("telemetry"):
+                    _record_trace_telemetry(trace_session, item)
+                    continue
+                if item.get("progress"):
+                    _mark_progress(str(item.get("progress")))
+                if item.get("token"):
+                    if not got_first_token:
+                        _first_token_if_needed()
+                        yield {"progress": "first_token",
+                               "ttft_ms": round(first_token_ms or 0, 2)}
+                    streamed_any = True
+                    output_chars += len(str(item.get("token") or ""))
+                yield item
+                continue
+
+            if not got_first_token:
+                _first_token_if_needed()
+                yield {"progress": "first_token",
+                       "ttft_ms": round(first_token_ms or 0, 2)}
+            streamed_any = True
+            output_chars += len(str(item or ""))
+            yield {"token": item}
+
+        await asyncio.sleep(0.03)
+        while True:
+            try:
+                item = sync_q.get_nowait()
+                if item is sentinel:
+                    continue
+>>>>>>> origin/master
                 if isinstance(item, dict):
                     if item.get("telemetry"):
                         _record_trace_telemetry(trace_session, item)
                         continue
                     if item.get("progress"):
+<<<<<<< HEAD
                         _mark_progress(str(item["progress"]))
                     if item.get("token"):
                         was_first = not got_first_token
@@ -716,6 +927,47 @@ async def run_stream(session_id: str, user_message: str, *,
 
     parsed = parse_result(result_values, snap["count"], session_id,
                           interrupted=interrupted)
+=======
+                        _mark_progress(str(item.get("progress")))
+                    if item.get("token"):
+                        if not got_first_token:
+                            _first_token_if_needed()
+                            yield {"progress": "first_token",
+                                   "ttft_ms": round(first_token_ms or 0, 2)}
+                        streamed_any = True
+                        output_chars += len(str(item.get("token") or ""))
+                    yield item
+                else:
+                    if not got_first_token:
+                        _first_token_if_needed()
+                        yield {"progress": "first_token",
+                               "ttft_ms": round(first_token_ms or 0, 2)}
+                    streamed_any = True
+                    output_chars += len(str(item or ""))
+                    yield {"token": item}
+            except queue_mod.Empty:
+                break
+        loop_finished = True
+    finally:
+        if (not loop_finished) and result_future is not None and not result_future.done():
+            result_future.cancel()
+
+    if exc_info:
+        raise exc_info[0]
+
+    try:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise asyncio.TimeoutError()
+        result_values = await asyncio.wait_for(result_future, timeout=remaining)
+    except asyncio.TimeoutError:
+        raise
+
+    if not isinstance(result_values, dict):
+        result_values = {}
+
+    parsed = parse_result(result_values, snap["count"], session_id)
+>>>>>>> origin/master
     total_ms = (time.monotonic() - request_t0) * 1000
     if trace_session is not None:
         _mark_progress("done")
@@ -746,10 +998,17 @@ async def run_stream(session_id: str, user_message: str, *,
         "intent": parsed["intent"],
         "emotion": parsed["emotion"],
         "emotion_intensity": parsed["emotion_intensity"],
+<<<<<<< HEAD
         "reply_type": "escalated" if interrupted else parsed["reply_type"],
         "interrupted": bool(interrupted or parsed["interrupted"]),
         "ending": parsed["ending"],
         "escalate": parsed.get("escalate", False) or interrupted,
+=======
+        "reply_type": parsed["reply_type"],
+        "interrupted": parsed["interrupted"],
+        "ending": parsed["ending"],
+        "escalate": parsed.get("escalate", False),
+>>>>>>> origin/master
     }
 
 
@@ -795,7 +1054,11 @@ async def shutdown() -> None:
 
 __all__ = [
     "build_initial_state", "parse_result", "chunk_text", "classify_message",
+<<<<<<< HEAD
     "prewarm", "shutdown",
+=======
+    "get_graph", "prewarm", "shutdown",
+>>>>>>> origin/master
     "run", "run_stream",
     "graph_timeout_seconds",
 ]

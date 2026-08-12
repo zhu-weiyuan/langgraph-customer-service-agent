@@ -94,6 +94,7 @@ export interface MeResult {
   authenticated: boolean
 }
 
+<<<<<<< HEAD
 export interface RefreshResult {
   ok: boolean
   user_id: string
@@ -102,6 +103,8 @@ export interface RefreshResult {
   token_type?: string
 }
 
+=======
+>>>>>>> origin/master
 /** One long-term memory row (GET /api/memory → memories[]). */
 export interface MemoryItem {
   id: string
@@ -111,12 +114,15 @@ export interface MemoryItem {
   created_at?: string
 }
 
+<<<<<<< HEAD
 /** Full GET /api/memory payload. Keep user_id for client-side identity validation. */
 export interface MemoryListResult {
   user_id: string
   memories: MemoryItem[]
 }
 
+=======
+>>>>>>> origin/master
 export interface DeleteMemoryResult {
   ok?: boolean
   deleted?: string
@@ -239,8 +245,11 @@ interface RequestOptions {
   timeoutMs?: number
   signal?: AbortSignal
   headers?: Record<string, string>
+<<<<<<< HEAD
   retryAfterRefresh?: boolean
   skipAuthRefresh?: boolean
+=======
+>>>>>>> origin/master
 }
 
 // ---------------------------------------------------------------------------
@@ -269,14 +278,23 @@ export function setAuthIdentity(identity: AuthIdentity | null): void {
 function authHeaders(): Record<string, string> {
   if (!authIdentity) return {}
 
+<<<<<<< HEAD
   // A browser-controlled user id is not an authentication credential. The
   // backend only accepts it when its explicit local-development compatibility
   // switch is enabled; production identity always comes from the JWT.
   const headers: Record<string, string> = {}
+=======
+  // Always send the stable user id alongside the JWT. If a restored JWT has
+  // expired, the backend can safely fall back to X-User-Id instead of silently
+  // downgrading an authenticated browser session to anon-<ip>.
+  const headers: Record<string, string> = {}
+  if (authIdentity.userId) headers['X-User-Id'] = authIdentity.userId
+>>>>>>> origin/master
   if (authIdentity.token) headers.Authorization = `Bearer ${authIdentity.token}`
   return headers
 }
 
+<<<<<<< HEAD
 let refreshInFlight: Promise<RefreshResult | null> | null = null
 
 // Refresh-token rotation is single-use. A normal user can have two tabs open,
@@ -382,6 +400,8 @@ async function refreshAccessToken(): Promise<RefreshResult | null> {
   return refreshInFlight
 }
 
+=======
+>>>>>>> origin/master
 async function extractErrorMessage(res: Response): Promise<string> {
   try {
     const data: unknown = await res.clone().json()
@@ -398,10 +418,14 @@ async function extractErrorMessage(res: Response): Promise<string> {
 
 /** Perform a fetch with timeout; throws normalized ApiError on any failure. */
 async function rawRequest(path: string, options: RequestOptions = {}): Promise<Response> {
+<<<<<<< HEAD
   const {
     method = 'GET', body, timeoutMs = DEFAULT_TIMEOUT_MS, signal, headers: extraHeaders,
     retryAfterRefresh = true, skipAuthRefresh = false,
   } = options
+=======
+  const { method = 'GET', body, timeoutMs = DEFAULT_TIMEOUT_MS, signal, headers: extraHeaders } = options
+>>>>>>> origin/master
   const controller = new AbortController()
   const timer = window.setTimeout(() => controller.abort(new DOMException('timeout', 'TimeoutError')), timeoutMs)
   // Relay the caller's signal onto the fetch controller. Deliberately NOT
@@ -412,13 +436,18 @@ async function rawRequest(path: string, options: RequestOptions = {}): Promise<R
   try {
     const headers: Record<string, string> = { ...authHeaders(), ...(extraHeaders ?? {}) }
     if (body !== undefined) headers['Content-Type'] = 'application/json'
+<<<<<<< HEAD
     let res = await fetch(path, {
+=======
+    const res = await fetch(path, {
+>>>>>>> origin/master
       method,
       headers: Object.keys(headers).length ? headers : undefined,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       credentials: 'same-origin',
       signal: controller.signal,
     })
+<<<<<<< HEAD
     // One shared refresh prevents a burst of expired requests from rotating the
     // session repeatedly. The original request is retried exactly once.
     if (res.status === 401 && retryAfterRefresh && !skipAuthRefresh && path !== '/api/auth/refresh') {
@@ -435,6 +464,8 @@ async function rawRequest(path: string, options: RequestOptions = {}): Promise<R
         })
       }
     }
+=======
+>>>>>>> origin/master
     if (!res.ok) {
       throw new ApiError(await extractErrorMessage(res), res.status, 'http')
     }
@@ -442,10 +473,17 @@ async function rawRequest(path: string, options: RequestOptions = {}): Promise<R
   } catch (err) {
     if (err instanceof ApiError) throw err
     if (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'TimeoutError')) {
+<<<<<<< HEAD
       if (signal?.aborted) throw new ApiError('?????', 0, 'abort')
       throw new ApiError('??????????', 0, 'timeout')
     }
     throw new ApiError(err instanceof Error ? err.message : '??????', 0, 'network')
+=======
+      if (signal?.aborted) throw new ApiError('请求已取消', 0, 'abort')
+      throw new ApiError('请求超时，请稍后重试', 0, 'timeout')
+    }
+    throw new ApiError(err instanceof Error ? err.message : '网络连接失败', 0, 'network')
+>>>>>>> origin/master
   } finally {
     window.clearTimeout(timer)
   }
@@ -744,7 +782,11 @@ export function fetchAnalytics(): Promise<AnalyticsData> {
 export function login(username: string, password?: string): Promise<LoginResult> {
   const body: Record<string, unknown> = { username }
   if (password) body.password = password
+<<<<<<< HEAD
   return requestJson<LoginResult>('/api/auth/login', { method: 'POST', body, retryAfterRefresh: false, skipAuthRefresh: true })
+=======
+  return requestJson<LoginResult>('/api/auth/login', { method: 'POST', body })
+>>>>>>> origin/master
 }
 
 /** POST /api/auth/register — explicit registration with optional display name. */
@@ -756,7 +798,11 @@ export function register(
   const body: Record<string, unknown> = { username }
   if (password) body.password = password
   if (displayName) body.display_name = displayName
+<<<<<<< HEAD
   return requestJson<RegisterResult>('/api/auth/register', { method: 'POST', body, retryAfterRefresh: false, skipAuthRefresh: true })
+=======
+  return requestJson<RegisterResult>('/api/auth/register', { method: 'POST', body })
+>>>>>>> origin/master
 }
 
 /** GET /api/auth/me — resolve the identity the backend sees for the current headers. */
@@ -764,6 +810,7 @@ export function fetchMe(): Promise<MeResult> {
   return requestJson<MeResult>('/api/auth/me', { timeoutMs: 8_000 })
 }
 
+<<<<<<< HEAD
 /** Use the HttpOnly rotating refresh cookie to obtain a new short-lived JWT. */
 export async function refreshSession(): Promise<RefreshResult | null> {
   return refreshAccessToken()
@@ -795,6 +842,17 @@ export async function fetchMemories(): Promise<MemoryListResult> {
   }
 
   return { user_id: data.user_id, memories: data.memories }
+=======
+/** POST /api/auth/logout - clear backend login cookies. */
+export function logout(): Promise<OkResult> {
+  return requestJson<OkResult>('/api/auth/logout', { method: 'POST', timeoutMs: 8_000 })
+}
+
+/** GET /api/memory — the current user's long-term memories. */
+export async function fetchMemories(): Promise<MemoryItem[]> {
+  const data = await requestJson<{ memories?: MemoryItem[] }>('/api/memory')
+  return data.memories ?? []
+>>>>>>> origin/master
 }
 
 /** DELETE /api/memory/{id} — remove one of the current user's memories. */

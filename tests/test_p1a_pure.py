@@ -6,7 +6,10 @@ Run:
 import os
 import sys
 import unittest
+<<<<<<< HEAD
 from unittest import mock
+=======
+>>>>>>> origin/master
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
@@ -25,12 +28,15 @@ from agent.context_assembler import (
     TokenBudgetAllocator,
     TIER_FULL,
 )
+<<<<<<< HEAD
 from agent.prompt_registry import PromptRegistry
 
 
 def _make_registry():
     """Return an in-memory PromptRegistry immune to DATABASE_URL env pollution."""
     return PromptRegistry(db_path=":memory:")
+=======
+>>>>>>> origin/master
 from agent import graph as agent_graph
 from agent.graph import (
     route_after_reply,
@@ -62,12 +68,19 @@ class TestTokenEstimator(unittest.TestCase):
         self.assertEqual(_heuristic_estimate("你好world"), 3)
 
     def test_estimate_tokens_falls_back_to_heuristic(self):
+<<<<<<< HEAD
         # Force the optional encoder into its degraded state so this test is
         # deterministic even when tiktoken is installed locally.
         text = "订单 order-123 需要修复"
         with mock.patch.object(token_estimator, "_ENCODER", False):
             self.assertEqual(estimate_tokens(text), _heuristic_estimate(text))
             self.assertGreater(estimate_tokens(text), 0)
+=======
+        # tiktoken is absent in this container -> must equal heuristic
+        text = "订单order物流123，快点fix！"
+        self.assertEqual(estimate_tokens(text), _heuristic_estimate(text))
+        self.assertGreater(estimate_tokens(text), 0)
+>>>>>>> origin/master
 
     def test_estimate_messages_tokens(self):
         msgs = [
@@ -94,8 +107,13 @@ class TestTokenEstimator(unittest.TestCase):
 
 class TestAssemblerMessageOrder(unittest.TestCase):
     def _assemble(self, state, user_message):
+<<<<<<< HEAD
         return ContextAssembler(registry=_make_registry()).assemble(
             state=state, user_message=user_message, session_id="s1")
+=======
+        return ContextAssembler().assemble(state=state, user_message=user_message,
+                                           session_id="s1")
+>>>>>>> origin/master
 
     def test_current_question_is_last_history_old_to_new(self):
         state = {
@@ -183,7 +201,11 @@ class TestBudgetTermination(unittest.TestCase):
 class TestUtilizationDowngrade(unittest.TestCase):
     def test_over_60_percent_triggers_degradation_and_stays_capped(self):
         alloc = TokenBudgetAllocator(context_window=1000, reserved_output=0)
+<<<<<<< HEAD
         assembler = ContextAssembler(allocator=alloc, registry=_make_registry())
+=======
+        assembler = ContextAssembler(allocator=alloc)
+>>>>>>> origin/master
 
         huge_context = "### 保修政策 " + ("智能音箱保修条款详细内容" * 120)
         self.assertGreater(estimate_tokens(huge_context), alloc.usable_budget)
@@ -208,7 +230,11 @@ class TestUtilizationDowngrade(unittest.TestCase):
         self.assertIn("agentic_rag:round1", system_content)
 
     def test_normal_load_stays_full_tier(self):
+<<<<<<< HEAD
         assembler = ContextAssembler(registry=_make_registry())  # 128k window: tiny inputs stay full
+=======
+        assembler = ContextAssembler()  # 128k window: tiny inputs stay full
+>>>>>>> origin/master
         bundle = assembler.assemble(
             state={"messages": [{"role": "user", "content": "hi"}]},
             user_message="订单在哪？",
@@ -233,7 +259,11 @@ class TestRagFieldAlignment(unittest.TestCase):
             "rounds": 2,
             "queries_tried": ["保修", "音箱保修"],
         }
+<<<<<<< HEAD
         bundle = ContextAssembler(registry=_make_registry()).assemble(
+=======
+        bundle = ContextAssembler().assemble(
+>>>>>>> origin/master
             state={"messages": [], "rag_results": [rag_info]},
             user_message="音箱保修多久？",
         )
@@ -242,7 +272,11 @@ class TestRagFieldAlignment(unittest.TestCase):
         self.assertGreaterEqual(bundle.metadata["source_counts"].get("rag", 0), 1)
 
     def test_legacy_shape_still_supported(self):
+<<<<<<< HEAD
         bundle = ContextAssembler(registry=_make_registry()).assemble(
+=======
+        bundle = ContextAssembler().assemble(
+>>>>>>> origin/master
             state={"messages": [],
                    "rag_results": [{"title": "退货政策", "content": "七天无理由退货",
                                     "score": 0.9, "relevant": True}]},
@@ -251,7 +285,11 @@ class TestRagFieldAlignment(unittest.TestCase):
         self.assertIn("七天无理由退货", bundle.messages[0]["content"])
 
     def test_insufficient_empty_context_excluded(self):
+<<<<<<< HEAD
         bundle = ContextAssembler(registry=_make_registry()).assemble(
+=======
+        bundle = ContextAssembler().assemble(
+>>>>>>> origin/master
             state={"messages": [],
                    "rag_results": [{"sufficient": False, "context": "",
                                     "rounds": 2, "queries_tried": ["x"]}]},
@@ -264,11 +302,15 @@ class TestGraphRouting(unittest.TestCase):
     """Pure-function tests: langgraph absent, guarded imports must hold."""
 
     def test_langgraph_guard_active(self):
+<<<<<<< HEAD
         # Both the bare stdlib fallback and the real deployment with LangGraph
         # installed are supported by the guarded import.
         self.assertTrue(
             agent_graph.StateGraph is None or callable(agent_graph.StateGraph)
         )
+=======
+        self.assertIsNone(agent_graph.StateGraph)  # bare container
+>>>>>>> origin/master
         self.assertEqual(END, "__end__")
 
     def test_route_after_reply_all_returns_mapped(self):
@@ -336,7 +378,10 @@ class TestNodesPure(unittest.TestCase):
             session_id="",
             emotion="angry",
             emotion_intensity=5,
+<<<<<<< HEAD
             registry=_make_registry(),
+=======
+>>>>>>> origin/master
         )
         # emotion is wired: tone adjustment appended to system prompt
         self.assertIn("愤怒", ctx["system_prompt"])
@@ -346,6 +391,7 @@ class TestNodesPure(unittest.TestCase):
         self.assertEqual(ctx["tool_schema"], [])
         # single budget authority: assembler metadata surfaces as token_budget
         self.assertIn("utilization", ctx["token_budget"])
+<<<<<<< HEAD
         # These helpers are intentional safety mechanisms: history-recall
         # detection avoids unnecessary RAG, while the two trimming layers
         # protect both checkpoint state and the model input budget.
@@ -357,6 +403,12 @@ class TestNodesPure(unittest.TestCase):
             len(nodes._trim_messages([{"role": "user", "content": str(i)} for i in range(30)], keep_last=3)),
             6,
         )
+=======
+        # second trimming layer removed
+        self.assertFalse(hasattr(nodes, "_trim_messages_by_tokens"))
+        self.assertFalse(hasattr(nodes, "_trim_messages"))
+        self.assertFalse(hasattr(nodes, "_is_history_recall_query"))
+>>>>>>> origin/master
 
     def test_node_timings_bounded(self):
         from agent import nodes
@@ -378,6 +430,7 @@ class TestStateModule(unittest.TestCase):
                       "request_id"):
             self.assertIn(field, keys)
 
+<<<<<<< HEAD
     def test_add_messages_is_flat_and_runtime_compatible(self):
         from agent.state import add_messages
         if add_messages.__module__.startswith("langgraph"):
@@ -392,6 +445,14 @@ class TestStateModule(unittest.TestCase):
             merged_single = add_messages([1], 2)
             self.assertEqual(merged_single, [1, 2])
 
+=======
+    def test_fallback_add_messages_is_flat(self):
+        from agent.state import add_messages
+        merged = add_messages([1, 2], [3])
+        self.assertEqual(merged, [1, 2, 3])
+        merged_single = add_messages([1], 2)
+        self.assertEqual(merged_single, [1, 2])  # no nested lists
+>>>>>>> origin/master
 
 
 if __name__ == "__main__":

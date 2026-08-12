@@ -31,7 +31,11 @@ def generate_all_data():
     
     # Edge data (100)
     edge_cases = [
+<<<<<<< HEAD
         ("edge_special_", "!!!!!!紧急!!!!!!", "consult"),
+=======
+        ("edge_special_", "??????紧急??????", "consult"),
+>>>>>>> origin/master
         ("edge_long_", "你好我是老用户想咨询一下产品升级问题..." * 10, "consult"),
         ("edge_multi_", "hello 你好 how are you 你好吗", "consult"),
         ("edge_vague_", "...", "chat"),

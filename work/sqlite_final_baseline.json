@@ -1,0 +1,59 @@
+﻿{
+    "captured_utc":  "2026-07-28T18:49:27.9701024Z",
+    "files":  [
+                  {
+                      "path":  "C:\\Users\\Administrator\\.openclaw\\workspace\\langgraph-customer-service-agent\\user_memory.db",
+                      "exists":  true,
+                      "length":  585728,
+                      "last_write_utc_ticks":  639208574054331948
+                  },
+                  {
+                      "path":  "C:\\Users\\Administrator\\.openclaw\\workspace\\langgraph-customer-service-agent\\user_memory.db-wal",
+                      "exists":  true,
+                      "length":  86552,
+                      "last_write_utc_ticks":  639208577261238680
+                  },
+                  {
+                      "path":  "C:\\Users\\Administrator\\.openclaw\\workspace\\langgraph-customer-service-agent\\user_memory.db-shm",
+                      "exists":  true,
+                      "length":  32768,
+                      "last_write_utc_ticks":  639208574054534806
+                  },
+                  {
+                      "path":  "C:\\Users\\Administrator\\.openclaw\\workspace\\langgraph-customer-service-agent\\data\\p4_self_improve.db",
+                      "exists":  true,
+                      "length":  81920,
+                      "last_write_utc_ticks":  639208576910965475
+                  },
+                  {
+                      "path":  "C:\\Users\\Administrator\\.openclaw\\workspace\\langgraph-customer-service-agent\\data\\trace.db",
+                      "exists":  true,
+                      "length":  622592,
+                      "last_write_utc_ticks":  639208563038619121
+                  },
+                  {
+                      "path":  "C:\\Users\\Administrator\\.openclaw\\workspace\\langgraph-customer-service-agent\\agent\\trace.db",
+                      "exists":  true,
+                      "length":  143360,
+                      "last_write_utc_ticks":  639207631065592656
+                  },
+                  {
+                      "path":  "C:\\Users\\Administrator\\.openclaw\\workspace\\langgraph-customer-service-agent\\checkpoints\\checkpoints.db",
+                      "exists":  true,
+                      "length":  131072,
+                      "last_write_utc_ticks":  639208579687096084
+                  },
+                  {
+                      "path":  "C:\\Users\\Administrator\\.openclaw\\workspace\\langgraph-customer-service-agent\\checkpoints.db",
+                      "exists":  true,
+                      "length":  20480,
+                      "last_write_utc_ticks":  639199438992633271
+                  },
+                  {
+                      "path":  "C:\\Users\\Administrator\\.openclaw\\workspace\\langgraph-customer-service-agent\\runtime.db",
+                      "exists":  true,
+                      "length":  12288,
+                      "last_write_utc_ticks":  639200725993233305
+                  }
+              ]
+}

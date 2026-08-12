@@ -1,0 +1,49 @@
+{
+  "counts": {
+    "conversation_history": 417,
+    "checkpoints": 284,
+    "checkpoint_writes": 943,
+    "checkpoint_blobs": 210,
+    "traces": 353,
+    "rag_documents": 12,
+    "rag_chunks": 273
+  },
+  "sqlite": {
+    "user_memory.db": {
+      "size": 585728,
+      "mtime_ns": 1785260605433194800
+    },
+    "user_memory.db-wal": {
+      "size": 86552,
+      "mtime_ns": 1785260926123868000
+    },
+    "user_memory.db-shm": {
+      "size": 32768,
+      "mtime_ns": 1785260605453480600
+    },
+    "data\\p4_self_improve.db": {
+      "size": 81920,
+      "mtime_ns": 1785260891096547500
+    },
+    "data\\trace.db": {
+      "size": 622592,
+      "mtime_ns": 1785259503861912100
+    },
+    "agent\\trace.db": {
+      "size": 143360,
+      "mtime_ns": 1785166306559265600
+    },
+    "checkpoints\\checkpoints.db": {
+      "size": 131072,
+      "mtime_ns": 1785261168709608400
+    },
+    "checkpoints.db": {
+      "size": 20480,
+      "mtime_ns": 1784347099263327100
+    },
+    "runtime.db": {
+      "size": 12288,
+      "mtime_ns": 1784475799323330500
+    }
+  }
+}

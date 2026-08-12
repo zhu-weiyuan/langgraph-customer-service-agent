@@ -3,7 +3,10 @@ import {
   ApiError,
   fetchHealth,
   fetchMe,
+<<<<<<< HEAD
   refreshSession,
+=======
+>>>>>>> origin/master
   login as apiLogin,
   register as apiRegister,
   logout as apiLogout,
@@ -34,6 +37,10 @@ let toastSeq = 0
 // PostgreSQL still has the new messages.
 const LS_USER = 'aster.auth.user_id'
 const LS_NAME = 'aster.auth.username'
+<<<<<<< HEAD
+=======
+const LS_TOKEN = 'aster.auth.token'
+>>>>>>> origin/master
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 
 function cookieGet(key: string): string | null {
@@ -148,8 +155,13 @@ export const useUiStore = defineStore('ui', {
     _persistAuth() {
       lsSet(LS_USER, this.auth.userId)
       lsSet(LS_NAME, this.auth.username)
+<<<<<<< HEAD
       // Access JWTs intentionally stay in memory. Page reload obtains a fresh
       // one through the HttpOnly rotating refresh cookie instead of localStorage.
+=======
+      if (this.auth.token) lsSet(LS_TOKEN, this.auth.token)
+      else lsRemove(LS_TOKEN)
+>>>>>>> origin/master
     },
 
     _setLoggedIn(userId: string, username: string, token: string | null) {
@@ -168,7 +180,11 @@ export const useUiStore = defineStore('ui', {
     restoreAuth(): boolean {
       const userId = lsGet(LS_USER)
       if (!userId) return false
+<<<<<<< HEAD
       this._setLoggedIn(userId, lsGet(LS_NAME) ?? userId, null)
+=======
+      this._setLoggedIn(userId, lsGet(LS_NAME) ?? userId, lsGet(LS_TOKEN))
+>>>>>>> origin/master
       return true
     },
 
@@ -202,14 +218,20 @@ export const useUiStore = defineStore('ui', {
       }
     },
 
+<<<<<<< HEAD
     /** Clear only browser-visible auth state; the server cookie is handled separately. */
     clearAuth() {
+=======
+    logout() {
+      void apiLogout().catch(() => undefined)
+>>>>>>> origin/master
       this.auth = { userId: '', username: '', token: null, isLoggedIn: false }
       this.memoryOpen = false
       this.sidebarOpen = false
       setAuthIdentity(null)
       lsRemove(LS_USER)
       lsRemove(LS_NAME)
+<<<<<<< HEAD
     },
 
     logout() {
@@ -263,6 +285,45 @@ export const useUiStore = defineStore('ui', {
         this._persistAuth()
         return true
       } catch {
+=======
+      lsRemove(LS_TOKEN)
+      this.toast('info', '已登出')
+    },
+
+    /**
+     * Verify a restored identity before loading user-scoped data.
+     *
+     * A JWT can outlive the browser tab and become stale after a server
+     * restart or secret rotation.  Keep the stable local user id (the API
+     * key injected by the local proxy still authenticates the request), but
+     * stop sending an expired JWT so it cannot win identity resolution.
+     */
+    async verifyMe(): Promise<boolean> {
+      try {
+        const me = await fetchMe()
+        // This public endpoint can still return the X-User-Id after a stored
+        // bearer token expires. Drop that stale token before bootstrapping.
+        if (this.auth.token && me.auth_scheme !== 'jwt') {
+          this.auth.token = null
+          this._syncClientAuth()
+          this._persistAuth()
+          this.toast('info', '\u767b\u5f55\u51ed\u8bc1\u5df2\u66f4\u65b0\uff0c\u5df2\u6062\u590d\u672c\u5730\u8d26\u53f7\u8eab\u4efd')
+        }
+        return true
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401 && this.auth.token) {
+          this.auth.token = null
+          this._syncClientAuth()
+          this._persistAuth()
+          this.toast('info', '\u767b\u5f55\u51ed\u8bc1\u5df2\u66f4\u65b0\uff0c\u5df2\u6062\u590d\u672c\u5730\u8d26\u53f7\u8eab\u4efd')
+          try {
+            await fetchMe()
+            return true
+          } catch {
+            // Do not log the user out if the local backend is temporarily down.
+          }
+        }
+>>>>>>> origin/master
         return false
       }
     },

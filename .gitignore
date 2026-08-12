@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Secrets — never commit
 .env
 .env.*
@@ -95,3 +96,100 @@ eval/reports/
 
 # Keep the golden dataset despite the *.jsonl rule
 !eval/golden_set_v2.jsonl
+=======
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.db-shm
+*.db-wal
+.env
+.venv/
+checkpoints.db
+user_memory.db
+*.log
+logs/
+node_modules/
+dist/
+
+# IDE
+.idea/
+.vscode/
+.claude/
+
+# Ruff cache
+.ruff_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug/temp scripts (root level)
+_check_*.py
+_fix_*.py
+_test_*.py
+_debug*.py
+_full_debug.py
+_migrate_*.py
+_mock_llm.py
+_pg_check.py
+_verify_*.py
+=3.0.0
+
+# Old backups
+*.bak
+
+# Runtime data
+runtime.db
+checkpoints.db
+user_memory.db
+trace.db
+trace.db-shm
+trace.db-wal
+p4_self_improve.db
+p4_self_improve.db-shm
+p4_self_improve.db-wal
+eval_results.db
+
+# Logs (root level)
+backend_*.log
+cs_*.log
+server*.log
+frontend_*.log
+runtime*.log
+.pytest-full.log
+.pytest-phase.log
+
+# Temp data files
+chat_payload.json
+e2e_results_*.json
+real_result.csv
+eval_real_result*.csv
+fastapi-*.json
+fastapi-sse-result.txt
+stream-test.json
+sse_verification_result.json
+sse_verify_after_persist.txt
+root_files.txt
+pytest_output.txt
+tests_files.txt
+
+# Work directory
+work/
+
+# Frontend build artifacts
+frontend/dist/
+frontend/node_modules/
+frontend/runtime.*.log
+
+# Archive
+archive/
+
+# Debug scripts in root
+cs_debug.py
+cs_debug2.py
+debug_alloc.py
+debug_eval.py
+debug_test.py
+trace_*.py
+>>>>>>> origin/master

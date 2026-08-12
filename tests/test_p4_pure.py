@@ -115,6 +115,7 @@ class TestFeedbackStore(unittest.TestCase):
         self.assertNotIn("13812345678", row["query"])
         self.assertNotIn("someone@example.com", row["comment"])
 
+<<<<<<< HEAD
     def test_rating_out_of_range_rejected_by_record_feedback(self):
         """record_feedback must reject ratings outside 0-5 (defense-in-depth)."""
         # Valid range: 0-5 should work (low ratings stored)
@@ -142,6 +143,8 @@ class TestFeedbackStore(unittest.TestCase):
         stats = self.store.stats()
         self.assertEqual(stats["by_signal_type"]["rating"], 3)
 
+=======
+>>>>>>> origin/master
 
 class TestPromptRegistry(unittest.TestCase):
     def setUp(self):

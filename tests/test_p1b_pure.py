@@ -8,7 +8,10 @@
 import asyncio
 import json
 import math
+<<<<<<< HEAD
 import os
+=======
+>>>>>>> origin/master
 import sys
 import unittest
 from pathlib import Path
@@ -23,6 +26,7 @@ from agent.circuit_breaker import CircuitBreaker, CircuitOpenError
 from agent.llm_client import LLMClient
 
 
+<<<<<<< HEAD
 class TestRateLimitConfig(unittest.TestCase):
     _ENV_NAMES = (
         "RATE_LIMIT_GLOBAL_RATE", "RATE_LIMIT_GLOBAL_CAPACITY",
@@ -73,6 +77,8 @@ class TestRateLimitConfig(unittest.TestCase):
         self.assertEqual(max_concurrency, 10)
 
 
+=======
+>>>>>>> origin/master
 # ─────────────────────────────────────────────────────
 # Fakes
 # ─────────────────────────────────────────────────────
@@ -533,6 +539,7 @@ class TestChatSync(unittest.TestCase):
         self.assertEqual(resp.content, "同步OK")
 
 
+<<<<<<< HEAD
 class TestGatewayRateLimitExceeded(unittest.IsolatedAsyncioTestCase):
     """Verify _check_rate_limit returns retry_after and chat() raises RateLimitExceeded."""
 
@@ -584,5 +591,7 @@ class TestGatewayRateLimitExceeded(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result)  # Allowed after window reset
 
 
+=======
+>>>>>>> origin/master
 if __name__ == "__main__":
     unittest.main(verbosity=2)

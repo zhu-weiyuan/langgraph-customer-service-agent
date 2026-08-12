@@ -11,4 +11,8 @@
  {"id":"greeting","input":{"messages":[]},"expected_intent":"chat","context":{}},
  {"id":"closing","input":{"messages":[]},"expected_intent":"ending","context":{}},
  {"id":"warranty","input":{"messages":[]},"expected_intent":"consult","context":{}}
+<<<<<<< HEAD
 ]
+=======
+]
+>>>>>>> origin/master

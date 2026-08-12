@@ -22,6 +22,7 @@ def client():
 
     Uses starlette.testclient.TestClient which bridges sync/async calls.
     """
+<<<<<<< HEAD
     from contextlib import asynccontextmanager
     from unittest.mock import Mock, patch
 
@@ -42,16 +43,25 @@ def client():
 
     with patch("agent.runner._graph", Mock()) as mock_graph, \
          patch("app_fastapi.db_read", _mock_db_read):
+=======
+    from unittest.mock import Mock, patch
+
+    # Patch runner._graph so the /api/ready endpoint sees a non-None graph
+    with patch("agent.runner._graph", Mock()) as mock_graph:
+>>>>>>> origin/master
         mock_graph.get_state.return_value = None
 
         import app_fastapi
         from starlette.testclient import TestClient
 
+<<<<<<< HEAD
         # FastAPI captures the lifespan at app-creation time via
         # app.router.lifespan_context.  Patch that directly so the
         # TestClient never enters the real (blocking) lifespan.
         app_fastapi.app.router.lifespan_context = _noop_lifespan
 
+=======
+>>>>>>> origin/master
         with TestClient(app_fastapi.app) as c:
             yield c
 

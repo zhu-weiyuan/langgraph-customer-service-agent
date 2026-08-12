@@ -9,7 +9,11 @@ REM  Ports: CS backend 7860 / CS frontend 5173 / SimpleAgent 8000
 REM  Prereq: local LLM server (llama.cpp :8080) running, .env configured
 REM ================================================================
 
+<<<<<<< HEAD
 set LG=C:\Users\Administrator\.openclaw\workspace1\langgraph-customer-service-agent
+=======
+set LG=C:\Users\Administrator\.openclaw\workspace\langgraph-customer-service-agent
+>>>>>>> origin/master
 set SA=C:\Users\Administrator\.openclaw\workspace\simple-agent
 
 if /i "%1"=="check" (
@@ -29,10 +33,14 @@ if /i "%1"=="check" (
 
 echo [1/4] Starting CS-Agent backend on :7860 ...
 cd /d %LG%
+<<<<<<< HEAD
 if not defined CS_WORKERS set "CS_WORKERS=2"
 set "PROMETHEUS_MULTIPROC_DIR=%TEMP%\langgraph-prometheus-%RANDOM%-%RANDOM%"
 if not exist "%PROMETHEUS_MULTIPROC_DIR%" mkdir "%PROMETHEUS_MULTIPROC_DIR%"
 start "CS-Backend 7860" cmd /k ".venv\Scripts\activate.bat && set PORT=7860&& set PROMETHEUS_MULTIPROC_DIR=%PROMETHEUS_MULTIPROC_DIR%&& uvicorn app_fastapi:app --host 127.0.0.1 --port 7860 --workers %CS_WORKERS% --no-access-log"
+=======
+start "CS-Backend 7860" cmd /k ".venv\Scripts\activate.bat && set PORT=7860&& uvicorn app_fastapi:app --host 127.0.0.1 --port 7860"
+>>>>>>> origin/master
 
 echo [2/4] Starting SimpleAgent on :8000 ...
 cd /d %SA%

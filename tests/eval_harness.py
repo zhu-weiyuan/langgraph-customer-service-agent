@@ -236,6 +236,7 @@ class EvalRunner:
         self.task_name = task_name
         self.export_path = Path(export_path) if export_path else Path(__file__).with_name("eval_results.json")
     
+<<<<<<< HEAD
     def load_dataset(self, path: str | Path) -> list[dict[str, Any]]:
         """Load the lightweight dictionary dataset used by the phase-C demo.
 
@@ -249,6 +250,8 @@ class EvalRunner:
             raise ValueError("evaluation dataset must be a JSON array")
         return [dict(item) for item in data if isinstance(item, dict)]
 
+=======
+>>>>>>> origin/master
     def load_golden_set(self, path: str | Path) -> List[GoldenCase]:
         """Load golden set from JSON file."""
         data = json.loads(Path(path).read_text(encoding="utf-8-sig"))
@@ -267,6 +270,7 @@ class EvalRunner:
             cases.append(case)
         return cases
     
+<<<<<<< HEAD
     def run(self, dataset: list[dict[str, Any]], graph=None) -> Dict[str, Any]:
         """Compatibility runner for the original dictionary-based dataset.
 
@@ -299,6 +303,8 @@ class EvalRunner:
             ))
         return self.run_suite(cases, graph=graph)
 
+=======
+>>>>>>> origin/master
     def run_suite(self, golden_set: List[GoldenCase], graph=None) -> Dict[str, Any]:
         """
         Run evaluation suite on all golden cases.

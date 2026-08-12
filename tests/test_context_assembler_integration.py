@@ -37,7 +37,11 @@ def test_assemble_with_full_components():
 def test_budget_truncation_behavior():
     # Test that allocator respects token budget
     allocator = TokenBudgetAllocator(context_window=1000, reserved_output=256)
+<<<<<<< HEAD
     assembler = ContextAssembler(registry=MockPromptRegistry(), allocator=allocator)
+=======
+    assembler = ContextAssembler(allocator=allocator)
+>>>>>>> origin/master
     
     # Create oversized state
     long_text = "word " * 400  # ~600 tokens
@@ -68,7 +72,11 @@ def test_budget_truncation_behavior():
 def test_priority_ordering_correctness():
     # Test that pieces are selected by priority, not just size
     allocator = TokenBudgetAllocator(context_window=500, reserved_output=128)
+<<<<<<< HEAD
     assembler = ContextAssembler(registry=MockPromptRegistry(), allocator=allocator)
+=======
+    assembler = ContextAssembler(allocator=allocator)
+>>>>>>> origin/master
     
     state = {
         "task_goal": "URGENT: Handle refund request immediately",
@@ -101,7 +109,11 @@ def test_priority_ordering_correctness():
 def test_rag_score_weighting():
     # Test that rag_results with relevance scores are weighted properly
     allocator = TokenBudgetAllocator(context_window=1000, reserved_output=256)
+<<<<<<< HEAD
     assembler = ContextAssembler(registry=MockPromptRegistry(), allocator=allocator)
+=======
+    assembler = ContextAssembler(allocator=allocator)
+>>>>>>> origin/master
     
     state = {
         "task_goal": "Answer question accurately",
@@ -138,16 +150,20 @@ class MockPromptRegistry:
     def get(self, name):
         return self._versions.get(name)
 
+<<<<<<< HEAD
     def get_active(self, name, tenant=None, session_seed=None, *, env="prod", log_run=False):
         return self._versions.get(name)
 
     def record_run(self, pv, session_id=""):
         pass
 
+=======
+>>>>>>> origin/master
 class MockPromptVersion:
     name = "system"
     version_no = 1
     content = "You are a helpful assistant."
+<<<<<<< HEAD
 
 
 # ── Context boundary / prompt injection defense tests ────────────────
@@ -218,4 +234,6 @@ def test_rag_boundary_with_multiple_documents():
     boundary_end = system_content.index("</参考资料 evidence>")
     assert boundary_start < fact_a_pos < boundary_end
     assert boundary_start < fact_b_pos < boundary_end
+=======
+>>>>>>> origin/master
     

@@ -42,6 +42,10 @@ Design principles (P1-A rewrite)
 from __future__ import annotations
 
 import re
+<<<<<<< HEAD
+=======
+from contextlib import suppress
+>>>>>>> origin/master
 from dataclasses import dataclass, field, replace
 from typing import Any, Iterable
 
@@ -70,8 +74,11 @@ class ContextPiece:
     recency: int = 0              # for history: original index (ascending = older→newer)
     token_estimate: int = 0
     tier: str = TIER_FULL
+<<<<<<< HEAD
     # True when the piece is only a retrieval trace/metadata stub, not answer evidence.
     metadata_only: bool = False
+=======
+>>>>>>> origin/master
 
     def estimated(self) -> int:
         if not self.token_estimate:
@@ -309,6 +316,7 @@ class ContextAssembler:
                                            source_id=source_id,
                                            recency=len(rag_results) - idx))
             else:                                        # legacy shape
+<<<<<<< HEAD
                 title = str(r.get("title", "evidence"))
                 source_id = f"doc:{r.get('id', title)}"
                 score = float(r.get("score", 0.5) or 0.5)
@@ -332,6 +340,16 @@ class ContextAssembler:
                 pieces.append(ContextPiece(
                     "rag", f"{title}: {content}", 70 + int(score * 10),
                     source_id=source_id,
+=======
+                if r.get("relevant") is False:
+                    continue
+                title = str(r.get("title", "evidence"))
+                content = str(r.get("content", "") or title)
+                score = float(r.get("score", 0.5) or 0.5)
+                pieces.append(ContextPiece(
+                    "rag", f"{title}: {content}", 70 + int(score * 10),
+                    source_id=f"doc:{r.get('id', title)}",
+>>>>>>> origin/master
                     recency=len(rag_results) - idx,
                 ))
         return pieces
@@ -355,7 +373,11 @@ class ContextAssembler:
         pieces: list[ContextPiece] = []
         items = list(history or [])
         # De-duplicate: if the newest history entry IS the current user turn,
+<<<<<<< HEAD
         # drop it here; the current question is appended (last) separately.
+=======
+        # drop it here — the current question is appended (last) separately.
+>>>>>>> origin/master
         if items:
             last = items[-1]
             if _message_role(last) == "user" and _message_content(last) == current_user:
@@ -372,6 +394,7 @@ class ContextAssembler:
                 priority=50 if emotional else 40,
                 role=role,
                 source_id=f"history:{index}",
+<<<<<<< HEAD
                 recency=index,
             ))
         return pieces
@@ -416,6 +439,17 @@ class ContextAssembler:
         # latest version by version_no, bypassing all release logic.
         prompt = self.registry.get_active("system", session_seed=session_id,
                                          log_run=True)
+=======
+                recency=index,           # ascending: larger = newer
+            ))
+        return pieces
+
+    # ── main entry point (signature kept compatible with nodes.py) ───
+    def assemble(self, state: dict, user_message: str, session_id: str = "") -> ContextBundle:
+        prompt = self.registry.get("system")
+        with suppress(Exception):
+            self.registry.record_run(prompt, session_id=session_id)
+>>>>>>> origin/master
 
         pieces: list[ContextPiece] = [
             ContextPiece("system", prompt.content, 100, role="system",
@@ -442,11 +476,15 @@ class ContextAssembler:
             pieces.append(ContextPiece("memory", str(memory), 60,
                                        source_id="memory_summary"))
 
+<<<<<<< HEAD
         history = state.get("messages", [])
         pieces.extend(self._history_pieces(history, user_message))
         signal_piece = self._user_signal_piece(user_message, history)
         if signal_piece is not None:
             pieces.append(signal_piece)
+=======
+        pieces.extend(self._history_pieces(state.get("messages", []), user_message))
+>>>>>>> origin/master
 
         # rank (importance) and fit (budget + degradation) are decoupled.
         ranked = self.allocator.rank(pieces)
@@ -464,6 +502,7 @@ class ContextAssembler:
             system_parts.append(f"task_goal:{p.content.strip()}")
         for p in by_label.get("tools", []):
             system_parts.append(p.content)
+<<<<<<< HEAD
         for p in by_label.get("signals", []):
             system_parts.append(f"User signals:\n{p.content}")
         rag_selected = by_label.get("rag", [])
@@ -490,6 +529,12 @@ class ContextAssembler:
                 "- 引用编号 [n] 必须对应上方编号为 n 的那条资料，且只引用你实际用到的资料\n"
                 "- 如果某条资料与问题无关或你未使用它，不要引用它\n"
                 "- 不确定或资料缺失时，直接说\"这个我暂时无法确认\"，不要编造")
+=======
+        rag_selected = by_label.get("rag", [])
+        if rag_selected:
+            system_parts.append(
+                "参考资料 (evidence):\n" + "\n\n".join(p.content for p in rag_selected))
+>>>>>>> origin/master
         for p in by_label.get("memory", []):
             system_parts.append(f"Memory Context: {p.content}")
 
@@ -513,6 +558,7 @@ class ContextAssembler:
             messages=final_messages,
             tool_schema=list(tools),
             metadata={
+<<<<<<< HEAD
                 # ``rag`` means answer-bearing evidence only.  A low-relevance
                 # document may still be shown as a metadata/reference stub for
                 # transparency, but it must not inflate the hit count.
@@ -526,6 +572,11 @@ class ContextAssembler:
                 "rag_metadata_count": sum(
                     1 for p in by_label.get("rag", []) if p.metadata_only
                 ),
+=======
+                "source_counts": {
+                    label: len(items) for label, items in by_label.items()
+                },
+>>>>>>> origin/master
                 "token_estimate": used_tokens,
                 "utilization": self.allocator.utilization(selected),
                 "target_range": (self.allocator.TARGET_LOW, self.allocator.TARGET_HIGH),

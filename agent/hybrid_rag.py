@@ -106,6 +106,7 @@ def chunk_document(text: str,
                    child_size: int = CHILD_SIZE,
                    parent_size: int = PARENT_SIZE,
                    doc_id: str = "doc") -> Dict[str, Any]:
+<<<<<<< HEAD
     """将文档切成 parent 与 child 两级块。
 
     **小节边界为主，parent 扩展相邻小节**：
@@ -121,6 +122,16 @@ def chunk_document(text: str,
         {
           "parents": {parent_id: {"parent_id", "text", "start", "section"}},
           "children": [{"child_id", "parent_id", "text", "start", "section"}],
+=======
+    """将文档切成 parent（~parent_size 字）与 child（~child_size 字）两级块。
+
+    纯函数。切分优先在段落/句子边界（\n\n > \n > 。！？!? > 硬切）。
+
+    Returns:
+        {
+          "parents": {parent_id: {"parent_id", "text", "start"}},
+          "children": [{"child_id", "parent_id", "text", "start"}],
+>>>>>>> origin/master
         }
     """
     if child_size <= 0 or parent_size <= 0:
@@ -131,6 +142,7 @@ def chunk_document(text: str,
     parents: Dict[str, Dict[str, Any]] = {}
     children: List[Dict[str, Any]] = []
 
+<<<<<<< HEAD
     secs = _markdown_sections(text)
     p_idx = 0
     for idx, sec in enumerate(secs):
@@ -155,10 +167,18 @@ def chunk_document(text: str,
             "section": sec_title,
         }
         for c_idx, (c_start, c_text) in enumerate(_split_spans(sec_text, child_size)):
+=======
+    parent_spans = _split_spans(text, parent_size)
+    for p_idx, (p_start, p_text) in enumerate(parent_spans):
+        parent_id = f"{doc_id}:p{p_idx}"
+        parents[parent_id] = {"parent_id": parent_id, "text": p_text, "start": p_start}
+        for c_idx, (c_start, c_text) in enumerate(_split_spans(p_text, child_size)):
+>>>>>>> origin/master
             children.append({
                 "child_id": f"{parent_id}:c{c_idx}",
                 "parent_id": parent_id,
                 "text": c_text,
+<<<<<<< HEAD
                 "start": sec.get("start", 0) + c_start,
                 "section": sec_title,
             })
@@ -192,6 +212,13 @@ def _markdown_sections(text: str) -> List[Dict[str, Any]]:
     return [{"title": "（文档引言）", "text": stripped, "start": 0}] if stripped else []
 
 
+=======
+                "start": p_start + c_start,
+            })
+    return {"parents": parents, "children": children}
+
+
+>>>>>>> origin/master
 def _split_spans(text: str, size: int) -> List[tuple]:
     """按目标长度切分文本，尽量落在段落/句子边界。返回 [(start, chunk_text)]。"""
     spans: List[tuple] = []
@@ -236,10 +263,13 @@ def map_children_to_parents(child_hits: Sequence[Dict[str, Any]],
     """child 命中映射回 parent 输出，同 parent 去重（分数取最大，保序）。纯函数。
 
     child_hits 每条需含 parent_id；无 parent_id 或 parent 缺失则原样透传。
+<<<<<<< HEAD
 
     输出条目额外携带 child_ids：该 parent 下所有命中 child 的 id（保序去重，
     首个为 id 字段）。这样 parent 合并后，检索层判定（ChunkHit）仍能识别
     同 parent 下被"代表"掉的兄弟 child——内容确实被召回，只是 id 被合并。
+=======
+>>>>>>> origin/master
     """
     seen: Dict[Any, int] = {}
     out: List[Dict[str, Any]] = []
@@ -253,6 +283,7 @@ def map_children_to_parents(child_hits: Sequence[Dict[str, Any]],
                 out[idx]["score"] = max(out[idx].get("score", 0.0), hit.get("score", 0.0))
                 continue
             seen[key] = len(out)
+<<<<<<< HEAD
             merged = dict(hit)
             merged["child_ids"] = [hit.get("id")] if hit.get("id") else []
             out.append(merged)
@@ -262,6 +293,12 @@ def map_children_to_parents(child_hits: Sequence[Dict[str, Any]],
             cid = hit.get("id")
             if cid and cid not in out[idx].setdefault("child_ids", []):
                 out[idx]["child_ids"].append(cid)
+=======
+            out.append(dict(hit))
+            continue
+        if pid in seen:
+            idx = seen[pid]
+>>>>>>> origin/master
             out[idx]["score"] = max(out[idx].get("score", 0.0),
                                     float(hit.get("score", 0.0) or 0.0))
             continue
@@ -270,8 +307,11 @@ def map_children_to_parents(child_hits: Sequence[Dict[str, Any]],
         merged["text"] = merged["content"]
         merged["parent_id"] = pid
         merged["title"] = hit.get("title") or parent.get("title", pid)
+<<<<<<< HEAD
         merged["section"] = hit.get("section") or parent.get("section", "")
         merged["child_ids"] = [hit.get("id")] if hit.get("id") else []
+=======
+>>>>>>> origin/master
         seen[pid] = len(out)
         out.append(merged)
     if top_n is not None:
@@ -430,6 +470,7 @@ class RuleReranker(Reranker):
         src_w = float(self.source_weights.get(src, 0.0))
 
         base = float(result.get("score", 0.0) or 0.0)
+<<<<<<< HEAD
         # Preserve the retrieval signal.  The old 1e-6 tie-breaker effectively
         # discarded pgvector/RRF relevance and let generic question-word
         # overlap（例如“怎么”“是否”）排到真正相关的知识段之前。
@@ -443,6 +484,12 @@ class RuleReranker(Reranker):
                 + self.recency_weight * recency
                 + self.source_weight * src_w
                 + base_weight * base)
+=======
+        return (overlap
+                + self.recency_weight * recency
+                + self.source_weight * src_w
+                + 1e-6 * base)
+>>>>>>> origin/master
 
     def rerank(self, query, results, top_n=RERANK_TOP_N):
         scored = [(self.score(query, r), i, r) for i, r in enumerate(results)]
@@ -527,6 +574,7 @@ class CrossEncoderReranker(Reranker):
             for s, _, r in scored[:top_n]:
                 entry = dict(r)
                 entry["rerank_score"] = round(float(s), 6)
+<<<<<<< HEAD
                 # Keep the same relevance metadata as RuleReranker.  The
                 # backend uses lexical_overlap as a safety gate, and the
                 # observability layer needs it to explain why a result was
@@ -534,6 +582,8 @@ class CrossEncoderReranker(Reranker):
                 entry["lexical_overlap"] = round(
                     RuleReranker.lexical_overlap(query, r), 6
                 )
+=======
+>>>>>>> origin/master
                 out.append(entry)
             return out
         except Exception:
@@ -694,15 +744,20 @@ class HybridRetriever:
     def _normalize(r: Dict[str, Any]) -> Dict[str, Any]:
         content = str(r.get("content") or r.get("text") or "")
         return {
+<<<<<<< HEAD
             "id": str(r.get("id", "")),
             "title": str(r.get("title", "")),
             "section": str(r.get("section", "")),
+=======
+            "title": str(r.get("title", "")),
+>>>>>>> origin/master
             "content": content,
             "text": content,  # 兼容 nodes/context_assembler 消费的 text 字段
             "score": round(float(r.get("rerank_score",
                                        r.get("score", 0.0)) or 0.0), 6),
             "source": str(r.get("source", "")),
             "parent_id": r.get("parent_id"),
+<<<<<<< HEAD
             # 同 parent 合并后，被代表掉的兄弟 child id（检索判定用）
             "child_ids": list(r.get("child_ids") or []),
             # Preserve ranking diagnostics for the API/metrics dashboard.
@@ -714,6 +769,8 @@ class HybridRetriever:
             ),
             "reranker_provider": str(r.get("reranker_provider", "")),
             "reranker_model": str(r.get("reranker_model", "")),
+=======
+>>>>>>> origin/master
         }
 
 

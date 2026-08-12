@@ -8,6 +8,7 @@ from agent.prompt_registry import PromptRegistry
 from tests.eval_harness import CustomerServiceEvaluator, EvaluationRunner
 
 
+<<<<<<< HEAD
 @pytest.fixture
 def _mem_registry():
     """In-memory PromptRegistry immune to DATABASE_URL pollution."""
@@ -16,6 +17,10 @@ def _mem_registry():
 
 def test_context_assembler_produces_llm_message_structure(_mem_registry):
     bundle = ContextAssembler(registry=_mem_registry).assemble(
+=======
+def test_context_assembler_produces_llm_message_structure():
+    bundle = ContextAssembler().assemble(
+>>>>>>> origin/master
         {"messages": [HumanMessage(content="earlier question"), AIMessage(content="earlier reply")],
          "available_tools": [{"name": "lookup"}]},
         "current question", "session-1")
@@ -34,8 +39,13 @@ def test_token_budget_allocator_excludes_low_priority_over_budget_content():
     assert [piece.label for piece in selected] == ["important"]
 
 
+<<<<<<< HEAD
 def test_progressive_disclosure_uses_metadata_for_irrelevant_document(_mem_registry):
     bundle = ContextAssembler(registry=_mem_registry).assemble(
+=======
+def test_progressive_disclosure_uses_metadata_for_irrelevant_document():
+    bundle = ContextAssembler().assemble(
+>>>>>>> origin/master
         {"rag_results": [{"title": "Warranty", "summary": "Warranty metadata", "content": "FULL SECRET CONTENT", "relevant": False}]},
         "question")
     system = bundle.messages[0]["content"]
@@ -56,8 +66,13 @@ def test_rule_based_eval_harness_against_sample_data(tmp_path):
     assert (tmp_path / "summary.json").exists()
 
 
+<<<<<<< HEAD
 def test_prompt_registry_render_and_validate(_mem_registry):
     registry = _mem_registry
+=======
+def test_prompt_registry_render_and_validate():
+    registry = PromptRegistry()
+>>>>>>> origin/master
     assert registry.render_and_validate("Hello {name}", {"name": "customer"}) == "Hello customer"
     with pytest.raises(ValueError):
         registry.render_and_validate("Hello {name}", {})
