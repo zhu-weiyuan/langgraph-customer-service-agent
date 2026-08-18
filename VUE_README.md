@@ -6,20 +6,20 @@
 - **前端（Vue 3）**: `frontend/` 目录，Vite 开发服务器（端口 5173+）
 - **数据库**: PostgreSQL（`langgraph-postgres` 容器）
 
-## 为什么有两个 app.py？
+## 当前入口与旧后端归档
 
 | 文件 | 用途 | 状态 |
 |------|------|------|
 | `app_fastapi.py` | **生产入口**，FastAPI + uvicorn 多 worker | ✅ **当前使用** |
-| `app.py` | 旧版 `http.server` 单线程实现 | ❌ **已废弃，仅归档** |
+| `archive/legacy_backend/app_legacy.py` | 旧版 `http.server` 单线程实现 | ❌ **已归档，仅供追溯** |
 
-`app.py` 不支持：
+`archive/legacy_backend/app_legacy.py` 不支持：
 - Vue 前端的 API 端点（`/healthz`、`/api/auth/login`、`/api/auth/me` 等）
 - 用户认证 / 会话管理
 - 多 worker 并发
 - Stream SSE 的正确实现
 
-**不要切换回 `app.py`**，否则 Vue 前端无法正常工作。
+**不要切换回归档后端**，否则 Vue 前端无法正常工作。
 
 ## Vue 前端启动
 

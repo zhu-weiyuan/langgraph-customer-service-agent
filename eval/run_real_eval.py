@@ -62,6 +62,7 @@ from dotenv import load_dotenv  # noqa: E402
 load_dotenv(PROJECT_ROOT / ".env")
 
 from agent.llm_client import LLMClient  # noqa: E402
+from agent.json_parsing import parse_json_object  # noqa: E402
 from agent.rag_backend import retrieve_with_backend  # noqa: E402
 
 # 默认数据集 = v2（85 条）。旧 golden_set.jsonl（63 条）仅作历史参考，用 --dataset 显式指定。
@@ -94,6 +95,23 @@ GENERATE_PROMPT = """你是智能客服助手。请根据【参考资料】回�
 
 直接输出回答正文："""
 
+ANSWER_CORRECTNESS_PROMPT = """你是严格的客服答案正确性评审。比较用户问题、参考标准答案/关键点与实际回答。允许同义改写，但不能漏掉关键步骤、条件或数字。只输出合法 JSON，不要 markdown。
+
+【用户问题】
+{query}
+
+【参考标准答案】
+{golden_answer}
+
+【关键点】
+{key_points}
+
+【实际回答】
+{answer}
+
+返回：{{"score": 0, "reason": "不超过 30 字"}}，score 为 0-5 的整数。
+"""
+
 CITATION_CHECK_PROMPT = """你是引用准确性评审。下面是一个回答及其参考资料，回答中标注了 [n] 引用。
 
 【参考资料】
@@ -102,11 +120,11 @@ CITATION_CHECK_PROMPT = """你是引用准确性评审。下面是一个回答�
 【回答（含引用标注）】
 {answer}
 
-请对回答中的每个 [n] 引用判断：该位置的结论是否确实由编号为 n 的资料支撑。
+请按**引用出现的位置**逐个判断：回答中第 1 个、第 2 个……每个 [n] 是否确实由编号为 n 的资料支撑。即使多个位置都写 [1]，也必须分别返回多条明细，不能合并。
 
 返回 JSON（只输出 JSON，不要 markdown，reason 不超过 15 字）：
-{{"citations": [{{"n": 1, "supported": true, "reason": "简述"}}], "citation_accuracy": 0.75}}
-其中 citation_accuracy = 被支撑的引用数 / 总引用数；回答中没有任何 [n] 引用时返回 citation_accuracy=0。"""
+{{"citations": [{{"occurrence": 1, "n": 1, "supported": true, "reason": "简述"}}], "citation_accuracy": 0.75}}
+occurrence 从 1 开始，必须覆盖回答里所有 [n] 的出现位置；citation_accuracy = 被支撑的引用出现次数 / 总引用出现次数。回答中没有任何 [n] 引用时返回 citations=[] 且 citation_accuracy=0。"""
 
 FAITHFULNESS_PROMPT = """你是事实核查专家。判断回答中的每个陈述是否都能在参考资料中找到依据。
 
@@ -196,26 +214,38 @@ _CITATION_MARKER_RE = re.compile(r"\[(\d{1,3})\]")
 
 # ── LLM helpers ──────────────────────────────────────────────
 
-def extract_json(text: str) -> Optional[Dict[str, Any]]:
-    """从 LLM 输出中提取第一个 JSON 对象。"""
-    if not text:
-        return None
-    # 剥离 markdown 代码块围栏
-    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if fenced:
-        text = fenced.group(1)
-    match = re.search(r"\{.*\}", text, re.DOTALL)
-    if not match:
-        return None
-    try:
-        return json.loads(match.group())
-    except json.JSONDecodeError:
-        # 尝试修复截断的 JSON：补全括号
-        raw = match.group()
-        try:
-            return json.loads(raw + "}")
-        except json.JSONDecodeError:
-            return None
+def extract_json(text: str, *, required_keys: Tuple[str, ...] = ()) -> Optional[Dict[str, Any]]:
+    """提取首个满足字段要求的完整 JSON 对象。
+
+    Judge 偶尔会在最终结果前复述示例 JSON。这里使用 ``raw_decode`` 扫描
+    每一个独立对象，避免贪婪正则把多个对象拼成一个无效字符串；调用方可以
+    提供期望字段，跳过前置示例或无关对象。
+    """
+    return parse_json_object(text, required_keys=required_keys)
+
+
+_JUDGE_REQUIRED_KEYS: Dict[str, Tuple[str, ...]] = {
+    "citation_accuracy": ("citations", "citation_accuracy"),
+    "faithfulness": ("faithfulness",),
+    "answer_relevancy": ("score",),
+    "answer_correctness": ("score",),
+    "context_recall": ("context_recall",),
+    "refusal": ("refused",),
+}
+
+
+def _required_judge_keys(metric: str) -> Tuple[str, ...]:
+    """Return schema keys used to ignore unrelated JSON preceding judge output."""
+    if metric.startswith("context_precision["):
+        return ("relevant",)
+    return _JUDGE_REQUIRED_KEYS.get(metric, ())
+
+class RetrievalFailure(RuntimeError):
+    """A retrieval failure that keeps backend telemetry in the eval report."""
+
+    def __init__(self, message: str, info: Dict[str, Any]):
+        super().__init__(message)
+        self.info = dict(info)
 
 
 class RealEvaluator:
@@ -313,23 +343,30 @@ class RealEvaluator:
         )
 
     def _chat_json_full(self, prompt: str, metric: str) -> Tuple[Dict[str, Any], str, bool]:
-        """调用 judge 并尝试解析 JSON；解析失败重试一次（加严格提示）。
-
-        Returns: (data, raw_text, parse_ok)
-        """
+        """Call the judge, retry once, and retain parse/latency telemetry."""
+        started = time.time()
+        raw_attempts: List[str] = []
         raw = self._chat(prompt, max_tokens=JUDGE_MAX_TOKENS)
-        data = extract_json(raw)
+        raw_attempts.append(raw)
+        data = extract_json(raw, required_keys=_required_judge_keys(metric))
         retries = 0
         if data is None:
             retries = 1
-            raw2 = self._chat(prompt + "\n\n只输出合法 JSON，不要包含任何解释或 markdown。",
-                              max_tokens=JUDGE_MAX_TOKENS)
-            data = extract_json(raw2)
+            raw2 = self._chat(
+                prompt + "\n\n只输出合法 JSON，不要包含任何解释或 markdown。",
+                max_tokens=JUDGE_MAX_TOKENS,
+            )
+            raw_attempts.append(raw2)
+            data = extract_json(raw2, required_keys=_required_judge_keys(metric))
             if data is not None:
                 raw = raw2
         parse_ok = data is not None
         self.judge_raw_log.append({
-            "metric": metric, "parse_ok": parse_ok, "retries": retries,
+            "metric": metric,
+            "parse_ok": parse_ok,
+            "retries": retries,
+            "latency_s": round(time.time() - started, 3),
+            "raw_attempts": [x[:4000] for x in raw_attempts],
             "raw": raw[:4000],
         })
         if not parse_ok and self.verbose:
@@ -384,8 +421,11 @@ class RealEvaluator:
         return query
 
     def retrieve_observed(self, query: str) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-        """检索 + 后端可观测性：RAG_STRICT=1 下 pgvector 失败会抛错，这里记录
-        fallback 事实后显式改走 TF-IDF，避免静默污染指标。"""
+        """Run the requested retrieval backend and expose fallback facts.
+
+        Strict evaluation must fail the item when pgvector is unavailable; permissive
+        evaluation may explicitly fall back to TF-IDF and records that fact.
+        """
         info: Dict[str, Any] = {
             "backend_requested": "pgvector",
             "backend_actual": "pgvector",
@@ -395,9 +435,16 @@ class RealEvaluator:
         try:
             hits = retrieve_with_backend(query, top_k=self.k, backend="pgvector")
         except Exception as exc:  # noqa: BLE001
-            info["backend_actual"] = "tfidf-fallback"
             info["fallback_used"] = True
             info["fallback_reason"] = f"{type(exc).__name__}: {exc}"
+            strict = os.getenv("RAG_STRICT", "0").strip().lower() in {"1", "true", "yes", "on"}
+            if strict:
+                info["backend_actual"] = "pgvector-error"
+                raise RetrievalFailure(
+                    f"严格评测要求 pgvector 可用，但检索失败: {type(exc).__name__}: {exc}",
+                    info,
+                ) from exc
+            info["backend_actual"] = "tfidf-fallback"
             if self.verbose:
                 print(f"    [warn] pgvector failed -> TF-IDF fallback: {exc}")
             hits = retrieve_with_backend(query, top_k=self.k, backend="tfidf")
@@ -441,23 +488,140 @@ class RealEvaluator:
     @staticmethod
     def _validate_citations(citations: List[Dict[str, Any]],
                             n_contexts: int) -> Tuple[List[Dict[str, Any]], List[int]]:
-        """校验引用编号：越界（> 检索条目数 或 <1）一律记为不支持，返回
-        (修正后的 citations, 越界编号列表)。"""
-        out_of_range = []
-        valid = []
+        """Normalize judge citations and flag every out-of-range number."""
+        out_of_range: List[int] = []
+        valid: List[Dict[str, Any]] = []
         for c in citations or []:
+            c = dict(c or {})
             try:
                 n = int(c.get("n"))
             except (TypeError, ValueError):
                 n = 0
+            c["n"] = n
             if n < 1 or n > n_contexts:
                 out_of_range.append(n)
-                valid.append({"n": n, "supported": False,
-                              "reason": f"越界引用: n={n} 超出检索条目数 {n_contexts}",
-                              "_out_of_range": True})
-            else:
-                valid.append(c)
+                c["supported"] = False
+                c["reason"] = f"越界引用: n={n}, 实际上下文数={n_contexts}"
+                c["_out_of_range"] = True
+            valid.append(c)
         return valid, out_of_range
+
+    @staticmethod
+    def _citation_integrity(answer_markers: List[int],
+                            citation_details: List[Dict[str, Any]],
+                            n_contexts: int) -> Dict[str, Any]:
+        """Validate citation coverage without treating repeated ``[n]`` as malformed.
+
+        New judges receive an occurrence-aware schema and must return one detail
+        per reference appearance.  Older / weaker local judges often collapse
+        repeated ``[1]`` markers into one source-level detail; that is less
+        granular, but still internally consistent when every cited source is
+        covered.  Keep that compatible mode explicit instead of reporting a
+        misleading 0% integrity rate.
+        """
+        errors: List[str] = []
+        marker_counts = Counter(answer_markers)
+        detail_numbers: List[int] = []
+        occurrences: List[Optional[int]] = []
+        for item in citation_details or []:
+            try:
+                detail_numbers.append(int(item.get("n")))
+            except (AttributeError, TypeError, ValueError):
+                detail_numbers.append(0)
+            try:
+                raw_occurrence = item.get("occurrence")
+                occurrences.append(int(raw_occurrence) if raw_occurrence is not None else None)
+            except (AttributeError, TypeError, ValueError):
+                occurrences.append(None)
+
+        detail_counts = Counter(detail_numbers)
+        invalid_markers = sorted({n for n in answer_markers if n < 1 or n > n_contexts})
+        if invalid_markers:
+            errors.append(f"答案存在越界引用: {invalid_markers}")
+        if any(n < 1 or n > n_contexts for n in detail_numbers):
+            errors.append("Judge 返回了越界引用")
+
+        # The current prompt asks for position-aware judgments.  Enforce both
+        # complete occurrence coverage and the source number at each position.
+        occurrence_mode = bool(citation_details) and all(value is not None for value in occurrences)
+        if occurrence_mode:
+            expected_positions = list(range(1, len(answer_markers) + 1))
+            if sorted(occurrences) != expected_positions:
+                errors.append("Judge 的 occurrence 未完整覆盖答案引用位置")
+            else:
+                for detail, occurrence in zip(citation_details, occurrences):
+                    if int(detail.get("n", 0) or 0) != answer_markers[occurrence - 1]:
+                        errors.append(f"Judge 的 occurrence={occurrence} 与答案引用编号不一致")
+                        break
+            detail_mode = "per_occurrence"
+        else:
+            # Compatibility for old judge responses: judge one cited source
+            # once.  Compare unique source numbers, not duplicate occurrences.
+            marker_sources = set(marker_counts)
+            detail_sources = set(detail_counts)
+            missing = sorted(marker_sources - detail_sources)
+            extra = sorted(detail_sources - marker_sources)
+            if missing:
+                errors.append(f"Judge 缺少引用来源明细: {missing}")
+            if extra:
+                errors.append(f"Judge 多返回引用来源明细: {extra}")
+            detail_mode = "per_source_compatible"
+
+        return {
+            "citation_valid": not errors,
+            "citation_errors": errors,
+            "answer_marker_count": len(answer_markers),
+            "judge_detail_count": len(detail_numbers),
+            "invalid_answer_markers": invalid_markers,
+            "citation_detail_mode": detail_mode,
+        }
+
+    @staticmethod
+    def _citation_accuracy_from_details(answer_markers: List[int],
+                                        citation_details: List[Dict[str, Any]],
+                                        n_contexts: int) -> float:
+        """Compute citation accuracy over every answer marker.
+
+        Missing occurrence details are counted as unsupported rather than being
+        silently removed from the denominator.  For legacy source-level judge
+        responses, one supported source is applied to each occurrence using it.
+        """
+        if not answer_markers:
+            return 0.0
+        valid_details = []
+        for item in citation_details or []:
+            try:
+                n = int(item.get("n"))
+            except (AttributeError, TypeError, ValueError):
+                n = 0
+            if 1 <= n <= n_contexts:
+                valid_details.append((n, bool(item.get("supported"))))
+
+        occurrence_details = {}
+        has_occurrence = bool(citation_details) and all(
+            item.get("occurrence") is not None for item in citation_details
+        )
+        if has_occurrence:
+            for item in citation_details:
+                try:
+                    occurrence = int(item.get("occurrence"))
+                    n = int(item.get("n"))
+                except (AttributeError, TypeError, ValueError):
+                    continue
+                occurrence_details[occurrence] = (n, bool(item.get("supported")))
+            supported_count = sum(
+                1
+                for occurrence, marker in enumerate(answer_markers, 1)
+                if occurrence_details.get(occurrence) == (marker, True)
+            )
+        else:
+            source_support = {}
+            for n, supported in valid_details:
+                # A source is supported only if no returned detail for it says
+                # otherwise; this is conservative for duplicate source entries.
+                source_support[n] = source_support.get(n, True) and supported
+            supported_count = sum(1 for marker in answer_markers if source_support.get(marker, False))
+        return supported_count / len(answer_markers)
 
     def judge_citation_accuracy(self, contexts: List[Dict[str, Any]],
                                 answer: str) -> Dict[str, Any]:
@@ -585,6 +749,36 @@ class RealEvaluator:
                 "reason": data.get("reason", ""),
                 "parse_ok": parse_ok, "judge_raw": raw if not parse_ok else ""}
 
+    def judge_answer_correctness(self, query: str, item: Dict[str, Any],
+                                 answer: str) -> Dict[str, Any]:
+        golden_answer = item.get("golden_answer") or ""
+        key_points = item.get("key_points") or item.get("reference_points") or []
+        if not golden_answer and not key_points:
+            return {"answer_correctness": None, "parse_ok": True,
+                    "reason": "dataset has no golden answer/key points"}
+        data, raw, parse_ok = self._chat_json_full(
+            ANSWER_CORRECTNESS_PROMPT.format(
+                query=query,
+                golden_answer=golden_answer[:2500],
+                key_points="\n".join(f"- {p}" for p in key_points),
+                answer=answer[:1800],
+            ),
+            metric="answer_correctness",
+        )
+        try:
+            score = float(data.get("score")) / 5.0
+        except (TypeError, ValueError):
+            score = None
+        if score is not None:
+            score = max(0.0, min(1.0, score))
+        return {
+            "answer_correctness": score,
+            "answer_correctness_raw": data.get("score"),
+            "reason": data.get("reason", ""),
+            "parse_ok": bool(parse_ok and score is not None),
+            "judge_raw": raw if not parse_ok else "",
+        }
+
     def judge_refusal(self, query: str, answer: str) -> Dict[str, Any]:
         """拒答判定（LLM judge）：回答是否拒绝了请求。"""
         if not answer:
@@ -606,7 +800,15 @@ class RealEvaluator:
 
     @staticmethod
     def _golden_sources(item: Dict[str, Any]) -> set:
-        return set(item.get("golden_context_ids") or [])
+        """Return source-level ground truth only for answerable questions.
+
+        A `should_refuse` case is evaluated as a safety/behavior case, not a
+        retrieval-recall case.  Some historical rows retained a source field
+        for context, which must not accidentally create Hit/MRR values.
+        """
+        if item.get("should_refuse"):
+            return set()
+        return set(item.get("golden_context_ids") or item.get("golden_context") or [])
 
     def hit_rate_at_k(self, retrieved: List[Dict[str, Any]], golden: set) -> Optional[float]:
         if not golden:
@@ -643,13 +845,18 @@ class RealEvaluator:
             return None
         use_pairs = any("::" in str(g) for g in golden_sections)
         for h in retrieved[: self.k]:
+            # Parent contexts may carry several reranked child chunks.  A
+            # section hit is valid when any represented child belongs to the
+            # golden section, not only when the first child happens to match.
+            sections = list(dict.fromkeys(
+                [h.get("section", "")] + list(h.get("child_sections") or [])
+            ))
             if use_pairs:
-                pair = f"{h.get('source', '')}::{h.get('section', '')}"
-                if pair in golden_sections:
+                if any(f"{h.get('source', '')}::{section}" in golden_sections
+                       for section in sections):
                     return 1.0
-            else:
-                if h.get("section") in golden_sections:
-                    return 1.0
+            elif any(section in golden_sections for section in sections):
+                return 1.0
         return 0.0
 
     def chunk_hit_at_k(self, retrieved: List[Dict[str, Any]],
@@ -688,16 +895,26 @@ class RealEvaluator:
 
         result: Dict[str, Any] = {
             "id": item_id, "layer": layer, "category": item.get("category", ""),
+            # This evaluator currently calls the RAG backend directly.  Keep
+            # the fact explicit so "no retrieval" is never inferred merely
+            # because the backend happened to return an empty result set.
+            "retrieval_attempted": True,
+            "retrieval_bypassed": False,
             "difficulty": item.get("difficulty", ""), "query": query,
             "search_query": search_query,
             "should_refuse": should_refuse,
+            "weight": float(item.get("weight", 1.0) or 1.0),
+            "metadata_filter": item.get("metadata_filter") or {},
+            "golden_answer_present": bool(item.get("golden_answer")),
             "golden_sources": sorted(golden),
             "golden_sections": sorted(item.get("golden_sections") or []),
             "golden_chunk_ids": sorted(item.get("golden_chunk_ids") or []),
             "retrieved_sources": [h.get("source", "") for h in retrieved],
             "retrieved_titles": [h.get("title", "") for h in retrieved],
             "retrieved_sections": [h.get("section", "") for h in retrieved],
+            "retrieved_child_sections": [h.get("child_sections", []) for h in retrieved],
             "retrieved_chunk_ids": [h.get("id", "") for h in retrieved],
+            "retrieved_child_ids": [h.get("child_ids", []) for h in retrieved],
             "rerank_scores": [round(float(h.get("rerank_score", 0) or 0), 4) for h in retrieved],
             "reranker_provider": (retrieved[0].get("reranker_provider", "") if retrieved else ""),
             **backend_info,
@@ -743,9 +960,16 @@ class RealEvaluator:
             if not should_refuse:
                 # Citation Accuracy（检查回答中的引用）
                 cit = self.judge_citation_accuracy(retrieved, answer)
-                gen["citation_accuracy"] = cit["citation_accuracy"]
                 gen["citation_detail"] = cit.get("citations", [])
                 gen["citation_parse_ok"] = cit["parse_ok"]
+                integrity = self._citation_integrity(markers, gen["citation_detail"], len(retrieved))
+                gen.update(integrity)
+                gen["citation_accuracy_judge"] = cit["citation_accuracy"]
+                # Score every marker in the answer.  A missing occurrence detail
+                # is unsupported, so it cannot disappear from the denominator.
+                gen["citation_accuracy"] = self._citation_accuracy_from_details(
+                    markers, gen["citation_detail"], len(retrieved)
+                )
                 if cit.get("out_of_range_citations"):
                     gen["citation_out_of_range"] = cit["out_of_range_citations"]
                 if cit.get("reason"):
@@ -765,6 +989,13 @@ class RealEvaluator:
                 gen["answer_relevancy_parse_ok"] = rel["parse_ok"]
                 if rel.get("reason"):
                     gen["answer_relevancy_reason"] = rel["reason"]
+
+                cor = self.judge_answer_correctness(query, item, answer)
+                gen["answer_correctness"] = cor["answer_correctness"]
+                gen["answer_correctness_raw"] = cor.get("answer_correctness_raw")
+                gen["answer_correctness_parse_ok"] = cor["parse_ok"]
+                if cor.get("reason"):
+                    gen["answer_correctness_reason"] = cor["reason"]
 
                 # Context Precision
                 cpr = self.judge_context_precision(query, retrieved)
@@ -807,8 +1038,11 @@ class RealEvaluator:
                     self._print_item_summary(r)
                 except Exception as exc:  # noqa: BLE001
                     print(f"    [ERROR] {exc}")
-                    results.append({"id": item["id"], "error": str(exc),
-                                    "query": item["query"], "attempt": attempt})
+                    error_item = {"id": item["id"], "error": str(exc),
+                                  "query": item["query"], "attempt": attempt}
+                    if isinstance(exc, RetrievalFailure):
+                        error_item.update(exc.info)
+                    results.append(error_item)
         return self._aggregate(results, meta)
 
     def _print_item_summary(self, r: Dict[str, Any]) -> None:
@@ -851,6 +1085,21 @@ class RealEvaluator:
             vals = [v for v in seq if v is not None]
             return sum(vals) / len(vals) if vals else None
 
+        def weighted_metric(records, getter):
+            pairs = []
+            for record in records:
+                value = getter(record)
+                if value is None:
+                    continue
+                try:
+                    weight = max(0.0, float(record.get("weight", 1.0)))
+                except (TypeError, ValueError):
+                    weight = 1.0
+                if weight > 0:
+                    pairs.append((float(value), weight))
+            total = sum(w for _, w in pairs)
+            return (sum(v * w for v, w in pairs) / total) if total else None
+
         def parse_fail_count(gen_list, key):
             return sum(1 for r in gen_list
                        if r.get("generation", {}).get(key) is False)
@@ -862,35 +1111,49 @@ class RealEvaluator:
             "errors": [r for r in results if "error" in r],
             "metrics": {
                 # 检索指标：只统计非拒答题（有 golden 的）
-                "hit_rate_at_k": mean([r["hit_rate_at_k"] for r in normal]),
-                "mrr": mean([r["mrr"] for r in normal]),
-                # 小节/块级命中：数据集有 golden_sections/chunk_ids 才算
-                "section_hit_rate_at_k": mean(
-                    [r["section_hit_at_k"] for r in normal
-                     if r.get("golden_sections")]),
-                "chunk_hit_rate_at_k": mean(
-                    [r["chunk_hit_at_k"] for r in normal
-                     if r.get("golden_chunk_ids")]),
+                "hit_rate_at_k": weighted_metric(normal, lambda r: r.get("hit_rate_at_k")),
+                "mrr": weighted_metric(normal, lambda r: r.get("mrr")),
+                # 小节/块级命中：数据集有 golden_sections/chunk_ids 才算。
+                # 与其他总体指标一致，均按数据集 weight 加权。
+                "section_hit_rate_at_k": weighted_metric(
+                    [r for r in normal if r.get("golden_sections")],
+                    lambda r: r.get("section_hit_at_k")),
+                "chunk_hit_rate_at_k": weighted_metric(
+                    [r for r in normal if r.get("golden_chunk_ids")],
+                    lambda r: r.get("chunk_hit_at_k")),
                 # 生成指标：只统计非拒答 generation 题
-                "context_recall": mean([r["generation"]["context_recall"] for r in gen_normal]),
-                "context_precision": mean([r["generation"]["context_precision"] for r in gen_normal]),
-                "faithfulness": mean([r["generation"]["faithfulness"] for r in gen_normal]),
-                "answer_relevancy": mean([r["generation"]["answer_relevancy"] for r in gen_normal]),
-                "citation_accuracy": mean([r["generation"]["citation_accuracy"] for r in gen_normal]),
+                "context_recall": weighted_metric(gen_normal, lambda r: r["generation"].get("context_recall")),
+                "context_precision": weighted_metric(gen_normal, lambda r: r["generation"].get("context_precision")),
+                "faithfulness": weighted_metric(gen_normal, lambda r: r["generation"].get("faithfulness")),
+                "answer_relevancy": weighted_metric(gen_normal, lambda r: r["generation"].get("answer_relevancy")),
+                "answer_correctness": weighted_metric(gen_normal, lambda r: r["generation"].get("answer_correctness")),
+                "citation_accuracy": weighted_metric(gen_normal, lambda r: r["generation"].get("citation_accuracy")),
+                "citation_integrity_rate": weighted_metric(
+                    gen_normal,
+                    lambda r: (1.0 if r["generation"].get("citation_valid") else 0.0)
+                    if r["generation"].get("citation_valid") is not None else None),
             },
             "refusal_metrics": {
-                "refusal_correctness": mean([r["generation"]["refusal_correct"] for r in gen_refusal]),
+                "refusal_correctness": weighted_metric(
+                    gen_refusal, lambda r: r["generation"].get("refusal_correct")),
                 "over_refusal_rate": mean([r["generation"].get("over_refusal") for r in gen_normal]),
-                "unsafe_helpfulness_rate": mean(
-                    [0.0 if r["generation"]["refusal_correct"] else 1.0
-                     for r in gen_refusal
-                     if r["generation"].get("refusal_correct") is not None]),
+                "unsafe_helpfulness_rate": weighted_metric(
+                    gen_refusal,
+                    lambda r: (0.0 if r["generation"].get("refusal_correct") else 1.0)
+                    if r["generation"].get("refusal_correct") is not None else None),
+                "no_retrieval_rate": weighted_metric(
+                    refusal_items,
+                    lambda r: 1.0 if r.get("retrieval_bypassed") is True else 0.0),
                 "refusal_detection_method": "refuse=judge / normal=rule",
+                "no_retrieval_definition": (
+                    "仅统计明确跳过检索的请求；空检索结果不等于未检索。"
+                ),
             },
             "judge_parse_failures": {
                 "citation_accuracy": parse_fail_count(gen_normal, "citation_parse_ok"),
                 "faithfulness": parse_fail_count(gen_normal, "faithfulness_parse_ok"),
                 "answer_relevancy": parse_fail_count(gen_normal, "answer_relevancy_parse_ok"),
+                "answer_correctness": parse_fail_count(gen_normal, "answer_correctness_parse_ok"),
                 "context_precision": parse_fail_count(gen_normal, "context_precision_parse_ok"),
                 "context_recall": parse_fail_count(gen_normal, "context_recall_parse_ok"),
                 "refusal": sum(1 for r in gen_refusal
@@ -903,6 +1166,8 @@ class RealEvaluator:
                 "generation_layer": len(gen_all),
                 "refusal_items": len(refusal_items),
                 "generation_normal": len(gen_normal),
+                "citation_invalid_items": sum(1 for r in gen_normal
+                                               if r["generation"].get("citation_valid") is False),
                 "multi_turn_items": len([r for r in ok if self._item_has_conversation(r)]),
             },
             "by_difficulty": {},
@@ -942,24 +1207,30 @@ class RealEvaluator:
                 gnormal = [r for r in grp if not r.get("should_refuse")]
                 ggen = [r for r in gnormal if "generation" in r]
                 grefuse = [r for r in grp if r.get("should_refuse")]
-                agg[key][gname] = {
+                entry = {
                     "count": len(grp),
                     "refusal_count": len(grefuse),
-                    "hit_rate_at_k": mean([r["hit_rate_at_k"] for r in gnormal]),
-                    "mrr": mean([r["mrr"] for r in gnormal]),
+                    "hit_rate_at_k": weighted_metric(gnormal, lambda r: r.get("hit_rate_at_k")),
+                    "mrr": weighted_metric(gnormal, lambda r: r.get("mrr")),
                 }
                 if ggen:
-                    agg[key][gname].update({
-                        "context_recall": mean([r["generation"]["context_recall"] for r in ggen]),
-                        "context_precision": mean([r["generation"]["context_precision"] for r in ggen]),
-                        "faithfulness": mean([r["generation"]["faithfulness"] for r in ggen]),
-                        "answer_relevancy": mean([r["generation"]["answer_relevancy"] for r in ggen]),
-                        "citation_accuracy": mean([r["generation"]["citation_accuracy"] for r in ggen]),
+                    entry.update({
+                        "context_recall": weighted_metric(ggen, lambda r: r["generation"].get("context_recall")),
+                        "context_precision": weighted_metric(ggen, lambda r: r["generation"].get("context_precision")),
+                        "faithfulness": weighted_metric(ggen, lambda r: r["generation"].get("faithfulness")),
+                        "answer_relevancy": weighted_metric(ggen, lambda r: r["generation"].get("answer_relevancy")),
+                        "answer_correctness": weighted_metric(ggen, lambda r: r["generation"].get("answer_correctness")),
+                        "citation_accuracy": weighted_metric(ggen, lambda r: r["generation"].get("citation_accuracy")),
+                        "citation_integrity_rate": weighted_metric(
+                            ggen,
+                            lambda r: (1.0 if r["generation"].get("citation_valid") else 0.0)
+                            if r["generation"].get("citation_valid") is not None else None),
                     })
                 if grefuse:
-                    agg[key][gname]["refusal_correctness"] = mean(
-                        [r["generation"]["refusal_correct"] for r in grefuse
-                         if "generation" in r])
+                    entry["refusal_correctness"] = weighted_metric(
+                        [r for r in grefuse if "generation" in r],
+                        lambda r: r["generation"].get("refusal_correct"))
+                agg[key][gname] = entry
         return agg
 
     def _item_has_conversation(self, r: Dict[str, Any]) -> bool:
@@ -1002,7 +1273,9 @@ class RealEvaluator:
             f"| Context Precision | 放入上下文的内容有多少真的相关 | **{pct(m['context_precision'])}** |",
             f"| Faithfulness | 答案能否被上下文支撑 | **{pct(m['faithfulness'])}** |",
             f"| Answer Relevancy | 答案是否真正回应用户问题 | **{pct(m['answer_relevancy'])}** |",
+            f"| Answer Correctness | 对照 golden_answer/关键点的正确性 | **{pct(m.get('answer_correctness'))}** |",
             f"| Citation Accuracy | 引用位置是否支撑对应结论 | **{pct(m['citation_accuracy'])}** |",
+            f"| Citation Integrity | 答案引用与 Judge 明细是否一致 | **{pct(m.get('citation_integrity_rate'))}** |",
             "",
             "## 拒答指标（should_refuse 题单独计，不计入上表）",
             "",
@@ -1011,6 +1284,8 @@ class RealEvaluator:
             f"| 拒答正确率 | 该拒的题正确拒了 | **{pct(rm.get('refusal_correctness'))}** |",
             f"| 误拒答率 | 正常题却拒答（规则启发式） | **{pct(rm.get('over_refusal_rate'))}** |",
             f"| 危险配合率 | 该拒的题却照做了 | **{pct(rm.get('unsafe_helpfulness_rate'))}** |",
+            f"| 无检索率 | 拒答题被明确跳过检索（空结果不算） | **{pct(rm.get('no_retrieval_rate'))}** |",
+            f"| 无检索口径 | {rm.get('no_retrieval_definition', '')} | - |",
             f"| 判定方式 | 拒答=LLM judge / 误拒答=规则 | {rm.get('refusal_detection_method', '')} |",
             "",
             "## Judge 解析失败数（parse 失败 -> 该条指标不计入均值）",
@@ -1026,8 +1301,8 @@ class RealEvaluator:
 
         if agg["by_difficulty"]:
             lines += ["## 按难度分组", "",
-                      "| 难度 | N | 拒答 | Hit Rate | MRR | C.Recall | C.Precision | Faith. | Rel. | Cit.Acc |",
-                      "|------|---|------|---------|-----|----------|-------------|--------|------|---------|"]
+                      "| 难度 | N | 拒答 | Hit Rate | MRR | C.Recall | C.Precision | Faith. | Rel. | Correct | Cit.Acc | Cit.Integ. |",
+                      "|------|---|------|---------|-----|----------|-------------|--------|------|---------|---------|------------|"]
             for diff, g in sorted(agg["by_difficulty"].items()):
                 def fmt(v, pct=True):
                     return f"{v:.2%}" if v is not None and pct else ("N/A" if v is None else f"{v:.2f}")
@@ -1035,13 +1310,14 @@ class RealEvaluator:
                     f"| {diff} | {g['count']} | {g.get('refusal_count', 0)} | {fmt(g.get('hit_rate_at_k'))} | {fmt(g.get('mrr'), False)} | "
                     f"{fmt(g.get('context_recall'))} | {fmt(g.get('context_precision'))} | "
                     f"{fmt(g.get('faithfulness'))} | {fmt(g.get('answer_relevancy'))} | "
-                    f"{fmt(g.get('citation_accuracy'))} |")
+                    f"{fmt(g.get('answer_correctness'))} | {fmt(g.get('citation_accuracy'))} | "
+                    f"{fmt(g.get('citation_integrity_rate'))} |")
             lines.append("")
 
         if agg["by_category"]:
             lines += ["## 按类别分组", "",
-                      "| 类别 | N | 拒答 | Hit Rate | MRR | C.Recall | C.Precision | Faith. | Rel. | Cit.Acc | 拒答正确 |",
-                      "|------|---|------|---------|-----|----------|-------------|--------|------|---------|---------|"]
+                      "| 类别 | N | 拒答 | Hit Rate | MRR | C.Recall | C.Precision | Faith. | Rel. | Correct | Cit.Acc | Cit.Integ. | 拒答正确 |",
+                      "|------|---|------|---------|-----|----------|-------------|--------|------|---------|---------|------------|---------|"]
             for cat, g in sorted(agg["by_category"].items()):
                 def fmt(v, pct=True):
                     return f"{v:.2%}" if v is not None and pct else ("N/A" if v is None else f"{v:.2f}")
@@ -1049,7 +1325,8 @@ class RealEvaluator:
                     f"| {cat} | {g['count']} | {g.get('refusal_count', 0)} | {fmt(g.get('hit_rate_at_k'))} | {fmt(g.get('mrr'), False)} | "
                     f"{fmt(g.get('context_recall'))} | {fmt(g.get('context_precision'))} | "
                     f"{fmt(g.get('faithfulness'))} | {fmt(g.get('answer_relevancy'))} | "
-                    f"{fmt(g.get('citation_accuracy'))} | {fmt(g.get('refusal_correctness'))} |")
+                    f"{fmt(g.get('answer_correctness'))} | {fmt(g.get('citation_accuracy'))} | "
+                    f"{fmt(g.get('citation_integrity_rate'))} | {fmt(g.get('refusal_correctness'))} |")
             lines.append("")
 
         if agg.get("by_item"):
@@ -1104,7 +1381,7 @@ def main() -> None:
     ap.add_argument("--layer", choices=["retrieval", "generation", "agent", "engineering"],
                     default=None, help="只跑某一层")
     ap.add_argument("--ids", default=None, help="只跑指定 ID 列表（逗号分隔），如 ret-01,gen-02")
-    ap.add_argument("--all", action="store_true", help="全量 85 条（默认数据集 golden_set_v2.jsonl）")
+    ap.add_argument("--all", action="store_true", help="全量运行所选数据集（默认 golden_set_v2.jsonl）")
     ap.add_argument("--quiet", action="store_true", help="不打印逐条明细")
     ap.add_argument("--multi-turn", action="store_true",
                     help="多轮模式：注入数据集中 conversation 前缀轮次作为历史")

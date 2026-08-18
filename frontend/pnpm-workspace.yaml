@@ -1,0 +1,8 @@
+allowBuilds:
+  esbuild: set this to true or false
+  vue-demi: set this to true or false
+# Frontend workspace configuration.
+# Vite requires esbuild's platform binary during the production build.
+onlyBuiltDependencies:
+  - esbuild
+  - vue-demi

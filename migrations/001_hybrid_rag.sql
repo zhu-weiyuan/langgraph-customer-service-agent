@@ -43,10 +43,7 @@ CREATE TABLE IF NOT EXISTS rag_chunks (
     is_parent      BOOLEAN NOT NULL DEFAULT FALSE,
     title          TEXT NOT NULL DEFAULT '',
     source         TEXT NOT NULL DEFAULT '',
-<<<<<<< HEAD
     section        TEXT NOT NULL DEFAULT '',   -- 小节标题（markdown heading），section 级命中评测用
-=======
->>>>>>> origin/master
     tenant_id      TEXT,
     tags           TEXT[] NOT NULL DEFAULT '{}',
     content        TEXT NOT NULL,

@@ -172,9 +172,8 @@ from .memory import (
 )
 
 # Dialogue summary
-from .summary import generate_summary, format_ticket
-
-from .llm_client import get_llm_client
+from .summary import generate_summary
+from .json_parsing import parse_json_object
 from .llm_gateway import GatewayRequest, get_llm_gateway, get_gateway_context
 try:
     from .metrics import record_rag_query, record_node_duration
@@ -215,7 +214,6 @@ RAG_SYSTEM_PROMPT_TEMPLATE = SYSTEM_PROMPT + """
 以上资料由 Agentic RAG 系统智能检索而来，已针对你的问题进行了多轮优化。
 请基于以上参考资料回答用户问题。如果参考资料中没有相关信息，诚实说明你不确定。"""
 
-<<<<<<< HEAD
 # 引用纪律：防幻觉 + 防错引（Faithfulness / Citation Accuracy 加固）
 RAG_SYSTEM_PROMPT_TEMPLATE += """
 
@@ -225,8 +223,6 @@ RAG_SYSTEM_PROMPT_TEMPLATE += """
 - 如果某条资料与问题无关或你未使用它，不要引用它
 - 不确定或资料缺失时，直接说"这个我暂时无法确认"，不要编造"""
 
-=======
->>>>>>> origin/master
 
 def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT,
               max_tokens: int = 512, *, stream: bool = False) -> str:
@@ -260,12 +256,32 @@ def _call_llm(messages: List[dict], system: str = SYSTEM_PROMPT,
     return "".join(parts)
 
 
-def _call_llm_json(messages: List[dict], system: str, max_tokens: int = 256) -> dict:
-    """调用 LLM 并解析 JSON 响应。"""
-    result = get_llm_client().chat_json(messages, system, max_tokens=max_tokens)
-    if not result:
-        return {"intent": "consult"}
-    return result
+def _call_llm_json(
+    messages: List[dict], system: str, max_tokens: int = 256, *,
+    scene: str = "intent_classification", required_keys: tuple[str, ...] = (),
+) -> dict:
+    """Use the gateway for a structured node response, then decode one JSON object."""
+    full_messages: List[dict] = []
+    if system:
+        full_messages.append({"role": "system", "content": system})
+    full_messages.extend(messages or [])
+    scoped = get_gateway_context()
+    request = GatewayRequest(
+        messages=full_messages,
+        scene=scene,
+        tenant_id=str(scoped.get("tenant_id") or "default"),
+        user_id=scoped.get("user_id"),
+        trace_id=str(scoped.get("trace_id") or ""),
+        idempotency_key=scoped.get("idempotency_key"),
+        max_output_tokens=max_tokens,
+        metadata={"prompt_version": "structured-node-v1"},
+    )
+    try:
+        response = get_llm_gateway().chat_sync(request)
+    except Exception:
+        logger.warning("structured LLM node call failed: scene=%s", scene, exc_info=True)
+        return {}
+    return parse_json_object(response.content, required_keys=required_keys) or {}
 
 
 # ============================================================
@@ -308,7 +324,9 @@ def _identify_intent_inner(state: Dict[str, Any]) -> Dict[str, Any]:
     # Intent classification
     result = _call_llm_json(
         [{"role": "user", "content": user_message}],
-        INTENT_SYSTEM
+        INTENT_SYSTEM,
+        scene="intent_classification",
+        required_keys=("intent",),
     )
 
     intent = result.get('intent', 'consult')
@@ -319,9 +337,10 @@ def _identify_intent_inner(state: Dict[str, Any]) -> Dict[str, Any]:
     emotion = sentiment.get('emotion', 'neutral')
     intensity = sentiment.get('intensity', 1)
 
-    print(f"[意图识别] '{user_message}' → {intent}, 结束={ending}")
-    if emotion != 'neutral':
-        print(f"[情感分析] {emotion} (强度 {intensity}/5)")
+    logger.info("intent classified: session=%s intent=%s ending=%s",
+                state.get("session_id", ""), intent, ending)
+    logger.debug("sentiment classified: session=%s emotion=%s intensity=%s",
+                 state.get("session_id", ""), emotion, intensity)
 
     return {
         'intent': intent,
@@ -458,11 +477,8 @@ def build_reply_context(
     retry_count: int = 0,
     state: dict = None,
     user_id: str = '',
-<<<<<<< HEAD
     need_rag: Optional[bool] = None,
     registry=None,
-=======
->>>>>>> origin/master
 ) -> Dict[str, Any]:
     """Build context for reply generation (shared between graph node and streaming API).
 
@@ -486,10 +502,11 @@ def build_reply_context(
     compaction = compactor.maybe_compact(messages, session_id=session_id)
 
     if compaction.compacted:
-        print(f"[Compaction] {compaction.old_count} → {compaction.new_count} messages, "
-              f"saved ~{compaction.tokens_saved} tokens")
+        logger.info("context compacted: session=%s old_messages=%s new_messages=%s tokens_saved=%s",
+                    session_id, compaction.old_count, compaction.new_count, compaction.tokens_saved)
     elif compaction.summary:
-        print(f"[Compaction] Using cached summary ({len(compaction.summary)} chars)")
+        logger.debug("using cached context summary: session=%s summary_chars=%s",
+                     session_id, len(compaction.summary))
 
     trimmed = compaction.messages
     context_messages = []
@@ -510,12 +527,8 @@ def build_reply_context(
     # --- Agentic RAG: LLM-driven retrieval with adaptive re-search ---
     rag_context = ""
     rag_info = None
-<<<<<<< HEAD
     effective_need_rag = (intent == 'consult') if need_rag is None else bool(need_rag)
     if effective_need_rag and latest_user:
-=======
-    if intent == 'consult' and latest_user:
->>>>>>> origin/master
         _emit_stream_progress("retrieving_knowledge")
         rag_info = agentic_rag(latest_user, max_rounds=2)
         if record_rag_query is not None:
@@ -524,17 +537,14 @@ def build_reply_context(
         rag_context = rag_info.get('context', '')
         if rag_context:
             sections = rag_context.count('###')
-            print(f"[Agentic RAG] {sections} 条知识, {rag_info['rounds']} 轮检索, "
-                  f"sufficient={rag_info['sufficient']}, queries={rag_info['queries_tried']}")
+            logger.info("agentic rag completed: session=%s sections=%s rounds=%s sufficient=%s query_count=%s",
+                        session_id, sections, rag_info.get("rounds"), rag_info.get("sufficient"),
+                        len(rag_info.get("queries_tried") or []))
         else:
-            print(f"[Agentic RAG] 未找到相关知识")
+            logger.info("agentic rag found no sufficient evidence: session=%s", session_id)
 
     # Use ContextAssembler to manage full component integration
-<<<<<<< HEAD
     assembler = ContextAssembler(registry=registry)
-=======
-    assembler = ContextAssembler()
->>>>>>> origin/master
     
     # Prepare state-like structure for assembler input
     assembler_state = {
@@ -556,7 +566,6 @@ def build_reply_context(
     # Extract structured components from bundle
     context_messages = bundle.messages[1:]  # Exclude first system message
     system_prompt = bundle.messages[0]["content"]
-<<<<<<< HEAD
     tool_schema = list(bundle.tool_schema)
 
     # Apply the sentiment-aware tone guidance after the shared context
@@ -576,15 +585,13 @@ def build_reply_context(
             "\u5f53\u524d\u672a\u68c0\u7d22\u5230\u8db3\u591f\u7684\u77e5\u8bc6\u5e93\u8bc1\u636e\u3002\u4e0d\u5f97\u6839\u636e\u5e38\u8bc6\u3001\u731c\u6d4b\u6216\u8bad\u7ec3\u8bb0\u5fc6\u7f16\u9020\u4ea7\u54c1\u4e8b\u5b9e\uff1b"
             "\u8bf7\u660e\u786e\u8bf4\u660e\u6682\u672a\u627e\u5230\u76f8\u5173\u8d44\u6599\uff0c\u5e76\u5efa\u8bae\u7528\u6237\u63d0\u4f9b\u578b\u53f7\u6216\u8f6c\u4eba\u5de5\u3002"
         )
-=======
->>>>>>> origin/master
 
     rag_label = f"agentic({rag_info['rounds']}轮)" if rag_info and rag_info.get('queries_tried') else ('yes' if rag_context else 'no')
-    print(f"[Reply Context] intent={intent}, retry={retry_count}, rag={rag_label}")
+    logger.info("reply context assembled: session=%s intent=%s retry=%s rag=%s",
+                session_id, intent, retry_count, rag_label)
 
     # ── Token 预算管理 ────────────────────────────────────────
     token_budget = estimate_total_tokens(context_messages, system_prompt)
-<<<<<<< HEAD
     # Surface the assembler's authoritative allocation metadata alongside the
     # legacy total/remaining fields used by the LLM gateway.
     token_budget.update({
@@ -593,16 +600,17 @@ def build_reply_context(
                     "degraded", "prompt_version")
         if key in bundle.metadata
     })
-=======
->>>>>>> origin/master
-    print(f"[Token Budget] total={token_budget['total']} (system={token_budget['system_tokens']}, msgs={token_budget['messages_tokens']}), remaining={token_budget['remaining_for_output']}")
+    logger.debug("token budget: session=%s total=%s system=%s messages=%s remaining=%s",
+                 session_id, token_budget["total"], token_budget["system_tokens"],
+                 token_budget["messages_tokens"], token_budget["remaining_for_output"])
 
     # 如果超出预算，按 Token 裁剪
     if not token_budget['within_budget']:
         max_msg_tokens = MAX_INPUT_TOKENS - token_budget['system_tokens'] - RESERVED_OUTPUT_TOKENS
         context_messages = _trim_messages_by_tokens(context_messages, max_msg_tokens)
         token_budget = estimate_total_tokens(context_messages, system_prompt)  # 重新估算
-        print(f"[Token Budget] After trim: total={token_budget['total']}, remaining={token_budget['remaining_for_output']}")
+        logger.debug("token budget after trim: session=%s total=%s remaining=%s",
+                     session_id, token_budget["total"], token_budget["remaining_for_output"])
 
     return {
         'context_messages': context_messages,
@@ -611,10 +619,7 @@ def build_reply_context(
         'latest_user': latest_user,
         'token_budget': token_budget,
         'compaction': compaction,
-<<<<<<< HEAD
         'tool_schema': tool_schema,
-=======
->>>>>>> origin/master
     }
 
 
@@ -709,7 +714,7 @@ def check_satisfaction(state: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     ai_message = AIMessage(content=prompt)
-    print(f"[满意度检查] 询问用户")
+    logger.info("satisfaction prompt generated: session=%s", state.get("session_id", ""))
     return {'messages': [ai_message]}
 
 
@@ -743,13 +748,16 @@ def process_satisfaction(state: Dict[str, Any]) -> Dict[str, Any]:
         return {'satisfaction': None, 'retry_count': retry_count}
 
     judge_result = _call_llm_json(
-        [{"role": "user", "content": f"用户回复：{user_message}\n判断用户对服务是否满意。"}],
-        SATISFACTION_SYSTEM
+        [{"role": "user", "content": f"\u7528\u6237\u56de\u590d\uff1a{user_message}\n\u5224\u65ad\u7528\u6237\u5bf9\u670d\u52a1\u662f\u5426\u6ee1\u610f\u3002"}],
+        SATISFACTION_SYSTEM,
+        scene="satisfaction_classification",
+        required_keys=("satisfied",),
     )
 
     satisfaction = judge_result.get('satisfied', False)
     new_retry = retry_count + (0 if satisfaction else 1)
-    print(f"[处理满意度] '{user_message}' → 满意={satisfaction}, 重试={new_retry}")
+    logger.info("satisfaction classified: session=%s satisfied=%s retry=%s",
+                state.get("session_id", ""), satisfaction, new_retry)
     return {'satisfaction': satisfaction, 'retry_count': new_retry}
 
 
@@ -765,7 +773,8 @@ def escalate_to_human(state: Dict[str, Any]) -> Dict[str, Any]:
     intent = state.get('intent', 'unknown')
     retry_count = state.get('retry_count', 0)
 
-    print(f"[转人工] 问题升级！session={session_id}, intent={intent}, retries={retry_count}")
+    logger.warning("escalating to human: session=%s intent=%s retries=%s",
+                   session_id, intent, retry_count)
 
     human_response = interrupt({
         "type": "human_intervention_required",
@@ -815,15 +824,15 @@ def finalize(state: Dict[str, Any]) -> Dict[str, Any]:
                 emotion_intensity=emotion_intensity,
                 satisfaction=satisfaction,
             )
-            print(format_ticket(ticket))
             from .memory import save_ticket
             save_ticket(ticket)
-        except Exception as e:
-            print(f"[工单生成失败] {e}")
+        except Exception:
+            logger.warning("ticket generation or persistence failed: session=%s",
+                           session_id, exc_info=True)
 
     # Mark all issues as resolved when session ends positively
     if session_id:
         mark_resolved(session_id)
 
-    print(f"[结束对话] 服务完成")
+    logger.info("conversation finalized: session=%s", session_id)
     return {'messages': [ai_message]}

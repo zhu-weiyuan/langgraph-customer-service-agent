@@ -5,6 +5,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Iterable
 
+from .token_estimator import estimate_messages_tokens, estimate_tokens
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,24 +19,20 @@ class ContextUsage:
 
 
 class TokenEstimator:
-    """Conservative character-based input estimator with utilization thresholds."""
+    """Compatibility monitor backed by the project's unified estimator.
+
+    Keeping this facade avoids breaking callers while ensuring context assembly,
+    gateway checks, and monitoring report the same token estimate.
+    """
     WARN_THRESHOLD = 0.60
     DUMB_ZONE_THRESHOLD = 0.80
 
     @staticmethod
     def estimate_text(text: Any) -> int:
-        # Matches the existing gateway's mixed Chinese/English approximation.
-        return max(0, (len(str(text or "")) + 1) // 2)
+        return estimate_tokens(text)
 
     def estimate_messages(self, messages: Iterable[Any]) -> int:
-        total = 0
-        for message in messages or []:
-            if isinstance(message, dict):
-                content = message.get("content", "")
-            else:
-                content = getattr(message, "content", message)
-            total += self.estimate_text(content) + 4
-        return total
+        return estimate_messages_tokens(messages)
 
     def monitor(self, *, system_prompt: str = "", messages: Iterable[Any] = (),
                 rag_chunks: Any = "", memory: Any = "", context_window: int = 120_000) -> ContextUsage:

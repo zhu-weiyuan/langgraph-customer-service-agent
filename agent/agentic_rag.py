@@ -16,11 +16,11 @@ from typing import List, Dict, Optional
 
 from .rag import retrieve as rag_retrieve
 from .llm_client import get_llm_client
+from .json_parsing import parse_json_array
 
 # RAG_BACKEND=tfidf|hybrid|pgvector 后端选择（含运行期优雅降级 TF-IDF）。
 # rag_backend 不可用时保持旧行为（直接走 rag.retrieve）。
 try:
-<<<<<<< HEAD
     from .rag_backend import retrieve as _runtime_backend_retrieve
 except Exception:  # pragma: no cover
     _runtime_backend_retrieve = None
@@ -35,12 +35,6 @@ def _backend_retrieve(query, top_k=3):
     if _runtime_backend_retrieve is not None:
         return _runtime_backend_retrieve(query, top_k=top_k)
     return rag_retrieve(query, top_k=top_k)
-=======
-    from .rag_backend import retrieve as _backend_retrieve
-except Exception:  # pragma: no cover
-    def _backend_retrieve(query, top_k=3):
-        return rag_retrieve(query, top_k=top_k)
->>>>>>> origin/master
 
 # ---------------------------------------------------------------------------
 # Prompts (Improved with Few-Shot and Entity Extraction)
@@ -127,16 +121,11 @@ def agentic_rag(user_query: str, max_rounds: int = 2) -> Dict[str, any]:
     # pgvector retrieval, reranking and lexical relevance filtering.
     initial_hits = _retrieve_queries([user_query], result)
     if mode == "fast":
-<<<<<<< HEAD
         # A non-empty score alone is not evidence. Fast mode still fails closed
         # when a named support object is absent from the retrieved evidence.
         grounded = _has_requested_entity_evidence(user_query, initial_hits)
         result["context"] = _build_context_string(initial_hits) if grounded else ""
         result["sufficient"] = grounded
-=======
-        result["context"] = _build_context_string(initial_hits) if initial_hits else ""
-        result["sufficient"] = bool(initial_hits)
->>>>>>> origin/master
         return result
 
     # Deep mode only: let the LLM evaluate/rewrite weak retrieval results.
@@ -191,29 +180,36 @@ def agentic_rag(user_query: str, max_rounds: int = 2) -> Dict[str, any]:
     return result
 
 
-<<<<<<< HEAD
 def _has_requested_entity_evidence(query: str, hits: List[dict]) -> bool:
-    """Require explicit evidence for a named support object when possible."""
+    """Require affirmative evidence for named support objects when applicable.
+
+    Fast mode fails closed for product capabilities, but a negative mention in
+    one chunk must not suppress a positive mention in another chunk.  We inspect
+    a sentence-sized local window around each alias instead of a single global
+    prefix (where the Chinese character ``无`` caused many false negatives).
+    """
     if not hits:
         return False
     evidence = " ".join(
         f"{h.get('title', '')} {h.get('text', '')}"
         for h in hits if isinstance(h, dict)
     ).lower()
-    # Unicode escapes keep this source safe even when edited from a legacy
-    # Windows console code page.
     entity_aliases = {
-        "\u7a7a\u8c03": ("\u7a7a\u8c03", "\u51b7\u6c14", "\u7a7a\u8c03\u8bbe\u5907"),
-        "\u97f3\u7bb1": ("\u97f3\u7bb1", "\u626c\u58f0\u5668", "\u667a\u80fd\u97f3\u7bb1"),
-        "\u7f51\u5173": ("\u7f51\u5173",),
-        "\u667a\u80fd\u63d2\u5ea7": ("\u667a\u80fd\u63d2\u5ea7", "\u63d2\u5ea7"),
-        "\u667a\u80fd\u706f": ("\u667a\u80fd\u706f", "\u706f\u6ce1", "\u706f\u5177"),
-        "wifi": ("wifi", "wi-fi", "\u65e0\u7ebf\u7f51\u7edc", "\u65e0\u7ebf\u8fde\u63a5"),
-        "\u84dd\u7259": ("\u84dd\u7259",),
-        "\u53d1\u7968": ("\u53d1\u7968", "\u5f00\u7968"),
-        "\u9000\u6b3e": ("\u9000\u6b3e", "\u9000\u8d27", "\u9000\u6362\u8d27"),
-        "\u4fdd\u4fee": ("\u4fdd\u4fee", "\u7ef4\u4fee", "\u552e\u540e"),
+        "空调": ("空调", "冷气", "空调设备"),
+        "音箱": ("音箱", "扬声器", "智能音箱"),
+        "网关": ("网关",),
+        "智能插座": ("智能插座", "插座"),
+        "智能灯": ("智能灯", "灯泡", "灯具"),
+        "wifi": ("wifi", "wi-fi", "无线网络", "无线连接"),
+        "蓝牙": ("蓝牙",),
+        "发票": ("发票", "开票"),
+        "退款": ("退款", "退货", "退换货"),
+        "保修": ("保修", "维修", "售后"),
     }
+    negative_phrases = (
+        "暂不支持", "尚不支持", "不支持", "没有", "未提供", "未提及",
+        "无法", "不能", "不具备", "暂未", "尚未支持",
+    )
     query_lower = (query or "").lower()
     for entity, aliases in entity_aliases.items():
         if entity not in query_lower:
@@ -222,10 +218,10 @@ def _has_requested_entity_evidence(query: str, hits: List[dict]) -> bool:
         for alias in aliases:
             pos = evidence.find(alias)
             while pos >= 0:
-                prefix = evidence[max(0, pos - 8):pos]
-                # “暂不支持”或“没有该功能”表示能力不存在，
-                # 不能被当作用户所问能力已被支持的证据。
-                if not any(neg in prefix for neg in ("\u6ca1\u6709", "\u4e0d\u652f\u6301", "\u65e0", "\u672a\u63d0\u53ca", "\u4e0d\u80fd")):
+                # Include text before and after the object: e.g. "空调暂不支持"
+                # and "目前不支持空调控制" must both be recognised as negative.
+                local = evidence[max(0, pos - 16): min(len(evidence), pos + len(alias) + 24)]
+                if not any(phrase in local for phrase in negative_phrases):
                     supported = True
                     break
                 pos = evidence.find(alias, pos + len(alias))
@@ -236,8 +232,6 @@ def _has_requested_entity_evidence(query: str, hits: List[dict]) -> bool:
     return True
 
 
-=======
->>>>>>> origin/master
 def _retrieve_queries(queries: List[str], result: Dict[str, any]) -> List[dict]:
     """Retrieve each query, deduplicate by section, and preserve the best scored hits."""
     all_results = []
@@ -271,7 +265,6 @@ def _remember_hits(result: Dict[str, any], hits: List[dict]) -> None:
             "title": h.get("title", ""),
             "source": h.get("source", ""),
             "score": float(h.get("score") or 0.0),
-<<<<<<< HEAD
             # Keep the ranking diagnostics visible to the API and observability
             # panel; these fields are attached by the pgvector reranker.
             "rrf_score": float(h.get("rrf_score") or 0.0),
@@ -280,8 +273,6 @@ def _remember_hits(result: Dict[str, any], hits: List[dict]) -> None:
             "lexical_overlap": float(h.get("lexical_overlap") or 0.0),
             "reranker_provider": h.get("reranker_provider", ""),
             "reranker_model": h.get("reranker_model", ""),
-=======
->>>>>>> origin/master
             "text": str(h.get("text") or "")[:800],
         })
 
@@ -304,16 +295,12 @@ def _rewrite_query(llm, query: str) -> List[str]:
             max_tokens=128,
             temperature=0.5,
         )
-        # Parse JSON array
-        import re, json
-        match = re.search(r"\[.*\]", text, re.DOTALL)
-        if match:
-            try:
-                queries = json.loads(match.group())
-                if isinstance(queries, list) and len(queries) > 0:
-                    return [str(q).strip() for q in queries[:3]]
-            except json.JSONDecodeError:
-                pass
+        # LLM output may contain Markdown/explanation and more than one JSON
+        # value.  Do not use a greedy regex here: it can swallow two arrays and
+        # make a valid rewrite silently fall back to rules.
+        queries = parse_json_array(text)
+        if queries:
+            return queries[:3]
     except Exception as e:
         print(f"[Agentic RAG] Query rewrite failed: {e}")
 

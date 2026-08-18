@@ -37,7 +37,6 @@ def idempotency_key_from_headers(headers: Mapping[str, str]) -> Optional[str]:
     return value
 
 
-<<<<<<< HEAD
 def _is_sqlite(conn: Any) -> bool:
     return conn.__class__.__module__.split(".", 1)[0] == "sqlite3"
 
@@ -61,17 +60,11 @@ def _table_exists(conn, name: str) -> bool:
     if isinstance(row, Mapping):
         return bool(row.get("name"))
     return bool(row and row[0])
-=======
-def _table_exists(conn, name: str) -> bool:
-    row = conn.execute("SELECT to_regclass(%s) AS name", (f"public.{name}",)).fetchone()
-    return bool(row and row.get("name"))
->>>>>>> origin/master
 
 
 def query_sessions(conn, search: str = "", limit: int = 50) -> Dict[str, Any]:
     if not _table_exists(conn, "conversation_history"):
         return {"sessions": []}
-<<<<<<< HEAD
     if _is_sqlite(conn):
         where = ""
         params: List[Any] = []
@@ -112,8 +105,6 @@ def query_sessions(conn, search: str = "", limit: int = 50) -> Dict[str, Any]:
             })
         return {"sessions": result}
 
-=======
->>>>>>> origin/master
     where = ""
     params: List[Any] = []
     if search:
@@ -156,7 +147,6 @@ def query_session_detail(conn, session_id: str) -> Dict[str, Any]:
     messages: List[Dict[str, Any]] = []
     intent, emotion = "unknown", "neutral"
     if _table_exists(conn, "conversation_history"):
-<<<<<<< HEAD
         placeholder = "?" if _is_sqlite(conn) else "%s"
         rows = _dict_rows(conn.execute(
             f"""SELECT user_message, bot_reply, intent, emotion, timestamp
@@ -164,13 +154,6 @@ def query_session_detail(conn, session_id: str) -> Dict[str, Any]:
                  ORDER BY id ASC""",
             (session_id,),
         ))
-=======
-        rows = conn.execute(
-            """SELECT user_message, bot_reply, intent, emotion, timestamp
-                 FROM conversation_history WHERE session_id=%s ORDER BY id ASC""",
-            (session_id,),
-        ).fetchall()
->>>>>>> origin/master
         for row in rows:
             if row.get("user_message"):
                 messages.append({"role": "user", "content": row["user_message"],
@@ -192,7 +175,6 @@ def query_analytics(conn) -> Dict[str, Any]:
               "intents": {}, "emotions": {}}
     if not _table_exists(conn, "conversation_history"):
         return result
-<<<<<<< HEAD
     if _is_sqlite(conn):
         row = _dict_rows(conn.execute(
             "SELECT COUNT(*) AS total, COALESCE(AVG(LENGTH(COALESCE(bot_reply,''))),0) AS avg_len FROM conversation_history"))[0]
@@ -215,8 +197,6 @@ def query_analytics(conn) -> Dict[str, Any]:
         result["emotions"] = {r["key"]: r["n"] for r in rows}
         return result
 
-=======
->>>>>>> origin/master
     row = conn.execute(
         "SELECT COUNT(*) AS total, COALESCE(AVG(LENGTH(COALESCE(bot_reply,''))),0) AS avg_len FROM conversation_history"
     ).fetchone()

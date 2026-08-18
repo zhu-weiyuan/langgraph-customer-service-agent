@@ -1,14 +1,7 @@
-<<<<<<< HEAD
 ﻿from langchain_core.messages import AIMessage, HumanMessage
 
 from agent.nodes import _is_history_recall_query
 from agent.memory import timeline_langchain_messages
-=======
-from langchain_core.messages import AIMessage, HumanMessage
-
-from agent.nodes import _is_history_recall_query
-from app import _timeline_langchain_messages
->>>>>>> origin/master
 
 
 def test_postgres_timeline_becomes_model_history(monkeypatch):
@@ -20,11 +13,7 @@ def test_postgres_timeline_becomes_model_history(monkeypatch):
         ],
     )
 
-<<<<<<< HEAD
     messages = timeline_langchain_messages("session-1")
-=======
-    messages = _timeline_langchain_messages("session-1")
->>>>>>> origin/master
 
     assert [type(message) for message in messages] == [HumanMessage, AIMessage]
     assert [message.content for message in messages] == ["我上次说过的问题", "我记得，正在处理"]
@@ -41,11 +30,7 @@ def test_postgres_timeline_deduplicates_checkpoint_replay(monkeypatch):
         ],
     )
 
-<<<<<<< HEAD
     messages = timeline_langchain_messages("session-1")
-=======
-    messages = _timeline_langchain_messages("session-1")
->>>>>>> origin/master
 
     assert [message.content for message in messages] == ["同一个问题", "同一个回答"]
 

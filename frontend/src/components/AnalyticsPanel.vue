@@ -100,13 +100,17 @@ function sampleLabels(sample: PrometheusSample): string {
   const labels = Object.entries(sample.labels)
   return labels.length ? labels.map(([key, value]) => `${key}=${value}`).join(' · ') : '无标签'
 }
+
+function refresh() {
+  emit('refresh')
+}
 </script>
 
 <template>
   <aside class="rightbar">
     <div class="insight-header">
       <div><div class="eyebrow">LIVE INSIGHTS</div><h2>服务洞察</h2></div>
-      <button class="icon-button" :class="{ spinning: props.observabilityLoading }" title="刷新数据" @click="emit('refresh')">↻</button>
+      <button class="icon-button" :class="{ spinning: props.observabilityLoading }" title="刷新数据" @click="refresh">↻</button>
     </div>
 
     <section v-if="props.observability" class="insight-section ops-section">

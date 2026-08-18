@@ -96,10 +96,7 @@ export const useChatStore = defineStore('chat', {
     observabilityLoading: false,
     memories: [] as MemoryItem[],
     memoriesLoading: false,
-<<<<<<< HEAD
     memoriesError: '',
-=======
->>>>>>> origin/master
     loading: false,
     _abort: null as AbortController | null,
   }),
@@ -161,10 +158,7 @@ export const useChatStore = defineStore('chat', {
       this.messages = []
       this.sessions = []
       this.memories = []
-<<<<<<< HEAD
       this.memoriesError = ''
-=======
->>>>>>> origin/master
       this.analytics = null
       this.observability = null
       this.sessionSearch = ''
@@ -196,7 +190,6 @@ export const useChatStore = defineStore('chat', {
     async reloadMemories() {
       this.memoriesLoading = true
       try {
-<<<<<<< HEAD
         const ui = useUiStore()
         let result = await fetchMemories()
         let expectedUserId = ui.auth.userId.trim()
@@ -224,11 +217,6 @@ export const useChatStore = defineStore('chat', {
         console.error('Failed to load memories', err)
         // Keep the last successfully loaded list. A network hiccup must not
         // be presented to the user as if every persisted memory were deleted.
-=======
-        this.memories = await fetchMemories()
-      } catch {
-        this.memories = []
->>>>>>> origin/master
       } finally {
         this.memoriesLoading = false
       }

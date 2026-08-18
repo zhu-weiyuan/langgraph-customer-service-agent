@@ -94,7 +94,6 @@ export interface MeResult {
   authenticated: boolean
 }
 
-<<<<<<< HEAD
 export interface RefreshResult {
   ok: boolean
   user_id: string
@@ -103,8 +102,6 @@ export interface RefreshResult {
   token_type?: string
 }
 
-=======
->>>>>>> origin/master
 /** One long-term memory row (GET /api/memory → memories[]). */
 export interface MemoryItem {
   id: string
@@ -114,15 +111,12 @@ export interface MemoryItem {
   created_at?: string
 }
 
-<<<<<<< HEAD
 /** Full GET /api/memory payload. Keep user_id for client-side identity validation. */
 export interface MemoryListResult {
   user_id: string
   memories: MemoryItem[]
 }
 
-=======
->>>>>>> origin/master
 export interface DeleteMemoryResult {
   ok?: boolean
   deleted?: string
@@ -245,20 +239,18 @@ interface RequestOptions {
   timeoutMs?: number
   signal?: AbortSignal
   headers?: Record<string, string>
-<<<<<<< HEAD
   retryAfterRefresh?: boolean
   skipAuthRefresh?: boolean
-=======
->>>>>>> origin/master
 }
 
 // ---------------------------------------------------------------------------
 // Auth identity injection
 //
 // A single module-level identity, set by the ui store after login/restore.
-// Every request through rawRequest() carries it automatically:
-//   - JWT available  → `Authorization: Bearer <token>`
-//   - JWT_SECRET off → `X-User-Id: <user_id>` (backend derives identity `u:<id>`)
+// Every request through rawRequest() carries a stable browser client ID and,
+// when available, a JWT access token.  The client ID is an anonymous browser
+// identifier, never an authentication credential; production identity comes
+// exclusively from the verified JWT.
 // Kept out of the Pinia store so client.ts stays store-agnostic (no cycle).
 // ---------------------------------------------------------------------------
 
@@ -269,32 +261,51 @@ interface AuthIdentity {
 
 let authIdentity: AuthIdentity | null = null
 
+const CLIENT_ID_STORAGE_KEY = 'aster_client_id_v1'
+let inMemoryAnonymousClientId = ''
+
+function createAnonymousClientId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID().replace(/-/g, '')
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`
+}
+
+/** Return a persistent browser-local anonymous ID without storing user data. */
+function getAnonymousClientId(): string {
+  if (inMemoryAnonymousClientId) return inMemoryAnonymousClientId
+  if (typeof window === 'undefined') {
+    inMemoryAnonymousClientId = createAnonymousClientId()
+    return inMemoryAnonymousClientId
+  }
+  try {
+    const existing = window.localStorage.getItem(CLIENT_ID_STORAGE_KEY)
+    if (existing && /^[A-Za-z0-9_-]{16,128}$/.test(existing)) {
+      inMemoryAnonymousClientId = existing
+      return existing
+    }
+    const created = createAnonymousClientId()
+    window.localStorage.setItem(CLIENT_ID_STORAGE_KEY, created)
+    inMemoryAnonymousClientId = created
+    return created
+  } catch {
+    inMemoryAnonymousClientId = createAnonymousClientId()
+    return inMemoryAnonymousClientId
+  }
+}
+
 /** Set (or clear, with null) the identity attached to every subsequent request. */
 export function setAuthIdentity(identity: AuthIdentity | null): void {
   authIdentity = identity
 }
 
-/** Build the auth headers for the current identity (empty when anonymous). */
+/** Build identity headers; anonymous requests retain a stable browser-local ID. */
 function authHeaders(): Record<string, string> {
-  if (!authIdentity) return {}
-
-<<<<<<< HEAD
-  // A browser-controlled user id is not an authentication credential. The
-  // backend only accepts it when its explicit local-development compatibility
-  // switch is enabled; production identity always comes from the JWT.
-  const headers: Record<string, string> = {}
-=======
-  // Always send the stable user id alongside the JWT. If a restored JWT has
-  // expired, the backend can safely fall back to X-User-Id instead of silently
-  // downgrading an authenticated browser session to anon-<ip>.
-  const headers: Record<string, string> = {}
-  if (authIdentity.userId) headers['X-User-Id'] = authIdentity.userId
->>>>>>> origin/master
-  if (authIdentity.token) headers.Authorization = `Bearer ${authIdentity.token}`
+  const headers: Record<string, string> = { 'X-Client-Id': getAnonymousClientId() }
+  if (authIdentity?.token) headers.Authorization = `Bearer ${authIdentity.token}`
   return headers
 }
 
-<<<<<<< HEAD
 let refreshInFlight: Promise<RefreshResult | null> | null = null
 
 // Refresh-token rotation is single-use. A normal user can have two tabs open,
@@ -400,8 +411,6 @@ async function refreshAccessToken(): Promise<RefreshResult | null> {
   return refreshInFlight
 }
 
-=======
->>>>>>> origin/master
 async function extractErrorMessage(res: Response): Promise<string> {
   try {
     const data: unknown = await res.clone().json()
@@ -418,14 +427,10 @@ async function extractErrorMessage(res: Response): Promise<string> {
 
 /** Perform a fetch with timeout; throws normalized ApiError on any failure. */
 async function rawRequest(path: string, options: RequestOptions = {}): Promise<Response> {
-<<<<<<< HEAD
   const {
     method = 'GET', body, timeoutMs = DEFAULT_TIMEOUT_MS, signal, headers: extraHeaders,
     retryAfterRefresh = true, skipAuthRefresh = false,
   } = options
-=======
-  const { method = 'GET', body, timeoutMs = DEFAULT_TIMEOUT_MS, signal, headers: extraHeaders } = options
->>>>>>> origin/master
   const controller = new AbortController()
   const timer = window.setTimeout(() => controller.abort(new DOMException('timeout', 'TimeoutError')), timeoutMs)
   // Relay the caller's signal onto the fetch controller. Deliberately NOT
@@ -436,18 +441,13 @@ async function rawRequest(path: string, options: RequestOptions = {}): Promise<R
   try {
     const headers: Record<string, string> = { ...authHeaders(), ...(extraHeaders ?? {}) }
     if (body !== undefined) headers['Content-Type'] = 'application/json'
-<<<<<<< HEAD
     let res = await fetch(path, {
-=======
-    const res = await fetch(path, {
->>>>>>> origin/master
       method,
       headers: Object.keys(headers).length ? headers : undefined,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       credentials: 'same-origin',
       signal: controller.signal,
     })
-<<<<<<< HEAD
     // One shared refresh prevents a burst of expired requests from rotating the
     // session repeatedly. The original request is retried exactly once.
     if (res.status === 401 && retryAfterRefresh && !skipAuthRefresh && path !== '/api/auth/refresh') {
@@ -464,8 +464,6 @@ async function rawRequest(path: string, options: RequestOptions = {}): Promise<R
         })
       }
     }
-=======
->>>>>>> origin/master
     if (!res.ok) {
       throw new ApiError(await extractErrorMessage(res), res.status, 'http')
     }
@@ -473,17 +471,10 @@ async function rawRequest(path: string, options: RequestOptions = {}): Promise<R
   } catch (err) {
     if (err instanceof ApiError) throw err
     if (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'TimeoutError')) {
-<<<<<<< HEAD
-      if (signal?.aborted) throw new ApiError('?????', 0, 'abort')
-      throw new ApiError('??????????', 0, 'timeout')
-    }
-    throw new ApiError(err instanceof Error ? err.message : '??????', 0, 'network')
-=======
       if (signal?.aborted) throw new ApiError('请求已取消', 0, 'abort')
       throw new ApiError('请求超时，请稍后重试', 0, 'timeout')
     }
-    throw new ApiError(err instanceof Error ? err.message : '网络连接失败', 0, 'network')
->>>>>>> origin/master
+    throw new ApiError(err instanceof Error ? err.message : '网络请求失败', 0, 'network')
   } finally {
     window.clearTimeout(timer)
   }
@@ -712,7 +703,7 @@ export async function fetchObservability(): Promise<ObservabilitySnapshot> {
   const [health, readiness, metricsResponse, liveness] = await Promise.all([
     fetchServiceHealth(),
     fetchReadiness(),
-    rawRequest('/api/metrics', { timeoutMs: 8_000, headers: { Accept: 'text/plain' } }),
+    rawRequest('/api/metrics?format=prometheus', { timeoutMs: 8_000, headers: { Accept: 'text/plain' } }),
     fetchHealth(),
   ])
   health.uptime_seconds = liveness.uptime_seconds
@@ -782,11 +773,7 @@ export function fetchAnalytics(): Promise<AnalyticsData> {
 export function login(username: string, password?: string): Promise<LoginResult> {
   const body: Record<string, unknown> = { username }
   if (password) body.password = password
-<<<<<<< HEAD
   return requestJson<LoginResult>('/api/auth/login', { method: 'POST', body, retryAfterRefresh: false, skipAuthRefresh: true })
-=======
-  return requestJson<LoginResult>('/api/auth/login', { method: 'POST', body })
->>>>>>> origin/master
 }
 
 /** POST /api/auth/register — explicit registration with optional display name. */
@@ -798,11 +785,7 @@ export function register(
   const body: Record<string, unknown> = { username }
   if (password) body.password = password
   if (displayName) body.display_name = displayName
-<<<<<<< HEAD
   return requestJson<RegisterResult>('/api/auth/register', { method: 'POST', body, retryAfterRefresh: false, skipAuthRefresh: true })
-=======
-  return requestJson<RegisterResult>('/api/auth/register', { method: 'POST', body })
->>>>>>> origin/master
 }
 
 /** GET /api/auth/me — resolve the identity the backend sees for the current headers. */
@@ -810,7 +793,6 @@ export function fetchMe(): Promise<MeResult> {
   return requestJson<MeResult>('/api/auth/me', { timeoutMs: 8_000 })
 }
 
-<<<<<<< HEAD
 /** Use the HttpOnly rotating refresh cookie to obtain a new short-lived JWT. */
 export async function refreshSession(): Promise<RefreshResult | null> {
   return refreshAccessToken()
@@ -842,17 +824,6 @@ export async function fetchMemories(): Promise<MemoryListResult> {
   }
 
   return { user_id: data.user_id, memories: data.memories }
-=======
-/** POST /api/auth/logout - clear backend login cookies. */
-export function logout(): Promise<OkResult> {
-  return requestJson<OkResult>('/api/auth/logout', { method: 'POST', timeoutMs: 8_000 })
-}
-
-/** GET /api/memory — the current user's long-term memories. */
-export async function fetchMemories(): Promise<MemoryItem[]> {
-  const data = await requestJson<{ memories?: MemoryItem[] }>('/api/memory')
-  return data.memories ?? []
->>>>>>> origin/master
 }
 
 /** DELETE /api/memory/{id} — remove one of the current user's memories. */

@@ -1,10 +1,14 @@
-# Detached launcher for the 85-item v2 full eval run.
-# Run via scheduled task so it survives OpenClaw exec-session cleanup.
-# 严格模式: RAG_STRICT=1(禁用静默 TF-IDF 回落) + RAG_SEARCH_CACHE_TTL=0(禁用检索缓存)
-# 日志用 cmd 重定向(原始字节),避免 PowerShell 管道把 python -X utf8 输出重编码成 UTF-16 乱码。
+# Detached launcher for the v2 full evaluation run.
+# Run via scheduled task so it survives the interactive terminal closing.
+# Strict mode: pgvector failure is reported as an evaluation error; no silent TF-IDF fallback.
+# Cache is disabled so repeated/similar queries do not reuse stale retrieval results.
 $ErrorActionPreference = "Continue"
 Set-Location "C:\Users\Administrator\.openclaw\workspace1\langgraph-customer-service-agent"
 $env:RAG_STRICT = "1"
 $env:RAG_SEARCH_CACHE_TTL = "0"
 $log = "eval\reports\v2_full_run3.log"
-cmd /c "echo === launch %date% %time% RAG_STRICT=%RAG_STRICT% TTL=%RAG_SEARCH_CACHE_TTL% === >> $log 2>&1 && .venv\Scripts\python.exe -u -X utf8 eval\run_real_eval.py --dataset eval\golden_set_v2.jsonl --all --multi-turn >> $log 2>&1 & echo === exit code: %errorlevel% @ %date% %time% === >> $log 2>&1"
+$stamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+Add-Content -LiteralPath $log -Value "=== launch $stamp RAG_STRICT=$env:RAG_STRICT TTL=$env:RAG_SEARCH_CACHE_TTL ==="
+# cmd /v:on lets us capture the real Python exit code after the process finishes.
+cmd /v:on /c ".venv\Scripts\python.exe -u -X utf8 eval\run_real_eval.py --dataset eval\golden_set_v2.jsonl --all --multi-turn >> $log 2>&1 & set code=!errorlevel! & echo === exit code: !code! @ %date% %time% === >> $log 2>&1 & exit /b !code!"
+exit $LASTEXITCODE

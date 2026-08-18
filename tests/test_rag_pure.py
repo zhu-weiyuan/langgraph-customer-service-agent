@@ -220,7 +220,6 @@ class TestRuleReranker(unittest.TestCase):
         self.assertEqual(len(out), 1)
 
     def test_cross_encoder_falls_back_when_unavailable(self):
-<<<<<<< HEAD
         # Mock sentence_transformers.CrossEncoder to be unavailable so
         # the reranker falls back to RuleReranker instead of hanging on
         # a HuggingFace model download.
@@ -234,21 +233,13 @@ class TestRuleReranker(unittest.TestCase):
             ce._model = None
             ce._available = False
             ce._cross_encoder_cls = None
-=======
-        ce = CrossEncoderReranker(model_name="whatever/none")
->>>>>>> origin/master
         results = [
             _doc("无关", "天气晴朗"),
             _doc("退货指南", "退货 退换货 流程"),
         ]
         out = ce.rerank("退货", results, top_n=2)
         self.assertEqual(len(out), 2)
-<<<<<<< HEAD
         self.assertEqual(out[0]["title"], "退货指南")
-=======
-        if not ce.available:  # 本环境无 sentence_transformers → 走 RuleReranker
-            self.assertEqual(out[0]["title"], "退货指南")
->>>>>>> origin/master
 
 
 # ---------------------------------------------------------------------------
@@ -335,7 +326,6 @@ class TestTfidfAdapterPath(unittest.TestCase):
         out = r.search("测试")
         self.assertLessEqual(len(out), 5)  # context_top_n
         for item in out:
-<<<<<<< HEAD
             self.assertTrue(
                 {"title", "content", "text", "score", "source", "parent_id"}
                 <= set(item.keys())
@@ -346,12 +336,6 @@ class TestTfidfAdapterPath(unittest.TestCase):
             )
             self.assertIsInstance(item["score"], float)
             self.assertGreaterEqual(item["lexical_overlap"], 0.0)
-=======
-            self.assertEqual(
-                set(item.keys()),
-                {"title", "content", "text", "score", "source", "parent_id"})
-            self.assertIsInstance(item["score"], float)
->>>>>>> origin/master
 
     def test_default_adapter_survives_missing_jieba(self):
         """默认 sparse 适配器在 jieba/rag 不可用时安全返回 []（守卫路径）。"""

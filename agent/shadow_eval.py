@@ -23,11 +23,8 @@ from __future__ import annotations
 
 import json
 import os
-<<<<<<< HEAD
 import sqlite3
 from contextlib import contextmanager
-=======
->>>>>>> origin/master
 import re
 import time
 from pathlib import Path
@@ -161,21 +158,14 @@ class ShadowEvalRunner:
                  rel_tolerance: float = REL_TOLERANCE):
         self.registry = registry
         self.llm_fn = llm_fn or self._default_llm_fn()
-<<<<<<< HEAD
         # PostgreSQL is the live default. An explicit SQLite path is a test
         # adapter, matching PromptRegistry/FeedbackStore isolation semantics.
         self.db_path = db_path or "postgresql"
         self._sqlite = bool(db_path and str(db_path).lower() != "postgresql")
-=======
-        # ``db_path`` is retained only for backward API compatibility.
-        # Live shadow-eval state is always persisted in PostgreSQL.
-        self.db_path = db_path
->>>>>>> origin/master
         self.use_judge = use_judge
         self.golden_path = golden_path or default_golden_path()
         self.abs_threshold = abs_threshold
         self.rel_tolerance = rel_tolerance
-<<<<<<< HEAD
         if self._sqlite:
             self._init_sqlite_schema()
         else:
@@ -195,9 +185,6 @@ class ShadowEvalRunner:
             conn.commit()
         finally:
             conn.close()
-=======
-        init_runtime_schema()
->>>>>>> origin/master
 
     @staticmethod
     def _default_llm_fn() -> Callable[[str, str], str]:
@@ -211,7 +198,6 @@ class ShadowEvalRunner:
                                 {"role": "user", "content": user}], max_tokens=512)
         return _fn
 
-<<<<<<< HEAD
     @contextmanager
     def _sqlite_connection(self):
         conn = sqlite3.connect(self.db_path)
@@ -227,10 +213,6 @@ class ShadowEvalRunner:
 
     def _conn(self):
         return self._sqlite_connection() if self._sqlite else connection()
-=======
-    def _conn(self):
-        return connection()
->>>>>>> origin/master
 
     def run(self, prompt_name: str = "system_prompt",
             candidate_version_no: Optional[int] = None,
@@ -298,7 +280,6 @@ class ShadowEvalRunner:
             "per_case": per_case,
         }
         with self._conn() as conn:
-<<<<<<< HEAD
             if self._sqlite:
                 cur = conn.execute(
                     "INSERT INTO eval_report (ts, prompt_name, candidate_version,"
@@ -319,17 +300,6 @@ class ShadowEvalRunner:
                      baseline.version_no, cand_rate, base_rate, wins, losses, ties,
                      int(passed), json.dumps(report, ensure_ascii=False)))
                 report["report_id"] = cur.fetchone()["id"]
-=======
-            cur = conn.execute(
-                "INSERT INTO eval_report (ts, prompt_name, candidate_version,"
-                " baseline_version, candidate_pass_rate, baseline_pass_rate,"
-                " judge_wins, judge_losses, judge_ties, passed, details)"
-                " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
-                (time.time(), prompt_name, candidate.version_no,
-                 baseline.version_no, cand_rate, base_rate, wins, losses, ties,
-                 int(passed), json.dumps(report, ensure_ascii=False)))
-            report["report_id"] = cur.fetchone()["id"]
->>>>>>> origin/master
         return report
 
     def _resolve_candidate(self, prompt_name: str,
@@ -344,7 +314,6 @@ class ShadowEvalRunner:
 
     def latest_reports(self, limit: int = 10) -> List[Dict[str, Any]]:
         with self._conn() as conn:
-<<<<<<< HEAD
             if self._sqlite:
                 rows = conn.execute(
                     "SELECT id, ts, prompt_name, candidate_version, baseline_version,"
@@ -355,10 +324,4 @@ class ShadowEvalRunner:
                     "SELECT id, ts, prompt_name, candidate_version, baseline_version,"
                     " candidate_pass_rate, baseline_pass_rate, passed FROM eval_report"
                     " ORDER BY id DESC LIMIT %s", (int(limit),)).fetchall()
-=======
-            rows = conn.execute(
-                "SELECT id, ts, prompt_name, candidate_version, baseline_version,"
-                " candidate_pass_rate, baseline_pass_rate, passed FROM eval_report"
-                " ORDER BY id DESC LIMIT %s", (int(limit),)).fetchall()
->>>>>>> origin/master
         return [dict(r) for r in rows]

@@ -1,43 +1,8 @@
-<<<<<<< HEAD
 # Secrets — never into the image
-=======
-# Development/runtime artefacts must not enter the production image.
-.git
-.github
-.venv
-__pycache__/
-.pytest_cache/
-.ruff_cache/
-.cache/
-.idea/
-
-# Local/vector databases and generated state
-*.db
-*.db-shm
-*.db-wal
-chroma_db/
-checkpoints/
-frontend/node_modules/
-
-# Logs, coverage, and temporary diagnostics
-*.log
-.coverage
-htmlcov/
-test_pg.py
-test_pg2.py
-test_pg3.py
-test_pg4.py
-test_pg_search.py
-test_pgvector.py
-test_embedding.py
-
-# Secrets stay outside the image; Docker Compose injects environment variables.
->>>>>>> origin/master
 .env
 .env.*
 !.env.example
 
-<<<<<<< HEAD
 # VCS
 .git/
 .gitignore
@@ -89,6 +54,3 @@ eval/*.log
 .vscode/
 *.swp
 *.swo
-=======
-data/
->>>>>>> origin/master

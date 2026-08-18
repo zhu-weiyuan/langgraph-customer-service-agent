@@ -2731,11 +2731,7 @@
   },
   {
     "id": "edge_special_001",
-<<<<<<< HEAD
     "input": "!!!!!!超级紧急!!!!!!",
-=======
-    "input": "??????超级紧急??????",
->>>>>>> origin/master
     "expected_intent": "consult",
     "expected_reply_keywords": [
       "理解",
@@ -7649,8 +7645,4 @@
     "expected_intent": "complaint",
     "category": "high_fail_risk"
   }
-<<<<<<< HEAD
 ]
-=======
-]
->>>>>>> origin/master

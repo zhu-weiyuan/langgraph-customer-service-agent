@@ -11,7 +11,7 @@ def section(name):
 
 try:
     section("1. Import app module (full module-level side effects)")
-    from app import main as app_main, _install_shutdown_signals, PORT
+    from archive.legacy_backend.app_legacy import main as app_main, _install_shutdown_signals, PORT
     print(f"  OK: loaded app.main, PORT={PORT}")
 except Exception as e:
     traceback.print_exc()
@@ -63,7 +63,7 @@ except Exception as e:
 
 try:
     section("7. LLM connectivity check")
-    from app import _check_llm_connectivity
+    from archive.legacy_backend.app_legacy import _check_llm_connectivity
     ok = _check_llm_connectivity()
     print(f"  LLM reachable: {ok}")
 except Exception as e:
@@ -73,7 +73,7 @@ try:
     section("8. Start server (should bind to port)")
     # Don't actually start serve_forever(), just verify the server can be created
     from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-    from app import ChatHandler
+    from archive.legacy_backend.app_legacy import ChatHandler
     server = ThreadingHTTPServer(('127.0.0.1', PORT), ChatHandler)
     print(f"  OK: Server object created on port {PORT}")
     server.server_close()

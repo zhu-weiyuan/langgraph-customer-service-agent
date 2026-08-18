@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # eval/：评测数据、指标和结果
 
 这里专门放“怎么评测”和“评测什么”，评测执行脚本主要在 scripts/。
@@ -42,16 +41,16 @@
 
 ---
 
-## 真实链路评测 run_real_eval.py（v2，85 条）
+## 真实链路评测 run_real_eval.py（v2，当前 90 条）
 
 `run_real_eval.py` 是当前主评测：真实 pgvector 检索 + 远程 rerank + 本地 LLM 生成 +
-同模型 LLM-as-Judge，数据集 `golden_set_v2.jsonl`（85 条）。
+同模型 LLM-as-Judge，数据集 `golden_set_v2.jsonl`（当前 90 条：13 条拒答、14 条多轮；以脚本运行时统计为准）。
 
 ### 运行
 
     python eval/run_real_eval.py --limit 5        # 小跑（先看费用/耗时）
     python eval/run_real_eval.py --ids id1,id2    # 只跑指定题
-    python eval/run_real_eval.py --all --multi-turn   # 全量 85 条 + 多轮注入
+    python eval/run_real_eval.py --all --multi-turn   # 全量运行当前数据集 + 多轮注入
 
 ### 评测严格性（默认开启，指标可信的前提）
 
@@ -63,16 +62,16 @@
 
 ### 统计口径（2026-08-10 修正，与旧报告不直接可比）
 
-- **拒答题（should_refuse，12 条）不计入检索/生成聚合**：旧实现空 golden 时
+- **拒答题（should_refuse，当前 13 条）不计入检索/生成聚合**：旧实现空 golden 时
   Hit/MRR 硬编码 1.0，虚增了 Hit@5（README 声称的口径现在由代码落实）。
 - 拒答单独报三项：**拒答正确率**（LLM judge 判定）、**误拒答率**（正常题拒答，
-  保守规则启发式）、**危险配合率**（该拒却照做）。
+  保守规则启发式）、**危险配合率**（该拒却照做）和**无检索率**（拒答题没有送入知识检索）。
 - **Judge 解析失败不计 0 分**：parse 失败 → 该条指标为 N/A（不进均值），报告单列
   `judge_parse_failures` 计数，原始响应存 `eval/reports/judge_raw_{ts}.jsonl`
   （区分“Judge 故障”与“模型低分”）。
 - 引用校验：`n` 越界（> 检索条目数）一律记为不支持，并记录
   `citation_out_of_range`；逐条记录 `citation_markers_in_answer` 与
-  `citation_detail` 对照（审计发现 41/85 条数量不一致，现在可量化）。
+  `citation_detail` 对照，并新增 `citation_valid` / `citation_errors`（可量化答案标记、Judge 明细与上下文编号之间的不一致）。
 - **Judge 上下文预算**：CP 改为逐条目独立调用（每条 ≤2000 字符），CR/CA/Faith/AR
   限制 judge 输出长度 + judge max_tokens 4096 —— 本地 27B-Q2 上长上下文截断
   导致的解析失败已消除（实测 2 次运行 0 失败）。
@@ -92,110 +91,15 @@
   key_points 对 KB 章节推导）与 `golden_chunk_ids`（pgvector 小节对应块）；
   报告新增 SecHit / ChunkHit 指标（README 早年声称的“文件+小节级”终于落实）。
 - `--repeat N`：关键题重复 N 次跑，报告输出逐题均值±std（量化 LLM 波动）。
+- **答案正确性**：新增 `Answer Correctness`，用数据集的 `golden_answer` 与 `key_points` 让 Judge 对实际回答按 0–5 分打分；该项与“回答相关性”分开，避免“答非所问”和“答得相关但事实错误”混为一谈。
+- **权重**：聚合时读取数据集 `weight` 字段；当前样本权重均为 1.0，未来可直接提高高风险题权重。
+
 - 每次运行记录 meta：git commit、语料 corpus hash、embedding/reranker/LLM 模型、
-  RAG_STRICT/TTL、multi_turn，报告头部可溯源。
+  RAG_STRICT/TTL、multi_turn，报告头部可溯源；Judge 原始响应另记录重试次数与延迟。
 
 ### 已知局限（步骤 4/5 处理）
 
 - parent(1200字符) 合并导致部分小节标签不精确（如 E013 内容所在 parent 块可能标为
   E011）——SecHit 与 ChunkHit 结合看，ChunkHit 更接近真实命中。
 - 误拒答率为规则启发式，可能有误报。
-- `--all` 默认跑 v2 85 条；旧 `golden_set.jsonl`（63 条）需 `--dataset` 显式指定。
-=======
-# Evaluation System — LangGraph Customer Service Agent
-
-Four-layer metric system for RAG → Generation → Agent → Engineering quality assessment.
-
----
-
-## Quick Start
-
-```bash
-# 1) Dry-run with mocks (zero cost, validates pipeline logic)
-python scripts/run_eval.py --layer all --mock
-
-# 2) Retrieval-only benchmark (cheap, no LLM generation)
-python scripts/eval_retrieval.py --backend tfidf
-
-# 3) Full real eval (produces cost — start with small limit)
-python scripts/eval_real.py --mock --mode both --limit 5
-python scripts/eval_real.py --mode both --backend hybrid --limit 10
-python scripts/eval_real.py --mode retrieval --backend pgvector
-```
-
----
-
-## Metric System (4 Layers)
-
-See [EVAL_METRICS.md](EVAL_METRICS.md) for full formula reference.
-
-| Layer | Core Question | Key Metrics |
-|-------|--------------|-------------|
-| **Retrieval** | Did we find the right evidence? Ranked well? | Recall@k, HitRate@k, MRR, Context Precision, Context Recall |
-| **Generation** | Is the answer faithful, on-point, complete? Used context? | Faithfulness, Answer Relevance, Completeness, Context Usage, Noise Sensitivity, Refusal Correctness |
-| **Agent** | Right tools? Correct args? Recovered from failures? | Tool Selection Accuracy, Parameter Accuracy, Unnecessary Call Rate, Task Completion Rate, Error Recovery Rate, Stability |
-| **Engineering** | Output well-structured? Latency/cost/retry under control? | JSON Validity, Schema Pass Rate, Enum Accuracy, TTFT, E2E Latency (p95/p99), Retry Rate, Hallucination Rate |
-
-Target thresholds defined in `eval/harness.py:TARGETS`.
-
----
-
-## Files
-
-| File | Purpose |
-|------|---------|
-| `eval/metrics.py` | Pure-function metric implementations; injectable judge_fn/embed_fn |
-| `eval/harness.py` | EvalRunner with GoldenCase, scorers, TARGETS config |
-| `eval/EVAL_METRICS.md` | Metric formulas + target thresholds + hand-calc examples |
-| `eval/rag_eval_hard.jsonl` | Hard evaluation dataset (92 cases with KB-grounded annotations) |
-| `eval/golden_set.jsonl` | Core golden set (50 cases: normal 25 / edge 13 / adversarial 7 / high_weight 5) |
-| `scripts/run_eval.py` | Layer-selectable eval runner |
-| `scripts/eval_real.py` | End-to-end real eval: retrieval + generation + LLM-as-Judge scoring |
-| `scripts/eval_retrieval.py` | Retrieval-only benchmark (no LLM cost) |
-| `scripts/_gen_hard_eval.py` | Dataset source generator — modify corpus then re-run to regenerate jsonl |
-
----
-
-## Real Eval Cost Warning
-
-Real mode calls per question:
-- **Embedding**: 1× for query embedding (plain); more for agentic (rewrite variants + multi-round)
-- **Generation LLM**: 1× plain; 2–3× agentic (rewrite + optional evaluate + generate)
-- **Judge LLM**: 1× pointwise score × 2 (plain+agentic) + 2× pairwise comparison (debias by swapping A/B order)
-
-≈ **6–9 LLM calls per question**. Full 92-case run is expensive — always start with `--limit`.
-
-Mock mode (`--mock`) produces zero cost.
-
----
-
-## Golden Set Schema
-
-```json
-{
-  "id": "case_001",
-  "category": "normal|edge|adversarial",
-  "difficulty": "easy|medium|hard",
-  "query": "用户问题原文",
-  "expected_keywords": ["关键词1", "关键词2"],
-  "should_refuse": false,
-  "weight": 1
-}
-```
-
-Weights: normal=1, edge=1, adversarial=2, high_weight=3.
-
----
-
-## Evaluation Reports (Archived)
-
-| File | Content |
-|------|---------|
-| `eval/report.md` | Baseline TF-IDF retrieval report |
-| `eval/report_comparison.md` | Hybrid vs TF-IDF comparison |
-| `eval/vector_agentic_report.md` | Agentic RAG report |
-| `eval/four_rag_eval_local_report.md` | Four-RAG local comparison |
-| `eval/RAG_COMPARISON_REPORT.md` | PgVector vs hybrid vs TF-IDF comparison |
-| `eval/report_ragas_v2.md` | Ragas v2 evaluation run |
-| `eval/BENCHMARK_ENRICHED_NOTES.md` | Benchmark enrichment notes |
->>>>>>> origin/master
+- `--all` 会运行所选数据集的全部条目；旧 `golden_set.jsonl` 需通过 `--dataset` 显式指定。

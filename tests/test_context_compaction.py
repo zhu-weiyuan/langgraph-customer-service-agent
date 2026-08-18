@@ -41,9 +41,13 @@ def make_messages(n_pairs: int) -> list:
 # ── Token 估算测试 ────────────────────────────────────
 
 class TestTokenEstimation:
-    def test_chinese_text(self):
-        tokens = _estimate_tokens("你好世界")
-        assert 4 <= tokens <= 8  # ~1.5 per char
+    def test_chinese_text_uses_shared_estimator(self):
+        """压缩器必须委托统一估算器，不能保留另一套中文比例规则。"""
+        from agent.token_estimator import estimate_tokens
+
+        text = "你好世界"
+        assert _estimate_tokens(text) == estimate_tokens(text)
+        assert _estimate_tokens(text) > 0
 
     def test_english_text(self):
         tokens = _estimate_tokens("hello world")
@@ -98,33 +102,32 @@ class TestCompactionLogic:
         assert result.compacted is True
 
     def test_token_threshold(self):
-        """Token 超过阈值也触发。"""
+        """消息数未达阈值时，Token 阈值也能触发压缩。"""
         compactor = ContextCompactor()
-        # 生成足够多的长消息（> keep=10 条）
-        msgs = []
-        for i in range(6):
-            msgs.append(HumanMessage(content="A" * 20000))
-            msgs.append(AIMessage(content="B" * 20000))
+        # 首条和最近 5 轮会被保留，因此至少 7 轮才能留下可摘要的中间段。
+        msgs = make_messages(7)  # 14 messages < COMPACTION_TRIGGER_MESSAGES
 
-        with patch.object(compactor, '_compact_old_messages') as mock_compact:
-            mock_compact.return_value = "【对话历史摘要】Token阈值触发"
+        # 不把测试绑定到特定 tokenizer 对重复字符的编码方式；只验证 token 阈值分支。
+        with patch("agent.context_compaction.COMPACTION_TRIGGER_TOKENS", 1), \
+             patch.object(compactor, "_compact_old_messages", return_value="【对话历史摘要】Token阈值触发") as mock_compact:
             result = compactor.maybe_compact(msgs, session_id="test")
 
         assert result.compacted is True
+        mock_compact.assert_called_once()
 
-    def test_cache_hit(self):
-        """缓存命中时不重新压缩。"""
+    def test_cache_hit_for_same_compacted_content(self):
+        """相同会话且相同被压缩片段时命中缓存，不重新调用摘要器。"""
         compactor = ContextCompactor()
         msgs = make_messages(10)
 
-        # 预先写入缓存
-        compactor._summary_cache["cached_session"] = "【对话历史摘要】缓存摘要"
+        with patch.object(compactor, "_compact_old_messages", return_value="【对话历史摘要】缓存摘要") as mock_compact:
+            first = compactor.maybe_compact(msgs, session_id="cached_session")
+            second = compactor.maybe_compact(msgs, session_id="cached_session")
 
-        result = compactor.maybe_compact(msgs, session_id="cached_session")
-
-        assert result.compacted is False  # 来自缓存，不算新压缩
-        assert result.summary == "【对话历史摘要】缓存摘要"
-
+        assert first.compacted is True
+        assert second.compacted is False  # 来自内容寻址缓存，不算新压缩
+        assert second.summary == "【对话历史摘要】缓存摘要"
+        assert mock_compact.call_count == 1
 
 # ── 摘要格式化测试 ────────────────────────────────────
 

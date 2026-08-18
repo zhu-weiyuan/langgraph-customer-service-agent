@@ -7,10 +7,7 @@ only as one-time migration sources/backups and are never opened by the server.
 from __future__ import annotations
 
 import os
-<<<<<<< HEAD
 import threading
-=======
->>>>>>> origin/master
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
@@ -18,7 +15,6 @@ from typing import Any, Iterator
 import psycopg
 from psycopg.rows import dict_row
 
-<<<<<<< HEAD
 try:
     from psycopg_pool import ConnectionPool
 except ImportError:  # pragma: no cover - minimal test environments
@@ -27,9 +23,6 @@ except ImportError:  # pragma: no cover - minimal test environments
 ROOT = Path(__file__).resolve().parents[1]
 _pool_lock = threading.Lock()
 _pools: dict[bool, Any] = {}
-=======
-ROOT = Path(__file__).resolve().parents[1]
->>>>>>> origin/master
 
 
 def database_url() -> str:
@@ -41,7 +34,6 @@ def database_url() -> str:
     return dsn
 
 
-<<<<<<< HEAD
 def _pool_int(name: str, default: int, minimum: int = 1) -> int:
     try:
         return max(minimum, int(os.getenv(name, str(default))))
@@ -153,16 +145,6 @@ def pool_stats() -> dict[str, Any]:
 def connection(*, autocommit: bool = False,
              connect_timeout: int | None = None) -> Iterator[psycopg.Connection]:
     conn = connect(autocommit=autocommit, connect_timeout=connect_timeout)
-=======
-def connect(*, autocommit: bool = False) -> psycopg.Connection:
-    return psycopg.connect(database_url(), autocommit=autocommit,
-                           row_factory=dict_row)
-
-
-@contextmanager
-def connection(*, autocommit: bool = False) -> Iterator[psycopg.Connection]:
-    conn = connect(autocommit=autocommit)
->>>>>>> origin/master
     try:
         yield conn
         if not autocommit:
@@ -199,23 +181,16 @@ def init_runtime_schema() -> None:
         ROOT / "migrations" / "001_hybrid_rag.sql",
         ROOT / "migrations" / "002_runtime_postgres.sql",
         ROOT / "migrations" / "003_complete_postgres_runtime.sql",
-<<<<<<< HEAD
         ROOT / "migrations" / "004_refresh_tokens.sql",
         ROOT / "migrations" / "005_user_memory_schema_fix.sql",
-=======
->>>>>>> origin/master
     ]
     with connection() as conn:
         for path in migration_files:
             if path.exists():
-<<<<<<< HEAD
                 # 防御：剥离 UTF-8 BOM（Windows 编辑器/脚本重写易带入），
                 # 否则 SQL 首字符为 BOM 导致 syntax error at or near "?"
                 sql = path.read_text(encoding="utf-8-sig")
                 conn.execute(sql)
-=======
-                conn.execute(path.read_text(encoding="utf-8"))
->>>>>>> origin/master
 
 
 def json_value(value: Any, default: Any) -> Any:

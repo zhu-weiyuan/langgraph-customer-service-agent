@@ -238,20 +238,15 @@ class TestEmbeddingClient(unittest.TestCase):
         self.assertIn("401", str(ctx.exception))
 
     def test_from_env_strict_and_lenient(self):
-<<<<<<< HEAD
         # Exclude ALL embedding-related API key vars so from_env() sees none;
         # previous test imports may have loaded .env setting EMBEDDING_API_KEY
         # or MY_AGENT_API_KEY into os.environ.
         _key_vars = {"OPENAI_API_KEY", "EMBEDDING_API_KEY", "MY_AGENT_API_KEY"}
         env = {k: v for k, v in os.environ.items() if k not in _key_vars}
-=======
-        env = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
->>>>>>> origin/master
         with mock.patch.dict(os.environ, env, clear=True):
             self.assertIsNone(EmbeddingClient.from_env(strict=False))
             with self.assertRaises(ValueError) as ctx:
                 EmbeddingClient.from_env(strict=True)
-<<<<<<< HEAD
             # Error message lists the primary key variable
             self.assertIn("OPENAI_API_KEY", str(ctx.exception))
         # Clear process-level embedding settings loaded from the project .env;
@@ -260,13 +255,6 @@ class TestEmbeddingClient(unittest.TestCase):
                 "OPENAI_API_KEY": "sk-x",
                 "OPENAI_BASE_URL": "https://my-gw/v1",
                 "EMBEDDING_MODEL": "bge-m3"}, clear=True):
-=======
-            self.assertIn("OPENAI_API_KEY", str(ctx.exception))
-        with mock.patch.dict(os.environ, {
-                "OPENAI_API_KEY": "sk-x",
-                "OPENAI_BASE_URL": "https://my-gw/v1",
-                "EMBEDDING_MODEL": "bge-m3"}):
->>>>>>> origin/master
             client = EmbeddingClient.from_env()
             self.assertEqual(client.endpoint, "https://my-gw/v1/embeddings")
             self.assertEqual(client.model, "bge-m3")
@@ -287,7 +275,6 @@ class TestEmbeddingClient(unittest.TestCase):
         self.assertEqual(client.max_retries, 3)
 
 
-<<<<<<< HEAD
     def test_oversized_embedding_requires_explicit_truncation(self):
         def transport(url, headers, payload, timeout):
             return 200, {"data": [{"index": 0,
@@ -315,8 +302,6 @@ class TestEmbeddingClient(unittest.TestCase):
         self.assertTrue(client.allow_truncation)
 
 
-=======
->>>>>>> origin/master
 
 # ---------------------------------------------------------------------------
 # 4. ingest --dry-run（临时 knowledge 目录）
@@ -332,32 +317,19 @@ class TestPgVectorKeywordFallback(unittest.TestCase):
             raise TimeoutError("embedding timeout")
 
         store = PgHybridStore("postgresql://unused", embed_fn=broken_embed)
-<<<<<<< HEAD
         expected = [{"id": "c1", "content": "WiFi 连接失败", "score": 1.0}]
         store.keyword_search = mock.Mock(return_value=expected)
         store._embedding_failure_cooldown = 60.0
 
         self.assertEqual(store.hybrid_search("智能门锁 WiFi", top_k=3), expected)
         self.assertEqual(store.hybrid_search("智能门锁 WiFi", top_k=3), expected)
-=======
-        expected = [{"id": "c1", "content": "WiFi ??", "score": 1.0}]
-        store.keyword_search = mock.Mock(return_value=expected)
-        store._embedding_failure_cooldown = 60.0
-
-        self.assertEqual(store.hybrid_search("???? WiFi", top_k=3), expected)
-        self.assertEqual(store.hybrid_search("???? WiFi", top_k=3), expected)
->>>>>>> origin/master
         self.assertEqual(calls, ["embed"])
         self.assertEqual(store.keyword_search.call_count, 2)
 
     def test_empty_embedding_never_reaches_vector_sql(self):
         store = PgHybridStore("postgresql://unused", embed_fn=lambda _q: [])
         store.keyword_search = mock.Mock(return_value=[{"id": "c2"}])
-<<<<<<< HEAD
         self.assertEqual(store.hybrid_search("故障码 E018", top_k=3), [{"id": "c2"}])
-=======
-        self.assertEqual(store.hybrid_search("??? E018", top_k=3), [{"id": "c2"}])
->>>>>>> origin/master
         store.keyword_search.assert_called_once()
 
 
@@ -377,11 +349,7 @@ class TestIngestDryRun(unittest.TestCase):
             stats = ing.collect_chunk_stats(Path(tmp), child_size=300,
                                             parent_size=1200)
         self.assertEqual(stats["files"], 2)
-<<<<<<< HEAD
-        self.assertGreaterEqual(stats["parents"], 2)   # section-based: 1 parent per heading × 2 files = 2
-=======
         self.assertGreaterEqual(stats["parents"], 3)   # 2100/1200 + 600/1200 → ≥3
->>>>>>> origin/master
         self.assertGreater(stats["children"], stats["parents"])
         self.assertEqual(len(stats["per_file"]), 2)
         for entry in stats["per_file"]:

@@ -85,10 +85,7 @@ CREATE TABLE IF NOT EXISTS rag_chunks (
     is_parent     BOOLEAN NOT NULL DEFAULT FALSE,
     title         TEXT NOT NULL DEFAULT '',
     source        TEXT NOT NULL DEFAULT '',
-<<<<<<< HEAD
     section       TEXT NOT NULL DEFAULT '',   -- 小节标题（markdown heading），section 级命中评测用
-=======
->>>>>>> origin/master
     tenant_id     TEXT,
     tags          TEXT[] NOT NULL DEFAULT '{{}}',
     content       TEXT NOT NULL,
@@ -114,11 +111,7 @@ CREATE INDEX IF NOT EXISTS idx_rag_chunks_vec    ON rag_chunks
 # 单条 SQL：向量路 + 全文路 双 CTE + RRF 融合（k 可传参）
 HYBRID_SEARCH_SQL = """
 WITH vec AS (
-<<<<<<< HEAD
     SELECT chunk_id, parent_id, title, source, section, content, tenant_id, tags, created_at,
-=======
-    SELECT chunk_id, parent_id, title, source, content, tenant_id, tags, created_at,
->>>>>>> origin/master
            ROW_NUMBER() OVER (ORDER BY embedding <=> %(qvec)s::vector) AS rnk
     FROM rag_chunks
     WHERE embedding IS NOT NULL
@@ -129,11 +122,7 @@ WITH vec AS (
     LIMIT %(limit_each)s
 ),
 kw AS (
-<<<<<<< HEAD
     SELECT chunk_id, parent_id, title, source, section, content, tenant_id, tags, created_at,
-=======
-    SELECT chunk_id, parent_id, title, source, content, tenant_id, tags, created_at,
->>>>>>> origin/master
            ROW_NUMBER() OVER (
                ORDER BY ts_rank(tsv, to_tsquery('simple', %(tsquery)s)) DESC
            ) AS rnk
@@ -145,37 +134,23 @@ kw AS (
     LIMIT %(limit_each)s
 ),
 fused AS (
-<<<<<<< HEAD
     SELECT chunk_id, parent_id, title, source, section, content, tenant_id, tags, created_at,
-=======
-    SELECT chunk_id, parent_id, title, source, content, tenant_id, tags, created_at,
->>>>>>> origin/master
            SUM(1.0 / (%(rrf_k)s + rnk)) AS rrf_score
     FROM (
         SELECT * FROM vec
         UNION ALL
         SELECT * FROM kw
     ) u
-<<<<<<< HEAD
     GROUP BY chunk_id, parent_id, title, source, section, content, tenant_id, tags, created_at
 )
 SELECT chunk_id, parent_id, title, source, section, content, rrf_score, created_at
-=======
-    GROUP BY chunk_id, parent_id, title, source, content, tenant_id, tags, created_at
-)
-SELECT chunk_id, parent_id, title, source, content, rrf_score, created_at
->>>>>>> origin/master
 FROM fused
 ORDER BY rrf_score DESC
 LIMIT %(top_k)s;
 """
 
 VECTOR_ONLY_SQL = """
-<<<<<<< HEAD
 SELECT chunk_id, parent_id, title, source, section, content, created_at,
-=======
-SELECT chunk_id, parent_id, title, source, content, created_at,
->>>>>>> origin/master
        1 - (embedding <=> %(qvec)s::vector) AS score
 FROM rag_chunks
 WHERE embedding IS NOT NULL AND is_parent = FALSE
@@ -186,11 +161,7 @@ LIMIT %(top_k)s;
 """
 
 KEYWORD_ONLY_SQL = """
-<<<<<<< HEAD
 SELECT chunk_id, parent_id, title, source, section, content, created_at,
-=======
-SELECT chunk_id, parent_id, title, source, content, created_at,
->>>>>>> origin/master
        ts_rank(tsv, to_tsquery('simple', %(tsquery)s)) AS score
 FROM rag_chunks
 WHERE tsv @@ to_tsquery('simple', %(tsquery)s) AND is_parent = FALSE
@@ -254,13 +225,8 @@ class PgHybridStore:
         self.embed_fn = embed_fn
         self.dim = dim
         self._conn = None
-<<<<<<< HEAD
         # Embedding 服务短暂失败时，不应让已经可用的关键词 RAG 一并不可用。
         # 失败后进入冷却期，避免重复请求风暴，并回退到 PostgreSQL 关键词检索。
-=======
-        # ?? embedding ?????????????????????
-        # ???????? PostgreSQL ???????? SQLite/TF-IDF?
->>>>>>> origin/master
         try:
             self._embedding_failure_cooldown = max(
                 0.0, float(os.getenv("RAG_EMBEDDING_FAILURE_COOLDOWN_SECONDS", "60")))
@@ -301,7 +267,6 @@ class PgHybridStore:
         """建表（幂等）。生产环境请走 migrations/001_hybrid_rag.sql。"""
         with self._connect().cursor() as cur:
             cur.execute(SCHEMA_SQL_TEMPLATE.format(dim=self.dim))
-<<<<<<< HEAD
             # 存量库兼容：旧表没有 section 列时补列
             cur.execute(
                 "ALTER TABLE rag_chunks "
@@ -309,8 +274,6 @@ class PgHybridStore:
             cur.execute(
                 "ALTER TABLE rag_documents "
                 "ADD COLUMN IF NOT EXISTS corpus_hash TEXT NOT NULL DEFAULT ''")
-=======
->>>>>>> origin/master
 
     # -- write path --
 
@@ -329,11 +292,8 @@ class PgHybridStore:
         chunked = chunk_document(text, child_size=child_size,
                                  parent_size=parent_size, doc_id=doc_id)
         tags = tags or []
-<<<<<<< HEAD
-        # 小节标注：chunk_document 已按 markdown 小节边界切分，每个 chunk 的
-        # section 字段就是其所属小节标题（与知识库 heading 一致，唯一且正确）。
-=======
->>>>>>> origin/master
+        # 小节标注：按字符偏移把每个 chunk 映射到所在 markdown 小节标题
+        section_map = _section_for_chunk(text)  # chunk_start -> section title
         conn = self._connect()
         with conn.cursor() as cur:
             cur.execute(
@@ -352,14 +312,9 @@ class PgHybridStore:
             cur.execute("DELETE FROM rag_chunks WHERE doc_id = %s", (doc_id,))
 
             for pid, parent in chunked["parents"].items():
-<<<<<<< HEAD
-                sec = parent.get("section", "")
+                sec = section_map.get(parent.get("start", 0), "")
                 self._insert_chunk(cur, pid, doc_id, None, True, title, source,
                                    sec, tenant_id, tags, parent["text"],
-=======
-                self._insert_chunk(cur, pid, doc_id, None, True, title, source,
-                                   tenant_id, tags, parent["text"],
->>>>>>> origin/master
                                    embedding=None, index_version=index_version)
             for child in chunked["children"]:
                 emb = None
@@ -368,33 +323,22 @@ class PgHybridStore:
                         emb = self.embed_fn(child["text"])
                     except Exception:
                         emb = None
-<<<<<<< HEAD
-                sec = child.get("section", "")
+                sec = section_map.get(child.get("start", 0), "")
                 self._insert_chunk(cur, child["child_id"], doc_id,
                                    child["parent_id"], False, title, source,
                                    sec, tenant_id, tags, child["text"],
-=======
-                self._insert_chunk(cur, child["child_id"], doc_id,
-                                   child["parent_id"], False, title, source,
-                                   tenant_id, tags, child["text"],
->>>>>>> origin/master
                                    embedding=emb, index_version=index_version)
         return {"parents": len(chunked["parents"]),
                 "children": len(chunked["children"])}
 
     @staticmethod
     def _insert_chunk(cur, chunk_id, doc_id, parent_id, is_parent, title,
-<<<<<<< HEAD
                       source, section, tenant_id, tags, content, embedding,
                       index_version):
-=======
-                      source, tenant_id, tags, content, embedding, index_version):
->>>>>>> origin/master
         emb_literal = _vec_literal(embedding) if embedding else None
         cur.execute(
             """
             INSERT INTO rag_chunks
-<<<<<<< HEAD
                 (chunk_id, doc_id, parent_id, is_parent, title, source, section,
                  tenant_id, tags, content, content_tokens, embedding, index_version)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector, %s)
@@ -406,29 +350,13 @@ class PgHybridStore:
                 index_version = EXCLUDED.index_version
             """,
             (chunk_id, doc_id, parent_id, is_parent, title, source, section,
-=======
-                (chunk_id, doc_id, parent_id, is_parent, title, source,
-                 tenant_id, tags, content, content_tokens, embedding, index_version)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::vector, %s)
-            ON CONFLICT (chunk_id) DO UPDATE SET
-                content = EXCLUDED.content,
-                content_tokens = EXCLUDED.content_tokens,
-                embedding = EXCLUDED.embedding,
-                index_version = EXCLUDED.index_version
-            """,
-            (chunk_id, doc_id, parent_id, is_parent, title, source,
->>>>>>> origin/master
              tenant_id, tags, content, pretokenize(content),
              emb_literal, index_version))
 
     # -- read path --
 
     def _query_embedding(self, query: str) -> Optional[List[float]]:
-<<<<<<< HEAD
         """安全获取查询向量；失败时回退到 PostgreSQL 关键词检索。"""
-=======
-        """???????????????????????? PG ??????"""
->>>>>>> origin/master
         if self.embed_fn is None:
             return None
         now = time.monotonic()
@@ -470,11 +398,7 @@ class PgHybridStore:
         with self._connect().cursor() as cur:
             cur.execute(HYBRID_SEARCH_SQL, params)
             rows = cur.fetchall()
-<<<<<<< HEAD
         return [self._row_to_result(r, score_idx=6) for r in rows]
-=======
-        return [self._row_to_result(r, score_idx=5) for r in rows]
->>>>>>> origin/master
 
     def vector_search(self, query: str, top_k: int = 50,
                       tenant_id: Optional[str] = None,
@@ -488,11 +412,7 @@ class PgHybridStore:
         with self._connect().cursor() as cur:
             cur.execute(VECTOR_ONLY_SQL, params)
             rows = cur.fetchall()
-<<<<<<< HEAD
         return [self._row_to_result(r, score_idx=7) for r in rows]
-=======
-        return [self._row_to_result(r, score_idx=6) for r in rows]
->>>>>>> origin/master
 
     def keyword_search(self, query: str, top_k: int = 50,
                        tenant_id: Optional[str] = None,
@@ -503,19 +423,11 @@ class PgHybridStore:
         with self._connect().cursor() as cur:
             cur.execute(KEYWORD_ONLY_SQL, params)
             rows = cur.fetchall()
-<<<<<<< HEAD
         return [self._row_to_result(r, score_idx=7) for r in rows]
 
     def load_parent_map(self, tenant_id: Optional[str] = None) -> Dict[str, Dict]:
         """加载 parent 块映射，供 HybridRetriever(parent_map=...) 注入。"""
         sql = ("SELECT chunk_id, title, source, section, content FROM rag_chunks "
-=======
-        return [self._row_to_result(r, score_idx=6) for r in rows]
-
-    def load_parent_map(self, tenant_id: Optional[str] = None) -> Dict[str, Dict]:
-        """加载 parent 块映射，供 HybridRetriever(parent_map=...) 注入。"""
-        sql = ("SELECT chunk_id, title, source, content FROM rag_chunks "
->>>>>>> origin/master
                "WHERE is_parent = TRUE")
         args: tuple = ()
         if tenant_id is not None:
@@ -525,38 +437,24 @@ class PgHybridStore:
             cur.execute(sql, args)
             rows = cur.fetchall()
         return {r[0]: {"parent_id": r[0], "title": r[1],
-<<<<<<< HEAD
                        "source": r[2], "section": r[3], "text": r[4]} for r in rows}
 
     @staticmethod
     def _row_to_result(row, score_idx: int) -> Dict[str, Any]:
         created = row[7] if score_idx == 6 else row[6]
-=======
-                       "source": r[2], "text": r[3]} for r in rows}
-
-    @staticmethod
-    def _row_to_result(row, score_idx: int) -> Dict[str, Any]:
-        created = row[6] if score_idx == 5 else row[5]
->>>>>>> origin/master
         return {
             "id": row[0],
             "parent_id": row[1],
             "title": row[2] or "",
             "source": row[3] or "",
-<<<<<<< HEAD
             "section": row[4] or "",
             "content": row[5] or "",
             "text": row[5] or "",
-=======
-            "content": row[4] or "",
-            "text": row[4] or "",
->>>>>>> origin/master
             "score": round(float(row[score_idx] or 0.0), 6),
             "created_at": created.isoformat() if hasattr(created, "isoformat") else created,
         }
 
 
-<<<<<<< HEAD
 def _section_for_chunk(text: str) -> Dict[int, str]:
     """按字符偏移建 小节标题 映射：chunk_start -> section title。
 
@@ -589,8 +487,6 @@ class _SectionLookup:
         return title
 
 
-=======
->>>>>>> origin/master
 def _default_embed_fn() -> Optional[Callable[[str], List[float]]]:
     """默认 embedding：优先统一 EmbeddingClient（OPENAI_*），降级 vector_rag。"""
     try:

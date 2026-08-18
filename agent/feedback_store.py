@@ -2,10 +2,7 @@
 """PostgreSQL-backed feedback store for the self-improvement loop."""
 from __future__ import annotations
 
-<<<<<<< HEAD
 import sqlite3
-=======
->>>>>>> origin/master
 import time
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional, Sequence
@@ -20,11 +17,8 @@ except Exception:
 SIGNAL_TYPES = ("rating", "reaction", "feedback", "escalation", "repeat_question")
 LOW_RATING_THRESHOLD = 3
 REPEAT_SIMILARITY_THRESHOLD = 0.6
-<<<<<<< HEAD
 RATING_MIN = 0
 RATING_MAX = 5
-=======
->>>>>>> origin/master
 
 
 def _redact_text(text: Optional[str]) -> str:
@@ -44,7 +38,6 @@ def default_db_path() -> str:
 
 
 class FeedbackStore:
-<<<<<<< HEAD
     """Persist self-improvement signals.
 
     Live application instances use PostgreSQL.  A SQLite path is accepted only
@@ -92,16 +85,10 @@ class FeedbackStore:
             conn.commit()
         finally:
             conn.close()
-=======
-    def __init__(self, db_path: Optional[str] = None):
-        self.db_path = "postgresql"
-        init_runtime_schema()
->>>>>>> origin/master
 
     def _insert(self, *, session_id: str, request_id: str, query: str,
                 answer: str, signal_type: str, score: Optional[float],
                 comment: str, trace_ref: str) -> int:
-<<<<<<< HEAD
         conn = self._connect()
         try:
             values = (time.time(), session_id, request_id, _redact_text(query),
@@ -123,20 +110,6 @@ class FeedbackStore:
                 result = int(row["id"])
             conn.commit()
             return result
-=======
-        conn = connect()
-        try:
-            row = conn.execute(
-                """INSERT INTO bad_cases
-                   (ts,session_id,request_id,query,answer,signal_type,score,comment,trace_ref,processed)
-                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,0) RETURNING id""",
-                (time.time(), session_id, request_id, _redact_text(query),
-                 _redact_text(answer), signal_type, score,
-                 _redact_text(comment), trace_ref),
-            ).fetchone()
-            conn.commit()
-            return int(row["id"])
->>>>>>> origin/master
         except Exception:
             conn.rollback()
             raise
@@ -145,14 +118,10 @@ class FeedbackStore:
 
     def record_rating(self, session_id: str, stars: int, *, request_id: str = "",
                       query: str = "", answer: str = "", trace_ref: str = "") -> Optional[int]:
-<<<<<<< HEAD
         stars = int(stars)
         if not (RATING_MIN <= stars <= RATING_MAX):
             return None
         if stars >= LOW_RATING_THRESHOLD:
-=======
-        if int(stars) >= LOW_RATING_THRESHOLD:
->>>>>>> origin/master
             return None
         return self._insert(session_id=session_id, request_id=request_id, query=query,
                             answer=answer, signal_type="rating", score=float(stars),
@@ -161,13 +130,9 @@ class FeedbackStore:
     def record_reaction(self, session_id: str, emoji: str, active: bool, *,
                         request_id: str = "", query: str = "", answer: str = "",
                         trace_ref: str = "") -> Optional[int]:
-<<<<<<< HEAD
         # Accept the actual Unicode thumbs-down glyph as well as API aliases.
         negative = {"\U0001f44e", "\U0001f44e\U0001f3fb", "dislike", "down", "thumbs_down", "thumbs-down"}
         if not active or str(emoji).strip().lower() not in negative:
-=======
-        if not active or emoji not in ("??", "dislike", "down", "thumbs_down"):
->>>>>>> origin/master
             return None
         return self._insert(session_id=session_id, request_id=request_id, query=query,
                             answer=answer, signal_type="reaction", score=0.0,
@@ -176,14 +141,10 @@ class FeedbackStore:
     def record_feedback(self, session_id: str, query: str, answer: str,
                         rating: int, comment: str, *, request_id: str = "",
                         trace_ref: str = "") -> Optional[int]:
-<<<<<<< HEAD
         rating = int(rating)
         if not (RATING_MIN <= rating <= RATING_MAX):
             return None
         if rating >= LOW_RATING_THRESHOLD and not comment.strip():
-=======
-        if int(rating) >= LOW_RATING_THRESHOLD and not comment.strip():
->>>>>>> origin/master
             return None
         return self._insert(session_id=session_id, request_id=request_id, query=query,
                             answer=answer, signal_type="feedback", score=float(rating),
@@ -201,7 +162,6 @@ class FeedbackStore:
             return None
         redacted = _redact_text(query)
         now = time.time()
-<<<<<<< HEAD
         conn = self._connect()
         try:
             placeholder = "?" if self._sqlite else "%s"
@@ -220,31 +180,17 @@ class FeedbackStore:
                        ON CONFLICT(session_id) DO UPDATE SET query=EXCLUDED.query, ts=EXCLUDED.ts""",
                     (session_id, redacted, now),
                 )
-=======
-        conn = connect()
-        try:
-            row = conn.execute("SELECT query FROM session_last_query WHERE session_id=%s", (session_id,)).fetchone()
-            conn.execute(
-                """INSERT INTO session_last_query(session_id,query,ts) VALUES (%s,%s,%s)
-                   ON CONFLICT(session_id) DO UPDATE SET query=EXCLUDED.query, ts=EXCLUDED.ts""",
-                (session_id, redacted, now))
->>>>>>> origin/master
             conn.commit()
         finally:
             conn.close()
         if row is None:
             return None
-<<<<<<< HEAD
         previous = row["query"]
         similarity = SequenceMatcher(None, previous, redacted).ratio()
-=======
-        similarity = SequenceMatcher(None, row["query"], redacted).ratio()
->>>>>>> origin/master
         if similarity <= REPEAT_SIMILARITY_THRESHOLD:
             return None
         return self._insert(session_id=session_id, request_id=request_id, query=query,
                             answer=answer, signal_type="repeat_question", score=similarity,
-<<<<<<< HEAD
                             comment=f"similarity={similarity:.2f} prev={previous[:80]}",
                             trace_ref=trace_ref)
 
@@ -257,17 +203,6 @@ class FeedbackStore:
                 (int(limit),),
             ).fetchall()
             return [dict(r) for r in rows]
-=======
-                            comment=f"similarity={similarity:.2f} prev={row['query'][:80]}",
-                            trace_ref=trace_ref)
-
-    def unprocessed_batch(self, limit: int = 200) -> List[Dict[str, Any]]:
-        conn = connect()
-        try:
-            return [dict(r) for r in conn.execute(
-                "SELECT * FROM bad_cases WHERE processed=0 ORDER BY ts ASC LIMIT %s",
-                (int(limit),)).fetchall()]
->>>>>>> origin/master
         finally:
             conn.close()
 
@@ -275,7 +210,6 @@ class FeedbackStore:
         ids = [int(i) for i in ids]
         if not ids:
             return 0
-<<<<<<< HEAD
         conn = self._connect()
         try:
             if self._sqlite:
@@ -283,22 +217,13 @@ class FeedbackStore:
                 cur = conn.execute(f"UPDATE bad_cases SET processed=1 WHERE id IN ({marks})", tuple(ids))
             else:
                 cur = conn.execute("UPDATE bad_cases SET processed=1 WHERE id = ANY(%s)", (ids,))
-=======
-        conn = connect()
-        try:
-            cur = conn.execute("UPDATE bad_cases SET processed=1 WHERE id = ANY(%s)", (ids,))
->>>>>>> origin/master
             conn.commit()
             return cur.rowcount
         finally:
             conn.close()
 
     def stats(self) -> Dict[str, Any]:
-<<<<<<< HEAD
         conn = self._connect()
-=======
-        conn = connect()
->>>>>>> origin/master
         try:
             total = conn.execute("SELECT COUNT(*) AS n FROM bad_cases").fetchone()["n"]
             unprocessed = conn.execute("SELECT COUNT(*) AS n FROM bad_cases WHERE processed=0").fetchone()["n"]
@@ -309,7 +234,3 @@ class FeedbackStore:
                     "avg_score": round(float(avg), 3) if avg is not None else None}
         finally:
             conn.close()
-<<<<<<< HEAD
-
-=======
->>>>>>> origin/master

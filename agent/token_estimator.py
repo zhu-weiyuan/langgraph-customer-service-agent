@@ -34,6 +34,8 @@ from __future__ import annotations
 
 import math
 import re
+import os
+import time
 from typing import Any, Iterable
 
 __all__ = [
@@ -53,21 +55,39 @@ _ASCII_WORD_RE = re.compile(r"[A-Za-z]+")
 # Per-message structural overhead (role markers, separators) in tokens.
 _MESSAGE_OVERHEAD_TOKENS = 4
 
-# Lazy tiktoken state: None = not tried yet, False = tried and failed,
-# otherwise the encoder object.
+# Lazy tiktoken state: None = not tried yet, False = the last attempt failed,
+# otherwise the encoder object.  A transient package/cache error must not make
+# the whole process permanently use the heuristic fallback.
 _ENCODER: Any = None
+_ENCODER_FAILED_AT: float | None = None
+_DEFAULT_RETRY_SECONDS = 60.0
+
+
+def _retry_seconds() -> float:
+    """Return a bounded retry cooldown without making config parsing fatal."""
+    try:
+        return max(1.0, float(os.getenv("TOKEN_ESTIMATOR_RETRY_SECONDS", _DEFAULT_RETRY_SECONDS)))
+    except (TypeError, ValueError):
+        return _DEFAULT_RETRY_SECONDS
 
 
 def _get_encoder():
-    """Lazily import tiktoken. Returns an encoder or None (degraded mode)."""
-    global _ENCODER
-    if _ENCODER is None:
+    """Lazily obtain ``tiktoken`` and periodically retry a failed acquisition."""
+    global _ENCODER, _ENCODER_FAILED_AT
+    now = time.monotonic()
+    should_try = _ENCODER is None or (
+        _ENCODER is False and (
+            _ENCODER_FAILED_AT is None or now - _ENCODER_FAILED_AT >= _retry_seconds()
+        )
+    )
+    if should_try:
         try:
             import tiktoken  # deferred third-party import
-
             _ENCODER = tiktoken.get_encoding("cl100k_base")
+            _ENCODER_FAILED_AT = None
         except Exception:
             _ENCODER = False
+            _ENCODER_FAILED_AT = now
     return _ENCODER or None
 
 

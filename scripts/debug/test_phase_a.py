@@ -199,7 +199,7 @@ class TestResponseHeaders:
         This tests that the middleware-level pattern is present in app.py:
         all _send_response/400/429 blocks now include send_header('X-Request-ID', request_id).
         """
-        with open("app.py", encoding="utf-8") as f:
+        with open("archive/legacy_backend/app_legacy.py", encoding="utf-8") as f:
             source = f.read()
 
         # Check that X-Request-ID is set on error responses (at least 3 locations)
@@ -210,7 +210,7 @@ class TestResponseHeaders:
 
     def test_request_id_generated_at_top_of_handler(self):
         """request_id is generated at the top of do_POST so all paths can use it."""
-        with open("app.py", encoding="utf-8") as f:
+        with open("archive/legacy_backend/app_legacy.py", encoding="utf-8") as f:
             source = f.read()
 
         # Find _send_response_headers_and_set_trace helper — must exist in do_POST

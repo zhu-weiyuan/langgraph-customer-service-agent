@@ -34,7 +34,6 @@ function onNewSession() {
 
 /** Called after a successful login (from LoginModal) or a restored session. */
 async function afterAuth() {
-<<<<<<< HEAD
   if (await ui.verifyMe()) {
     await store.bootstrap()
     return
@@ -42,11 +41,7 @@ async function afterAuth() {
   // Never bootstrap as an anonymous user after authentication failed; that
   // would make PostgreSQL-backed history appear to have disappeared.
   ui.clearAuth()
-  ui.toast('error', '?????????????')
-=======
-  await ui.verifyMe()
-  await store.bootstrap()
->>>>>>> origin/master
+  ui.toast('error', '登录状态验证失败，请重新登录')
 }
 
 function onLogout() {
@@ -62,27 +57,19 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
+/** Refresh both independent data sources behind the Insights panel. */
+async function refreshInsights() {
+  await Promise.all([store.reloadAnalytics(), store.reloadObservability()])
+}
+
 onMounted(() => {
   ui.startHealthPolling()
   window.addEventListener('keydown', onKeydown)
-<<<<<<< HEAD
   // The HttpOnly refresh cookie is the source of truth. Do this even if the
   // browser has no localStorage/cookie display hints, otherwise a valid server
   // session cannot restore PostgreSQL conversation history after a hard reload.
   ui.restoreAuth()
   void afterAuth()
-=======
-  // Restore identity before loading user-scoped sessions. Anonymous bootstrap
-  // would race login and can overwrite the authenticated history.
-  if (ui.restoreAuth()) {
-    // Verify first, then load sessions/memory.  Running these in parallel
-    // allowed an expired JWT to race bootstrap and made history appear empty.
-    void (async () => {
-      await ui.verifyMe()
-      await store.bootstrap()
-    })()
-  }
->>>>>>> origin/master
 })
 
 onBeforeUnmount(() => {
@@ -176,7 +163,7 @@ onBeforeUnmount(() => {
             :available="store.analyticsAvailable"
             :observability="store.observability"
             :observability-loading="store.observabilityLoading"
-            @refresh="() => Promise.all([store.reloadAnalytics(), store.reloadObservability()])"
+            @refresh="refreshInsights"
           />
         </section>
       </div>

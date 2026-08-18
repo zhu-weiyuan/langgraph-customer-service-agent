@@ -1448,11 +1448,17 @@ class ChatHandler(BaseHTTPRequestHandler):
         print(f"[HTTP] {args[0]}")
 
 
+class CustomerServiceHTTPServer(ThreadingHTTPServer):
+    """Threaded legacy server with bounded burst tolerance."""
+
+    request_queue_size = 256
+    daemon_threads = True
+
 def main():
     print("[Main] Starting init...")
     init()
     print("[Main] Init complete, starting server...")
-    server = ThreadingHTTPServer(('0.0.0.0', PORT), ChatHandler)
+    server = CustomerServiceHTTPServer(('0.0.0.0', PORT), ChatHandler)
     print(f"[Server] Running at http://localhost:{PORT}")
     try:
         server.serve_forever()

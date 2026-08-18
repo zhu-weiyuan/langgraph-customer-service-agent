@@ -17,10 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
-<<<<<<< HEAD
 import time
-=======
->>>>>>> origin/master
 import unicodedata
 from typing import Any, Callable, Dict, List, Optional
 
@@ -68,10 +65,7 @@ _cache: Dict[str, Any] = {
     "pg_store": None,
     "parent_map": None,
     "pg_reranker": None,
-<<<<<<< HEAD
     "search_cache": {},  # query-key -> (expire_ts, results)
-=======
->>>>>>> origin/master
 }
 
 
@@ -82,10 +76,7 @@ def reset_cache() -> None:
         "pg_store": None,
         "parent_map": None,
         "pg_reranker": None,
-<<<<<<< HEAD
         "search_cache": {},
-=======
->>>>>>> origin/master
     })
 
 
@@ -115,10 +106,7 @@ def _get_pg_search_fn() -> Callable[[str, int], List[dict]]:
     from .embedding_client import EmbeddingClient
     from .hybrid_rag import (HybridRetriever, CrossEncoderReranker,
                              RuleReranker, map_children_to_parents)
-<<<<<<< HEAD
     from .remote_reranker import RemoteReranker
-=======
->>>>>>> origin/master
     from .pgvector_hybrid import PgHybridStore
 
     if _cache["pg_store"] is None:
@@ -127,7 +115,6 @@ def _get_pg_search_fn() -> Callable[[str, int], List[dict]]:
         _cache["pg_store"] = PgHybridStore.from_env(embed_fn=embed_fn)
     store = _cache["pg_store"]
 
-<<<<<<< HEAD
     # Remote SiliconFlow rerank is opt-in by mode and falls back to rule ranking
     # on timeout/provider errors. Local CrossEncoder remains available.
     if _cache["pg_reranker"] is None:
@@ -143,22 +130,10 @@ def _get_pg_search_fn() -> Callable[[str, int], List[dict]]:
             logger.info("[RAG backend] pgvector reranker=cross_encoder (cached)")
         else:
             _cache["pg_reranker"] = fallback
-=======
-    # Default to the local rule reranker so online requests never download a
-    # model. CrossEncoder is opt-in and is also cached for the process lifetime.
-    if _cache["pg_reranker"] is None:
-        mode = os.getenv("RAG_RERANKER", "rule").strip().lower()
-        if mode in {"cross_encoder", "cross-encoder"}:
-            _cache["pg_reranker"] = CrossEncoderReranker()
-            logger.info("[RAG backend] pgvector reranker=cross_encoder (cached)")
-        else:
-            _cache["pg_reranker"] = RuleReranker()
->>>>>>> origin/master
             logger.info("[RAG backend] pgvector reranker=rule (cached)")
     reranker = _cache["pg_reranker"]
 
     def search(query: str, top_k: int) -> List[dict]:
-<<<<<<< HEAD
         # TTL cache: identical queries within RAG_SEARCH_CACHE_TTL reuse results
         try:
             ttl = max(0.0, float(os.getenv("RAG_SEARCH_CACHE_TTL", "60")))
@@ -169,8 +144,6 @@ def _get_pg_search_fn() -> Callable[[str, int], List[dict]]:
             cached = _cache["search_cache"].get(cache_key)
             if cached and cached[0] > time.time():
                 return [dict(c) for c in cached[1]]
-=======
->>>>>>> origin/master
         hits = store.hybrid_search(query, top_k=max(top_k * 4, 20))
         if _cache["parent_map"] is None:
             try:
@@ -178,7 +151,6 @@ def _get_pg_search_fn() -> Callable[[str, int], List[dict]]:
             except Exception:
                 _cache["parent_map"] = {}
         reranked = reranker.rerank(query, hits, top_n=max(top_k * 2, 8))
-<<<<<<< HEAD
         # CrossEncoderReranker may return only its model score.  Normalize the
         # shared lexical diagnostic before applying the lexical relevance gate
         # so the gate never silently drops every result just because a
@@ -189,8 +161,6 @@ def _get_pg_search_fn() -> Callable[[str, int], List[dict]]:
                 item["lexical_overlap"] = round(
                     RuleReranker.lexical_overlap(query, item), 6
                 )
-=======
->>>>>>> origin/master
         try:
             min_overlap = max(
                 0.0,
@@ -209,7 +179,6 @@ def _get_pg_search_fn() -> Callable[[str, int], List[dict]]:
                 if float(item.get("lexical_overlap", 0.0) or 0.0) >= min_overlap
             ]
 
-<<<<<<< HEAD
         # ── rerank 分数阈值（RAG_MIN_RERANK_SCORE）──────────────────────
         # 低分候选基本是噪声（见真实评估：0.3 以下多为 ✗），但保证至少
         # RAG_MIN_RESULTS 条进上下文，避免上下文过短导致回答质量崩塌。
@@ -249,10 +218,6 @@ def _get_pg_search_fn() -> Callable[[str, int], List[dict]]:
                     if v[0] > time.time()
                 }
         return results
-=======
-        mapped = map_children_to_parents(reranked, _cache["parent_map"])
-        return [HybridRetriever._normalize(r) for r in mapped[:top_k]]
->>>>>>> origin/master
     return search
 
 

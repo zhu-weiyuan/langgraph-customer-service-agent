@@ -54,4 +54,4 @@
 
 ## 4. 根目录哪些先不要学
 
-根目录的 app.py、app_sync.py、app_original_sync.py、备份文件、_*.py、debug 脚本和日志多数是历史兼容、一次性排障或运行输出。详见 docs/ROOT_FILES.md。
+archive/legacy_backend/ 中的旧 app 实现、根目录备份文件、_*.py、debug 脚本和日志多数是历史兼容、一次性排障或运行输出。详见 docs/ROOT_FILES.md。

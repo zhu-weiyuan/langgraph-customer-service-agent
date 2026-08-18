@@ -28,13 +28,12 @@ except ImportError:
 import asyncio
 import contextlib
 import hashlib
+import hmac
 import json
+import re
 import logging
 import os
-<<<<<<< HEAD
 import threading
-=======
->>>>>>> origin/master
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -49,11 +48,7 @@ from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
 from pydantic import BaseModel, Field
 
 # 鈹€鈹€ agent 灞傦紙鍏ㄩ儴 import 瀹夊叏锛氫笁鏂逛緷璧栧唴閮ㄥ畧鍗級鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-<<<<<<< HEAD
 from agent import refresh_tokens, runner
-=======
-from agent import runner
->>>>>>> origin/master
 from agent.auth import AuthMiddleware
 from agent.http_helpers import (FEEDBACK_DDL, FEEDBACK_INSERT, RATINGS_DDL,
                                 RATINGS_INSERT, REACTIONS_DDL, REACTIONS_INSERT,
@@ -63,7 +58,6 @@ from agent.http_helpers import (FEEDBACK_DDL, FEEDBACK_INSERT, RATINGS_DDL,
 from agent.llm_gateway import BudgetExceededError, ContextOverflowError
 from agent.logging_setup import (bind_request_context, clear_request_context,
                                  setup_logging)
-<<<<<<< HEAD
 from agent.background_queue import BoundedAsyncJobQueue
 from agent.metrics import (metrics, record_background_drop, record_http_request,
                             record_rate_limit_event)
@@ -72,13 +66,6 @@ from agent.otel_setup import setup_otel
 from agent.rate_limiter import RateLimitExceeded, get_rate_limiter
 from agent.runtime_db import (close_pools, connect as pg_connect,
                                init_runtime_schema, pool_stats)
-=======
-from agent.metrics import metrics, record_http_request, record_rate_limit_event
-from agent.observability import TraceSession, alert_service, get_trace_service
-from agent.otel_setup import setup_otel
-from agent.rate_limiter import RateLimitExceeded, get_rate_limiter
-from agent.runtime_db import connect as pg_connect, init_runtime_schema
->>>>>>> origin/master
 
 # 鈹€鈹€ 鍙€変笁鏂逛緷璧栵紙瀹堝崼锛夆攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 try:
@@ -120,7 +107,6 @@ _inflight = 0                     # 瑙傛祴涓棿浠剁淮鎶わ紝shutdown
 _redis_available = False
 _alert_task: Optional[asyncio.Task] = None
 _memory_backfill_task: Optional[asyncio.Task] = None
-<<<<<<< HEAD
 _implicit_signal_queue: Optional[BoundedAsyncJobQueue] = None
 _readiness_cache: Optional[tuple[float, int, Dict[str, Any]]] = None
 _readiness_lock: Optional[asyncio.Lock] = None
@@ -251,8 +237,6 @@ try:
         1, int(os.getenv("IMPLICIT_SIGNAL_WORKERS", "4")))
 except (TypeError, ValueError):
     IMPLICIT_SIGNAL_WORKERS = 4
-=======
->>>>>>> origin/master
 
 
 # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
@@ -299,7 +283,6 @@ async def _alert_loop() -> None:
             logger.error("alert loop iteration failed", exc_info=True)
 
 
-<<<<<<< HEAD
 async def _implicit_signal_job(item: tuple[str, str]) -> None:
     session_id, message = item
     await asyncio.to_thread(_record_implicit_signals, session_id, message)
@@ -321,8 +304,6 @@ def _enqueue_implicit_signal(session_id: str, message: str) -> None:
         record_background_drop("implicit_signal")
 
 
-=======
->>>>>>> origin/master
 def _register_alert_rules() -> None:
     alert_service.add_rule("high_http_error_rate", "http_error", threshold=10,
                            agg="count", window_seconds=300)
@@ -364,10 +345,7 @@ async def _check_redis() -> bool:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _redis_available, _alert_task, _memory_backfill_task
-<<<<<<< HEAD
     global _implicit_signal_queue
-=======
->>>>>>> origin/master
     import os, time  # must come first to avoid UnboundLocalError
 
     # 1. logging + otel
@@ -431,7 +409,6 @@ async def lifespan(app: FastAPI):
     # deliberately best-effort and never blocks chat startup on metrics.
     await asyncio.to_thread(metrics.load_persistent_rag_metrics)
 
-<<<<<<< HEAD
     # Best-effort implicit feedback is deliberately decoupled from the chat
     # request.  The queue is bounded so a burst cannot consume an unbounded
     # amount of memory, and a full queue never makes the user-facing request
@@ -445,8 +422,6 @@ async def lifespan(app: FastAPI):
     )
     await _implicit_signal_queue.start()
 
-=======
->>>>>>> origin/master
     # 2. graph / checkpointer 棰勭儹锛坙anggraph 缂哄腑鏃堕檷绾у惎鍔紝chat 杩斿洖 503锛?
     graph_ok = await runner.prewarm()
     logger.info("graph prewarm: %s", "ok" if graph_ok else "unavailable")
@@ -509,15 +484,12 @@ async def lifespan(app: FastAPI):
             _memory_backfill_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await _memory_backfill_task
-<<<<<<< HEAD
         if _implicit_signal_queue is not None:
             drained = await _implicit_signal_queue.stop(
                 timeout=BACKGROUND_DRAIN_SECONDS)
             if not drained:
                 logger.warning("implicit signal queue drain timed out")
             _implicit_signal_queue = None
-=======
->>>>>>> origin/master
         deadline = time.monotonic() + SHUTDOWN_DRAIN_SECONDS
         while _inflight > 0 and time.monotonic() < deadline:
             await asyncio.sleep(0.2)
@@ -525,10 +497,12 @@ async def lifespan(app: FastAPI):
             logger.warning("shutdown drain timeout with %d in-flight requests",
                            _inflight)
         await runner.shutdown()
-<<<<<<< HEAD
+        # Release the gateway's synchronous bridge loop / owned httpx pool too.
+        # Import lazily so FastAPI startup remains independent of gateway setup.
+        with contextlib.suppress(Exception):
+            from agent.llm_gateway import shutdown_llm_gateway
+            await shutdown_llm_gateway()
         await asyncio.to_thread(close_pools)
-=======
->>>>>>> origin/master
         logger.info("app shutdown complete")
 
 
@@ -552,7 +526,6 @@ app.add_middleware(
 # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 
 
-<<<<<<< HEAD
 # Browser authentication uses a short-lived access JWT plus a rotating opaque
 # refresh token.  The raw refresh token is written only to this HttpOnly cookie;
 # PostgreSQL receives a keyed hash, never the raw credential.
@@ -581,6 +554,27 @@ def _allow_header_identity_fallback() -> bool:
     if _is_production():
         return False
     return _auth_env_bool("AUTH_ALLOW_HEADER_FALLBACK", True)
+
+
+# Browser-generated anonymous client IDs are identifiers, not credentials.  The
+# strict format prevents oversized or malformed header values from becoming
+# database keys, logs, or rate-limit labels.
+_CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
+
+
+def _anonymous_user_id(request: Request) -> str:
+    """Return a stable per-browser anonymous ID without trusting IP as identity.
+
+    Older clients that do not send ``X-Client-Id`` retain the legacy IP-derived
+    fallback.  New clients send a random browser-local ID, which prevents users
+    behind the same NAT/proxy from sharing sessions or long-term memory.
+    """
+    client_id = (request.headers.get("X-Client-Id") or "").strip()
+    if _CLIENT_ID_RE.fullmatch(client_id):
+        digest = hashlib.sha256(client_id.encode("utf-8")).hexdigest()[:24]
+        return f"anon-{digest}"
+    ip = _client_ip(request)
+    return f"anon-ip-{hashlib.sha1(ip.encode('utf-8')).hexdigest()[:16]}"
 
 
 def _auth_cookie_secure() -> bool:
@@ -632,43 +626,10 @@ def _clear_auth_cookies(response: Response) -> None:
         secure=_auth_cookie_secure(),
         httponly=True,
     )
-=======
-# Browser login fallback cookie. The Vue app still sends X-User-Id when it can,
-# but some local browser shells can lose JS storage on refresh. A first-party
-# cookie lets the backend recover the stable PostgreSQL/pgvector user id instead
-# of falling back to anon-<ip>.
-AUTH_USER_COOKIE = "aster_user_id"
-AUTH_NAME_COOKIE = "aster_username"
-AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30
-
-
-def _safe_cookie_value(value: str, limit: int = 128) -> str:
-    return (value or "").strip()[:limit]
-
-
-def _set_auth_cookies(response: Response, user_id: str, username: str = "") -> None:
-    uid = _safe_cookie_value(user_id)
-    name = _safe_cookie_value(username or uid)
-    if not uid:
-        return
-    cookie_kwargs = {
-        "max_age": AUTH_COOKIE_MAX_AGE,
-        "path": "/",
-        "samesite": "lax",
-        "secure": False,
-        "httponly": False,
-    }
-    response.set_cookie(AUTH_USER_COOKIE, uid, **cookie_kwargs)
-    response.set_cookie(AUTH_NAME_COOKIE, name, **cookie_kwargs)
-
-
-def _clear_auth_cookies(response: Response) -> None:
->>>>>>> origin/master
     response.delete_cookie(AUTH_USER_COOKIE, path="/", samesite="lax")
     response.delete_cookie(AUTH_NAME_COOKIE, path="/", samesite="lax")
 
 
-<<<<<<< HEAD
 def _refresh_origin_is_allowed(request: Request) -> bool:
     """Reject cross-site browser refreshes when an Origin header is supplied."""
     if not _is_production():
@@ -689,13 +650,10 @@ def _refresh_origin_is_allowed(request: Request) -> bool:
     return origin in configured
 
 
-=======
->>>>>>> origin/master
 @app.middleware("http")
 async def observe_request(request: Request, call_next):
     """璁?http 鎸囨爣 + 缁戝畾 request_id 鏃ュ織涓婁笅鏂?+ 鍠?alert 婊戝姩绐楀彛 + 鍦ㄩ€旇鏁般€?"""
     global _inflight
-<<<<<<< HEAD
     path = request.url.path
     is_probe = _is_lightweight_probe(path)
     # Probe requests are not traced individually unless the caller supplied
@@ -704,28 +662,18 @@ async def observe_request(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID") or ("" if is_probe else uuid4().hex)
     request.state.request_id = request_id
     tokens = bind_request_context(request_id=request_id) if request_id else None
-=======
-    request_id = request.headers.get("X-Request-ID") or uuid4().hex
-    request.state.request_id = request_id
-    tokens = bind_request_context(request_id=request_id)
->>>>>>> origin/master
     start = time.perf_counter()
     _inflight += 1
     status = 500
     try:
         response = await call_next(request)
         status = response.status_code
-<<<<<<< HEAD
         if request_id:
             response.headers["X-Request-ID"] = request_id
-=======
-        response.headers["X-Request-ID"] = request_id
->>>>>>> origin/master
         return response
     finally:
         _inflight -= 1
         duration = time.perf_counter() - start
-<<<<<<< HEAD
         try:
             # Keep every request in Prometheus.  AlertService is deliberately
             # reserved for business traffic so health-check storms cannot
@@ -741,18 +689,6 @@ async def observe_request(request: Request, call_next):
             logger.debug("metrics recording failed", exc_info=True)
         if tokens:
             clear_request_context(tokens)
-=======
-        path = request.url.path
-        try:
-            record_http_request(request.method, path, status, duration)
-            alert_service.record("http_request", 1)
-            alert_service.record("http_latency_ms", duration * 1000)
-            if status >= 500:
-                alert_service.record("http_error", 1)
-        except Exception:
-            logger.debug("metrics recording failed", exc_info=True)
-        clear_request_context(tokens)
->>>>>>> origin/master
 
 
 @app.middleware("http")
@@ -769,7 +705,6 @@ async def authenticate_request(request: Request, call_next):
     request.state.auth_tenant_id = "default"
     request.state.user_id = ""
 
-<<<<<<< HEAD
     # Readiness/metrics/liveness are public by contract.  Avoid JWT parsing,
     # cookie lookup, and anonymous-IP hashing for the high-frequency probe
     # path.  Business endpoints continue through the full auth resolution
@@ -777,15 +712,12 @@ async def authenticate_request(request: Request, call_next):
     if _is_lightweight_probe(request.url.path):
         return await call_next(request)
 
-=======
->>>>>>> origin/master
     # 鍏堝皾璇曡В JWT锛堝嵆浣跨鐐规槸鍏紑鐨勶紝涔熻鎷垮埌 user_id 鐢ㄤ簬璁板繂褰掑睘锛夈€?
     auth_header = request.headers.get("Authorization", "") or ""
     jwt_claims = None
     if auth_header.startswith("Bearer "):
         jwt_claims = AuthMiddleware._decode_jwt(auth_header[7:].strip())
 
-<<<<<<< HEAD
     # Browser/API business routes are JWT-protected in production regardless
     # of whether the legacy API_KEYS switch is configured. This prevents a
     # missing API_KEYS value from silently exposing user-scoped PostgreSQL data.
@@ -794,8 +726,6 @@ async def authenticate_request(request: Request, call_next):
             return JSONResponse(status_code=401, content={
                 "error": "Unauthorized: Bearer access token is required"})
 
-=======
->>>>>>> origin/master
     if not AuthMiddleware.is_public_endpoint(request.url.path):
         ctx = type("AuthContext", (), {
             "headers": request.headers, "path": str(request.url)})()
@@ -806,14 +736,9 @@ async def authenticate_request(request: Request, call_next):
         request.state.auth_tenant_id = ctx.auth_tenant_id
         request.state.auth_scheme = ctx.auth_scheme
 
-<<<<<<< HEAD
-    # Resolve the stable user id for PostgreSQL/pgvector ownership. Production
-    # only trusts a verified JWT; X-User-Id is an explicit local-development
-    # compatibility switch and never a trusted browser identity in production.
-=======
-    # Resolve the stable user id for PostgreSQL/pgvector ownership:
-    # valid JWT > X-User-Id > login cookie > anonymous IP hash.
->>>>>>> origin/master
+    # Resolve the stable owner key used by PostgreSQL/pgvector.  JWT is the
+    # only production browser identity; API keys use an opaque per-key digest;
+    # X-User-Id remains an explicit development-only compatibility switch.
     if jwt_claims and jwt_claims.get("sub"):
         request.state.user_id = str(jwt_claims["sub"])[:128]
         request.state.auth_tenant_id = str(
@@ -821,7 +746,11 @@ async def authenticate_request(request: Request, call_next):
         if not request.state.auth_scheme:
             request.state.auth_scheme = "jwt"
             request.state.auth_subject = request.state.user_id
-<<<<<<< HEAD
+    elif (getattr(request.state, "auth_scheme", "") == "api_key"
+          and getattr(request.state, "auth_subject", "")):
+        # AuthMiddleware exposes only a one-way key fingerprint here.  Do not
+        # use a shared literal such as "api-key", which would merge tenants.
+        request.state.user_id = str(request.state.auth_subject)[:128]
     elif _allow_header_identity_fallback():
         header_uid = (request.headers.get("X-User-Id", "") or "").strip()
         if header_uid:
@@ -829,27 +758,13 @@ async def authenticate_request(request: Request, call_next):
             request.state.auth_scheme = request.state.auth_scheme or "header-fallback"
             request.state.auth_subject = request.state.auth_subject or request.state.user_id
         else:
-            ip = _client_ip(request)
-            request.state.user_id = f"anon-{hashlib.sha1(ip.encode()).hexdigest()[:16]}"
+            request.state.user_id = _anonymous_user_id(request)
+            request.state.auth_scheme = "anonymous"
+            request.state.auth_subject = request.state.user_id
     else:
-        ip = _client_ip(request)
-        request.state.user_id = f"anon-{hashlib.sha1(ip.encode()).hexdigest()[:16]}"
-=======
-    else:
-        header_uid = (request.headers.get("X-User-Id", "") or "").strip()
-        cookie_uid = (request.cookies.get(AUTH_USER_COOKIE, "") or "").strip()
-        if header_uid:
-            request.state.user_id = header_uid[:128]
-        elif cookie_uid:
-            request.state.user_id = cookie_uid[:128]
-            if not request.state.auth_scheme:
-                request.state.auth_scheme = "cookie"
-            if not request.state.auth_subject:
-                request.state.auth_subject = request.state.user_id
-        else:
-            ip = _client_ip(request)
-            request.state.user_id = f"anon-{hashlib.sha1(ip.encode()).hexdigest()[:16]}"
->>>>>>> origin/master
+        request.state.user_id = _anonymous_user_id(request)
+        request.state.auth_scheme = "anonymous"
+        request.state.auth_subject = request.state.user_id
     return await call_next(request)
 
 
@@ -858,7 +773,6 @@ def _user_id_for_request(request: Request) -> str:
     return getattr(request.state, "user_id", "") or "anon-unknown"
 
 
-<<<<<<< HEAD
 def _rate_limit_identity(request: Request, session_id: str) -> tuple:
     """Return limiter identities without making anonymous traffic a user bucket.
 
@@ -872,8 +786,6 @@ def _rate_limit_identity(request: Request, session_id: str) -> tuple:
     return resolved_user_id, session_id
 
 
-=======
->>>>>>> origin/master
 def _tenant_for_request(request: Request) -> str:
     return getattr(request.state, "auth_tenant_id", "default") or "default"
 
@@ -916,11 +828,7 @@ class FeedbackRequest(BaseModel):
     session_id: str = ""
     query: str = ""
     answer: str = ""
-<<<<<<< HEAD
     rating: int = Field(default=0, ge=0, le=5)
-=======
-    rating: int = 0
->>>>>>> origin/master
     comment: str = ""
 
 
@@ -965,34 +873,34 @@ def _client_ip(request: Request) -> str:
 
 
 def _session_id_for_request(request: Request) -> str:
-    if getattr(request.state, "auth_scheme", "") == "jwt":
-        subject = request.state.auth_subject
+    scheme = getattr(request.state, "auth_scheme", "")
+    subject = str(getattr(request.state, "auth_subject", "") or "")
+    if scheme in {"jwt", "header-fallback"} and subject:
         return f"user-{hashlib.sha256(subject.encode('utf-8')).hexdigest()[:24]}"
-    ip = _client_ip(request)
-    return f"ip-{hashlib.sha1(ip.encode('utf-8')).hexdigest()[:16]}"
+    if scheme == "api_key" and subject:
+        return f"api-{hashlib.sha256(subject.encode('utf-8')).hexdigest()[:24]}"
+    identity = _user_id_for_request(request)
+    return f"anon-session-{hashlib.sha256(identity.encode('utf-8')).hexdigest()[:24]}"
 
 
 def _owns_session(request: Request, session_id: str, *,
                   allow_unregistered: bool = False) -> bool:
-    """Check whether a request can access a session.
+    """Check session ownership for every authentication mode.
 
-    JWT users may create a previously unregistered client session only through
-    ``/api/chat``. Read/export/feedback endpoints must reject an unknown
-    session id instead of treating it as public.
+    Only ``/api/chat`` may attach an unregistered client-generated session ID;
+    after the first successful turn its owner is persisted.  All read, export,
+    feedback, rating, and reaction paths fail closed on an unavailable owner
+    lookup and never treat anonymous/API-key traffic as globally trusted.
     """
-    if getattr(request.state, "auth_scheme", "") != "jwt":
-        return True
-    if session_id == _session_id_for_request(request):
-        return True
     try:
         from agent import memory
         owner = memory.get_session_owner(session_id)
     except Exception:
-        # JWT ownership lookup failures must fail closed.
+        logger.warning("session ownership lookup failed", exc_info=True)
         return False
     if owner is None:
         return allow_unregistered
-    return owner == _user_id_for_request(request)
+    return hmac.compare_digest(str(owner), _user_id_for_request(request))
 
 
 # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
@@ -1052,7 +960,6 @@ async def healthz() -> dict:
             "uptime_seconds": int(time.monotonic() - APP_STARTED_AT)}
 
 
-<<<<<<< HEAD
 def _readiness_lock_for_current_loop() -> asyncio.Lock:
     """Return a lock bound to the current event loop."""
     global _readiness_lock, _readiness_lock_loop
@@ -1100,12 +1007,6 @@ def _readiness_response(status_code: int, body: Dict[str, Any], *,
 
 
 async def _probe_readiness() -> tuple[int, Dict[str, Any]]:
-=======
-@app.get("/readyz")
-@app.get("/api/ready")
-async def ready() -> JSONResponse:
-    """灏辩华鎺㈤拡锛歅ostgreSQL + pgvector + graph + 鍏抽敭閰嶇疆銆?"""
->>>>>>> origin/master
     checks: Dict[str, Any] = {}
     ok = True
 
@@ -1118,12 +1019,8 @@ async def ready() -> JSONResponse:
         return True
 
     try:
-<<<<<<< HEAD
         await asyncio.wait_for(db_read(_probe),
                                timeout=READINESS_PROBE_TIMEOUT_SECONDS)
-=======
-        await db_read(_probe)
->>>>>>> origin/master
         checks["postgresql"] = {"ok": True, "pgvector": True}
     except Exception as exc:
         ok = False
@@ -1140,7 +1037,6 @@ async def ready() -> JSONResponse:
         "jwt_configured": bool(os.getenv("JWT_SECRET", "").strip()),
         "api_keys_configured": bool(os.getenv("API_KEYS", "").strip()),
     }
-<<<<<<< HEAD
     return (200 if ok else 503), {"ready": ok, "checks": checks}
 
 
@@ -1169,10 +1065,6 @@ async def ready() -> JSONResponse:
         status_code, body = await _probe_readiness()
         _readiness_cache = (time.monotonic(), status_code, body)
         return _readiness_response(status_code, body, cache_state="refresh")
-=======
-    return JSONResponse(status_code=200 if ok else 503,
-                        content={"ready": ok, "checks": checks})
->>>>>>> origin/master
 
 
 async def _llm_reachable(timeout: float = 3.0) -> bool:
@@ -1196,7 +1088,6 @@ async def _llm_reachable(timeout: float = 3.0) -> bool:
 
 
 @app.get("/api/health")
-<<<<<<< HEAD
 async def health() -> JSONResponse:
     """Return detailed health data with a short single-flight cache.
 
@@ -1270,32 +1161,10 @@ async def health() -> JSONResponse:
         return JSONResponse(content=content,
                             headers={"Cache-Control": "no-store",
                                      "X-Health-Cache": "refresh"})
-=======
-async def health() -> dict:
-    llm_ok = await _llm_reachable()
-    db: Dict[str, Any]
-    try:
-        stats = await db_read(query_analytics)
-        db = {"conversations": stats["total_conversations"],
-              "total_ratings": stats["ratings"]["total"],
-              "avg_rating": stats["ratings"]["average"]}
-    except Exception as exc:
-        db = {"error": str(exc)}
-    limiter_stats: Dict[str, Any] = {}
-    with contextlib.suppress(Exception):
-        limiter_stats = get_rate_limiter().get_stats()
-    return {"ok": True, "service": "LangGraph Customer Service Agent",
-            "version": app.version, "port": PORT,
-            "llm": {"reachable": llm_ok},
-            "redis": {"available": _redis_available},
-            "rate_limiter": limiter_stats,
-            "database": db}
->>>>>>> origin/master
 
 
 _METRICS_DASHBOARD_HTML = '<!doctype html>\n<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LangGraph | Observability Dashboard</title>\n<style>\n:root{color-scheme:dark;--bg:#0b1220;--panel:#121c2e;--line:#263752;--text:#e8eef8;--muted:#91a4be;--cyan:#67e8f9;--green:#34d399;--red:#fb7185}*{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--text);font-family:Inter,system-ui,"Microsoft YaHei",sans-serif;background:radial-gradient(circle at 8% 0%,#1b4268 0,transparent 35%),linear-gradient(135deg,#0b1220,#101a30)}main{max-width:1180px;margin:auto;padding:34px 22px 48px}header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:26px}h1{margin:0 0 8px;font-size:clamp(27px,4vw,42px);letter-spacing:-.04em}.subtitle,.muted,.hint{color:var(--muted)}.subtitle{margin:0;font-size:14px}.right{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}.badge{display:inline-block;border:1px solid #38bdf866;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:700;color:#bae6fd;background:#0c4a6e99}.badge.ok{color:#a7f3d0;border-color:#10b98166;background:#064e3b99}.badge.bad{color:#fecdd3;border-color:#fb718566;background:#88133799}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.card,.panel{background:linear-gradient(145deg,#17263eee,#101a2bee);border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 55px #02061755}.card{padding:18px;min-height:124px}.title{color:#b8c6da;font-size:13px}.value{margin:12px 0 5px;font-size:30px;font-weight:800}.cyan .value{color:var(--cyan)}.green .value{color:var(--green)}.columns{display:grid;grid-template-columns:1.1fr .9fr;gap:18px;margin-bottom:18px}.panel{padding:20px}.panel h2{margin:0 0 15px;font-size:17px}.services{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.service{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px;background:#0b1424aa;border:1px solid #22334f;border-radius:12px;font-size:13px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:11px 8px;border-bottom:1px solid #22334f}th{color:#9fb0c8;font-size:12px}code,pre{font-family:Consolas,"SFMono-Regular",monospace}code{color:#a5f3fc}details{border-top:1px solid var(--line);padding-top:14px;margin-top:17px}summary{cursor:pointer;color:#bde9f3;font-size:13px}pre{white-space:pre-wrap;word-break:break-word;max-height:430px;overflow:auto;color:#aabbd3;font-size:11px;line-height:1.55;background:#08111f;border-radius:12px;padding:14px}.footer{display:flex;justify-content:space-between;gap:12px;margin-top:17px;color:var(--muted);font-size:12px}a{color:var(--cyan);text-decoration:none}@media(max-width:820px){.grid{grid-template-columns:repeat(2,1fr)}.columns{grid-template-columns:1fr}header{flex-direction:column}.right{justify-content:flex-start}}@media(max-width:520px){main{padding:24px 14px 36px}.grid,.services{grid-template-columns:1fr}.value{font-size:27px}}\n</style></head><body><main>\n<header><div><h1>LangGraph | Observability Dashboard</h1><p class="subtitle">&#35266;&#27979;&#38754;&#26495; | PostgreSQL / pgvector | Redis | Local LLM</p></div><div class="right"><span id="status" class="badge">Loading</span><span class="badge">Auto refresh 15s</span></div></header>\n<section class="grid"><article class="card cyan"><div class="title">HTTP Requests</div><div id="requests" class="value">-</div><div id="errors" class="hint">Loading</div></article><article class="card green"><div class="title">Average Latency</div><div id="latency" class="value">-</div><div id="latencyHint" class="hint">Loading</div></article><article class="card cyan"><div class="title">LLM Calls</div><div id="llm" class="value">-</div><div id="llmHint" class="hint">Loading</div></article><article class="card green"><div class="title">Tokens / Cost</div><div id="tokens" class="value">-</div><div id="cost" class="hint">Loading</div></article></section>\n<div class="columns"><section class="panel"><h2>&#26381;&#21153;&#29366;&#24577; | Service Status</h2><div id="services" class="services"><div class="muted">Loading service status...</div></div><div class="footer"><span id="uptime">Uptime -</span><span id="families">Metric families -</span></div></section><section class="panel"><h2>&#25968;&#25454;&#19982;&#36136;&#37327; | Data Quality</h2><div class="services"><div class="service"><span>&#23545;&#35805;&#25968; | Conversations</span><strong id="conversations">-</strong></div><div class="service"><span>&#35780;&#20998;&#25968; | Ratings</span><strong id="ratings">-</strong></div><div class="service"><span>&#24179;&#22343;&#35780;&#20998; | Avg rating</span><strong id="avgRating">-</strong></div><div class="service"><span>RAG &#21629;&#20013;&#29575; | Hit ratio</span><strong id="rag">-</strong></div><div class="service"><span>&#38480;&#27969;&#20107;&#20214; | Rate limits</span><strong id="limits">-</strong></div><div class="service"><span>&#21453;&#39304;&#20107;&#20214; | Feedback</span><strong id="feedback">-</strong></div></div></section></div>\n<section class="panel"><h2>LLM Gateway | Routing / Reliability / Cache</h2><div class="services"><div class="service"><span>Fallbacks</span><strong id="fallbacks">-</strong></div><div class="service"><span>Routes</span><strong id="routes">-</strong></div><div class="service"><span>Average TTFT</span><strong id="ttft">-</strong></div><div class="service"><span>Cache hit rate</span><strong id="cache">-</strong></div><div class="service"><span>Circuit breaker open</span><strong id="breaker">-</strong></div><div class="service"><span>Attributed cost</span><strong id="attribution">-</strong></div></div></section>\n<section class="panel"><h2>&#25509;&#21475;&#35831;&#27714;&#25490;&#34892; | Top Endpoints</h2><table><thead><tr><th>Endpoint</th><th>Requests</th></tr></thead><tbody id="endpoints"><tr><td colspan="2" class="muted">Loading...</td></tr></tbody></table><details><summary>&#26597;&#30475;&#21407;&#22987; Prometheus &#25351;&#26631; | Raw metrics</summary><pre id="raw">Loading...</pre></details></section>\n<div class="footer"><span id="updated">-</span><span><a href="/api/metrics?format=prometheus">Prometheus text</a> | <a href="/api/health">Health</a> | <a href="/api/ready">Readiness</a></span></div>\n</main><script>\nconst $=id=>document.getElementById(id),fmt=n=>Number(n||0).toLocaleString("zh-CN",{maximumFractionDigits:2});\nfunction parse(t){const a=[];for(const line of t.split(/\\r?\\n/)){if(!line||line[0]==="#")continue;const m=line.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\\{([^}]*)\\})?\\s+([-+]?\\d+(?:\\.\\d+)?(?:[eE][-+]?\\d+)?|NaN|[+-]?Inf)/);if(!m)continue;const l={};for(const x of (m[2]||"").matchAll(/([a-zA-Z_][a-zA-Z0-9_]*)="((?:\\\\.|[^"])*)"/g))l[x[1]]=x[2];const v=Number(m[3]);if(Number.isFinite(v))a.push({name:m[1],labels:l,value:v})}return a}\nconst sum=(a,n,p=()=>true)=>a.filter(x=>x.name===n&&p(x.labels)).reduce((v,x)=>v+x.value,0),badge=ok=>`<span class="badge ${ok?"ok":"bad"}">${ok?"\\u6b63\\u5e38":"\\u5f02\\u5e38"}</span>`;\nasync function refresh(){try{const [m,h,r]=await Promise.all([fetch("/api/metrics?format=prometheus"),fetch("/api/health"),fetch("/api/ready")]);const text=await m.text(),health=await h.json(),ready=await r.json(),a=parse(text);const req=sum(a,"http_requests_total"),err=sum(a,"http_requests_total",l=>Number(l.status)>=500),count=sum(a,"http_request_duration_seconds_count"),duration=sum(a,"http_request_duration_seconds_sum"),llm=sum(a,"llm_requests_total"),llmErr=sum(a,"llm_requests_total",l=>l.outcome!=="success"),input=sum(a,"llm_tokens_total",l=>l.direction==="input"),output=sum(a,"llm_tokens_total",l=>l.direction==="output"),cost=sum(a,"llm_cost_yuan_total"),attribution=sum(a,"llm_cost_attribution_yuan_total"),fallbacks=sum(a,"llm_fallback_total"),routes=sum(a,"llm_route_total"),ttftCount=sum(a,"llm_ttft_seconds_count"),ttftSum=sum(a,"llm_ttft_seconds_sum"),cacheHits=sum(a,"cache_events_total",l=>l.result==="hit"),cacheMisses=sum(a,"cache_events_total",l=>l.result==="miss"),breakerOpen=sum(a,"circuit_breaker_state",l=>true),ragQueries=sum(a,"rag_queries_total"),ragHits=sum(a,"rag_hits_total"),ragSample=a.find(x=>x.name==="rag_hit_ratio"),rag=ragSample?.value||0,limits=sum(a,"rate_limit_events_total"),feedback=sum(a,"feedback_events_total"),eps={};a.filter(x=>x.name==="http_requests_total").forEach(x=>eps[x.labels.endpoint||"unknown"]=(eps[x.labels.endpoint||"unknown"]||0)+x.value);const db=health.database||{},llmOk=!!health.llm?.reachable,dbOk=!db.error,redisOk=!!health.redis?.available,graphOk=!!ready.checks?.graph?.ok,all=llmOk&&dbOk&&redisOk&&graphOk;\n$("status").className="badge "+(all?"ok":"bad");$("status").textContent=all?"\\u7cfb\\u7edf\\u6b63\\u5e38":"\\u90e8\\u5206\\u5f02\\u5e38";$("requests").textContent=fmt(req);$("errors").textContent=`\\u9519\\u8bef ${fmt(err)} | \\u9519\\u8bef\\u7387 ${req?(err/req*100).toFixed(2):"0.00"}%`;$("latency").textContent=`${fmt(count?duration/count*1000:0)} ms`;$("latencyHint").textContent=`${fmt(count)} requests`;$("llm").textContent=fmt(llm);$("llmHint").textContent=`\\u5931\\u8d25 ${fmt(llmErr)} calls`;$("tokens").textContent=fmt(input+output);$("cost").textContent=`in ${fmt(input)} | out ${fmt(output)} | CNY ${Number(cost||0).toFixed(4)}`;$("fallbacks").textContent=fmt(fallbacks);$("routes").textContent=fmt(routes);$("ttft").textContent=ttftCount?`${fmt(ttftSum/ttftCount*1000)} ms`:"-";const cacheTotal=cacheHits+cacheMisses;$("cache").textContent=cacheTotal?`${(cacheHits/cacheTotal*100).toFixed(1)}% (${fmt(cacheHits)}/${fmt(cacheTotal)})`:"-";$("breaker").textContent=breakerOpen?"OPEN":"CLOSED";$("attribution").textContent=`CNY ${Number(attribution||0).toFixed(4)}`;$("services").innerHTML=`<div class="service"><span>FastAPI / Graph</span>${badge(graphOk)}</div><div class="service"><span>Local LLM</span>${badge(llmOk)}</div><div class="service"><span>PostgreSQL + pgvector</span>${badge(dbOk)}</div><div class="service"><span>Redis</span>${badge(redisOk)}</div>`;$("uptime").textContent=`Uptime ${fmt(health.uptime_seconds)}s`;$("families").textContent=`Metric families ${new Set(a.map(x=>x.name)).size}`;$("conversations").textContent=fmt(db.conversations);$("ratings").textContent=fmt(db.total_ratings);$("avgRating").textContent=String(db.avg_rating??"-");$("rag").textContent=ragQueries?`${(rag*100).toFixed(1)}% (${fmt(ragHits)}/${fmt(ragQueries)})`:"No data";$("limits").textContent=fmt(limits);$("feedback").textContent=fmt(feedback);$("endpoints").innerHTML=Object.entries(eps).sort((x,y)=>y[1]-x[1]).slice(0,12).map(([e,v])=>`<tr><td><code>${e.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</code></td><td>${fmt(v)}</td></tr>`).join("")||\'<tr><td colspan="2" class="muted">No request data</td></tr>\';$("raw").textContent=text;$("updated").textContent=`Updated ${new Date().toLocaleString("zh-CN")} | Aggregates only; no messages or secrets`;\n}catch(e){$("status").className="badge bad";$("status").textContent="Read failed";$("updated").textContent="Metrics read failed: "+e.message}}\nrefresh();setInterval(refresh,15000);\n</script></body></html>'
 
-<<<<<<< HEAD
 _METRICS_DASHBOARD_HTML = _METRICS_DASHBOARD_HTML.replace(
     'ragQueries=sum(a,"rag_queries_total"),ragHits=sum(a,"rag_hits_total"),'
     'ragSample=a.find(x=>x.name==="rag_hit_ratio"),rag=ragSample?.value||0',
@@ -1310,16 +1179,10 @@ _METRICS_DASHBOARD_HTML = _METRICS_DASHBOARD_HTML.replace(
 @app.get("/api/metrics")
 async def metrics_endpoint(request: Request) -> Response:
     global _metrics_cache
-=======
-@app.get("/api/metrics")
-async def metrics_endpoint(request: Request) -> Response:
-    text, content_type = metrics.render()
->>>>>>> origin/master
     requested_format = request.query_params.get("format", "").lower()
     accept = request.headers.get("accept", "").lower()
     accepts_html = "text/html" in accept
     if requested_format in {"prometheus", "text", "plain"}:
-<<<<<<< HEAD
         now = time.monotonic()
         if _metrics_cache is not None:
             cached_at, cached_text, cached_content_type = _metrics_cache
@@ -1352,12 +1215,6 @@ async def metrics_endpoint(request: Request) -> Response:
     return PlainTextResponse(
         text, media_type=content_type,
         headers={"Cache-Control": "no-store"})
-=======
-        return PlainTextResponse(text, media_type=content_type)
-    if requested_format in {"html", "dashboard"} or accepts_html:
-        return HTMLResponse(_METRICS_DASHBOARD_HTML)
-    return PlainTextResponse(text, media_type=content_type)
->>>>>>> origin/master
 
 
 # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
@@ -1445,14 +1302,9 @@ async def chat(request: Request, payload: ChatRequest):
     # 鍒嗗眰闄愭祦锛圧ateLimitExceeded 鈫?鍏ㄥ眬 429 handler锛?
     limiter = get_rate_limiter()
     user_id = getattr(request.state, "auth_subject", "") or session_id
-<<<<<<< HEAD
     limiter_user_id, limiter_session_id = _rate_limit_identity(request, session_id)
     await limiter.acquire(user_id=limiter_user_id, ip=_client_ip(request),
                           session_id=limiter_session_id)
-=======
-    await limiter.acquire(user_id=user_id, ip=_client_ip(request),
-                          session_id=session_id)
->>>>>>> origin/master
 
     idem_key = idempotency_key_from_headers(request.headers)
     trace = TraceSession(request_id=getattr(request.state, "request_id", "")
@@ -1462,11 +1314,7 @@ async def chat(request: Request, payload: ChatRequest):
     trace.add_event("request_start", {"session_id": session_id,
                                       "stream": payload.stream,
                                       "idempotency_key": bool(idem_key)})
-<<<<<<< HEAD
     _enqueue_implicit_signal(session_id, message)
-=======
-    await asyncio.to_thread(_record_implicit_signals, session_id, message)
->>>>>>> origin/master
 
     if payload.stream:
         return StreamingResponse(
@@ -1687,7 +1535,6 @@ async def memory_list(request: Request) -> dict:
 
     褰㈢姸锛歿"user_id", "memories": [{id, content, kind, importance, created_at}]}
     """
-<<<<<<< HEAD
     user_id = _user_id_for_request(request)
     tenant = _tenant_for_request(request)
     try:
@@ -1706,20 +1553,10 @@ async def memory_list(request: Request) -> dict:
                 "code": "memory_store_unavailable",
             },
         )
-=======
-    try:
-        from agent.user_memory import get_memory_store
-    except Exception:
-        return {"user_id": _user_id_for_request(request), "memories": [],
-                "error": "memory store unavailable"}
-    user_id = _user_id_for_request(request)
-    tenant = _tenant_for_request(request)
->>>>>>> origin/master
     try:
         items = await asyncio.to_thread(
             get_memory_store().list_memories, user_id, tenant)
         return {"user_id": user_id, "memories": items}
-<<<<<<< HEAD
     except Exception:
         # Never convert a database/schema outage into []: that would make the
         # UI claim that the user has no memories and can hide a real failure.
@@ -1733,11 +1570,6 @@ async def memory_list(request: Request) -> dict:
                 "code": "memory_query_failed",
             },
         )
-=======
-    except Exception as exc:
-        logger.error("memory list failed: %s", exc)
-        return {"user_id": user_id, "memories": [], "error": str(exc)}
->>>>>>> origin/master
 
 
 @app.post("/api/memory/backfill")
@@ -1819,7 +1651,6 @@ def _issue_user_token(user_id: str, tenant_id: str) -> Optional[str]:
 
 
 @app.post("/api/auth/register")
-<<<<<<< HEAD
 async def auth_register(data: RegisterRequest, request: Request):
     """Create user; if username/user_id already exists, return created=False."""
     from agent import memory
@@ -1848,21 +1679,10 @@ async def auth_register(data: RegisterRequest, request: Request):
         # New account created -- clear any failure history for this IP
         # (successful creation means the IP is not an attacker).
         _auth_limiter.clear(client_ip)
-=======
-async def auth_register(data: RegisterRequest):
-    """?????username ? user_id???????? created=False?"""
-    from agent import memory
-    user_id = data.username.strip()
-    tenant_id = data.tenant_id.strip() or "default"
-    res = await asyncio.to_thread(
-        memory.create_user, user_id, data.password,
-        data.display_name, tenant_id)
->>>>>>> origin/master
     token = _issue_user_token(user_id, tenant_id)
     payload = {"ok": True, "user_id": user_id, "created": res["created"],
                "access_token": token, "token_type": "bearer"}
     response = JSONResponse(payload)
-<<<<<<< HEAD
     if token:
         grant = await asyncio.to_thread(
             refresh_tokens.issue_refresh_token,
@@ -1878,13 +1698,6 @@ async def auth_register(data: RegisterRequest):
 
 @app.post("/api/auth/login")
 async def auth_login(data: LoginRequest, request: Request):
-=======
-    _set_auth_cookies(response, user_id, data.display_name or user_id)
-    return response
-
-@app.post("/api/auth/login")
-async def auth_login(data: LoginRequest):
->>>>>>> origin/master
     """杞婚噺鐧诲綍锛歶sername 鍗?user_id銆?
 
     - users 琛ㄦ湁 password_hash 鈫?鏍￠獙瀵嗙爜锛?
@@ -1895,7 +1708,6 @@ async def auth_login(data: LoginRequest):
     from agent import memory
     user_id = data.username.strip()
     tenant_id = data.tenant_id.strip() or "default"
-<<<<<<< HEAD
     client_ip = _client_ip(request)
 
     # Per-IP auth rate limit (brute-force defence)
@@ -1909,13 +1721,10 @@ async def auth_login(data: LoginRequest):
             headers={"Retry-After": str(int(retry_after) + 1)},
         )
 
-=======
->>>>>>> origin/master
     try:
         res = await asyncio.to_thread(
             memory.authenticate_user, user_id, data.password, True)
         if not res["ok"]:
-<<<<<<< HEAD
             _auth_limiter.record_failure(client_ip)
             raise HTTPException(status_code=401, detail=res["reason"])
         # Successful login -- clear any failure history for this IP.
@@ -1924,13 +1733,6 @@ async def auth_login(data: LoginRequest):
     except HTTPException:
         raise
     except Exception as exc:
-=======
-            raise HTTPException(status_code=401, detail=res["reason"])
-        token = _issue_user_token(user_id, tenant_id)
-    except HTTPException:
-        raise
-    except Exception as exc:  # 鎶婄湡瀹炲師鍥犳毚闇插嚭鏉?涓嶅啀瑁?500
->>>>>>> origin/master
         logger.exception("auth_login failed for %s", user_id)
         raise HTTPException(status_code=500,
                             detail=f"login failed: {type(exc).__name__}: {exc}")
@@ -1938,7 +1740,6 @@ async def auth_login(data: LoginRequest):
                "access_token": token, "token_type": "bearer",
                "session_id": f"user-{hashlib.sha256(user_id.encode()).hexdigest()[:24]}"}
     response = JSONResponse(payload)
-<<<<<<< HEAD
     if token:
         grant = await asyncio.to_thread(
             refresh_tokens.issue_refresh_token,
@@ -1992,14 +1793,10 @@ async def auth_refresh(request: Request):
         "token_type": "bearer",
     })
     _set_auth_cookies(response, grant.token)
-=======
-    _set_auth_cookies(response, user_id, user_id)
->>>>>>> origin/master
     return response
 
 
 @app.post("/api/auth/logout")
-<<<<<<< HEAD
 async def auth_logout(request: Request):
     raw_token = request.cookies.get(AUTH_REFRESH_COOKIE, "")
     if raw_token:
@@ -2009,9 +1806,6 @@ async def auth_logout(request: Request):
             # Logout must still clear the browser credential if PostgreSQL is
             # temporarily unavailable; the token remains short-lived server-side.
             logger.warning("refresh-token revoke failed during logout", exc_info=True)
-=======
-async def auth_logout():
->>>>>>> origin/master
     response = JSONResponse({"ok": True})
     _clear_auth_cookies(response)
     return response

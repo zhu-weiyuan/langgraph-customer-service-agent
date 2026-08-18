@@ -29,27 +29,25 @@ from pathlib import Path
 from .rag import retrieve, _load_knowledge_base
 from .llm_client import get_llm_client
 from .eval import GROUND_TRUTH, evaluate
+from .json_parsing import parse_json_object
 
 
 # ─── RAGAS-style Metrics ──────────────────────────────────────────────
 # These are computed locally without external API dependencies.
 # For production, swap with actual RAGAS/TruLens SDK calls.
 
-def faithfulness_score(query: str, answer: str, contexts: List[str]) -> float:
-    """
-    RAGAS Faithfulness: How much is the answer grounded in the contexts?
-    
-    Implementation: LLM judges whether each claim in the answer
-    is supported by the provided contexts.
-    
-    Score: 0.0 (hallucinated) to 1.0 (fully grounded)
+def faithfulness_score(query: str, answer: str, contexts: List[str]) -> Optional[float]:
+    """Return a judge score, or ``None`` when the judge result is unavailable.
+
+    ``None`` is intentionally distinct from a real 0.5 score: treating judge
+    transport/parse failures as "neutral" polluted historical evaluation means.
+    Empty retrieval context remains a valid measured 0.0.
     """
     if not contexts:
         return 0.0
-    
+
     client = get_llm_client()
     context_text = "\n---\n".join(contexts[:3])
-    
     prompt = f"""你是一个严格的事实核查员。判断以下回答是否完全基于提供的上下文。
 
 上下文：
@@ -62,18 +60,15 @@ def faithfulness_score(query: str, answer: str, contexts: List[str]) -> float:
 {{"claims": [{{"claim": "...", "supported": true/false}}], "score": 0.0-1.0}}
 
 只返回JSON，不要其他内容。"""
-    
     try:
         result = client.chat([{"role": "user", "content": prompt}], max_tokens=500)
-        # Extract JSON from response
-        import re
-        json_match = re.search(r'\{.*\}', result, re.DOTALL)
-        if json_match:
-            data = json.loads(json_match.group())
-            return float(data.get("score", 0.5))
+        data = parse_json_object(result, required_keys=("score",))
+        if data is None:
+            return None
+        score = float(data["score"])
+        return min(1.0, max(0.0, score))
     except Exception:
-        pass
-    return 0.5  # Default neutral score
+        return None
 
 
 def context_precision_score(query: str, contexts: List[str], ground_truth: List[str]) -> float:
@@ -210,10 +205,9 @@ def llm_judge_score(query: str, answer: str, context: str = "") -> Dict[str, Any
     
     try:
         result = client.chat([{"role": "user", "content": prompt}], max_tokens=500)
-        import re
-        json_match = re.search(r'\{.*\}', result, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group())
+        data = parse_json_object(result, required_keys=("overall",))
+        if data is not None:
+            return data
     except Exception as e:
         return {"error": str(e)}
     
@@ -260,7 +254,8 @@ def run_ragas_evaluation(top_k: int = 3) -> Dict[str, Any]:
         recall = context_recall_score(query, expected_docs, retrieved_titles)
         relevancy = response_relevancy_score(query, answer)
         
-        faith_scores.append(faith)
+        if faith is not None:
+            faith_scores.append(faith)
         precision_scores.append(precision)
         recall_scores.append(recall)
         relevancy_scores.append(relevancy)
@@ -268,7 +263,8 @@ def run_ragas_evaluation(top_k: int = 3) -> Dict[str, Any]:
         results["queries"].append({
             "query": query,
             "answer": answer[:100],
-            "faithfulness": round(faith, 3),
+            "faithfulness": round(faith, 3) if faith is not None else None,
+            "faithfulness_evaluated": faith is not None,
             "context_precision": round(precision, 3),
             "context_recall": round(recall, 3),
             "response_relevancy": round(relevancy, 3),
@@ -276,9 +272,11 @@ def run_ragas_evaluation(top_k: int = 3) -> Dict[str, Any]:
             "expected_docs": expected_docs
         })
     
-    n = len(faith_scores)
+    n = len(precision_scores)
     results["aggregate"] = {
-        "faithfulness": round(sum(faith_scores) / n, 3) if n else 0,
+        "faithfulness": round(sum(faith_scores) / len(faith_scores), 3) if faith_scores else None,
+        "faithfulness_evaluated": len(faith_scores),
+        "faithfulness_failures": n - len(faith_scores),
         "context_precision": round(sum(precision_scores) / n, 3) if n else 0,
         "context_recall": round(sum(recall_scores) / n, 3) if n else 0,
         "response_relevancy": round(sum(relevancy_scores) / n, 3) if n else 0,
@@ -398,7 +396,13 @@ def generate_evaluation_report() -> str:
     lines.append("## 1. 检索质量 (RAGAS Metrics)")
     ragas = run_ragas_evaluation()
     agg = ragas["aggregate"]
-    lines.append(f"- Faithfulness: {agg['faithfulness']:.1%}")
+    faithfulness = agg.get("faithfulness")
+    if faithfulness is None:
+        lines.append("- Faithfulness: N/A（judge 无可用评分）")
+    else:
+        lines.append(f"- Faithfulness: {faithfulness:.1%}")
+    if agg.get("faithfulness_failures"):
+        lines.append(f"- Faithfulness judge failures: {agg['faithfulness_failures']}")
     lines.append(f"- Context Precision: {agg['context_precision']:.1%}")
     lines.append(f"- Context Recall: {agg['context_recall']:.1%}")
     lines.append(f"- Response Relevancy: {agg['response_relevancy']:.1%}")
@@ -429,7 +433,7 @@ def generate_evaluation_report() -> str:
     for q in ragas["queries"]:
         if q["context_recall"] < 0.5:
             lines.append(f"- ❌ {q['query']} (Recall: {q['context_recall']:.0%})")
-        elif q["faithfulness"] < 0.5:
+        elif q["faithfulness"] is not None and q["faithfulness"] < 0.5:
             lines.append(f"- ⚠️ {q['query']} (Faithfulness: {q['faithfulness']:.0%})")
     
     return "\n".join(lines)

@@ -43,7 +43,6 @@ def _parse(row: Optional[dict]) -> Optional[dict]:
     if not raw:
         # 旧库无 trace_json: 退回行本身的业务列
         return dict(row)
-<<<<<<< HEAD
     if isinstance(raw, dict):
         data = dict(raw)
     elif isinstance(raw, (bytes, bytearray)):
@@ -58,13 +57,6 @@ def _parse(row: Optional[dict]) -> Optional[dict]:
         except (ValueError, TypeError):
             logger.warning("trace_json parse failed for %s", row.get("request_id"))
             return dict(row)
-=======
-    try:
-        data = json.loads(raw)
-    except (ValueError, TypeError):
-        logger.warning("trace_json parse failed for %s", row.get("request_id"))
-        return dict(row)
->>>>>>> origin/master
     # 用列值补齐 (列是权威的索引值)
     for k in ("request_id", "session_id", "user_id", "tenant", "scene"):
         if row.get(k):

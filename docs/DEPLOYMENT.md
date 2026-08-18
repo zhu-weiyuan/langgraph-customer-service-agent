@@ -8,7 +8,7 @@
 - 生产入口：`app_fastapi.py`（FastAPI + uvicorn 多 worker）。
 - 业务执行：`agent/runner.py` → `graph.ainvoke/astream`（langgraph，
   AsyncSqliteSaver 或 AsyncPostgresSaver checkpointer）。
-- `app_original_sync.py` 为旧 sync 服务器**归档**，不再是启动路径。
+- `archive/legacy_backend/app_original_sync_legacy.py` 为旧 sync 服务器归档，不再是启动路径。
 
 ```
 client → uvicorn(workers) → app_fastapi

@@ -18,9 +18,9 @@
 
 ## 兼容入口和历史版本
 
-- app.py、app_sync.py、app_original_sync.py：早期或兼容实现，不是当前主线入口。
+- archive/legacy_backend/：已归档的 app_legacy.py、app_sync_legacy.py、app_original_sync_legacy.py；它们不是当前主线入口。
 - agent/runner.py.bak、agent/nodes.py.*：流式改造过程中的备份/恢复文件。
-- archive/：已经归档的旧前端和历史资料。
+- archive/：旧前端、旧后端和历史资料；仅 archive/legacy_backend/ 中的源码会被版本管理。
 
 ## 一次性排障脚本
 

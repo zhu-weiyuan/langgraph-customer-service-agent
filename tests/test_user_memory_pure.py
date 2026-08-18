@@ -69,11 +69,7 @@ def _temp_db():
 
 
 def _cleanup_test_memories(*user_ids):
-<<<<<<< HEAD
     """清理测试用户在 PostgreSQL 中写入的长期记忆。"""
-=======
-    """???????????????????? PostgreSQL ???"""
->>>>>>> origin/master
     dsn = os.environ.get("PG_DSN") or os.environ.get("DATABASE_URL")
     if not dsn:
         return
@@ -83,11 +79,7 @@ def _cleanup_test_memories(*user_ids):
             conn.execute("DELETE FROM user_memories WHERE user_id = ANY(%s)",
                          (list(user_ids),))
     except Exception:
-<<<<<<< HEAD
         # 清理失败不能遮蔽主断言：测试仍可在 SQLite 回退路径中运行。
-=======
-        # ?????????????????????????
->>>>>>> origin/master
         pass
 
 
@@ -196,20 +188,12 @@ class TestUserIsolation(unittest.TestCase):
         self.assertEqual(len(self.store.list_memories("alice")), 0)
 
     def test_include_deleted_is_explicit(self):
-<<<<<<< HEAD
         mid = self.store.add_memory("alice", "测试偏好", kind="fact")
-=======
-        mid = self.store.add_memory("alice", "?????", kind="fact")
->>>>>>> origin/master
         self.assertTrue(self.store.delete_memory("alice", mid))
         self.assertEqual(self.store.list_memories("alice"), [])
         deleted = self.store.list_memories("alice", include_deleted=True)
         self.assertEqual(len(deleted), 1)
-<<<<<<< HEAD
         self.assertEqual(deleted[0]["content"], "测试偏好")
-=======
-        self.assertEqual(deleted[0]["content"], "?????")
->>>>>>> origin/master
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -468,7 +452,6 @@ class TestMigration(unittest.TestCase):
             conn.close()
 
 
-<<<<<<< HEAD
 class TestSupersede(unittest.TestCase):
     """Tests for the supersede mechanism (same-kind conflict detection)."""
 
@@ -580,7 +563,5 @@ class TestSupersede(unittest.TestCase):
         self.assertGreaterEqual(len(results), 1)
 
 
-=======
->>>>>>> origin/master
 if __name__ == "__main__":
     unittest.main(verbosity=2)

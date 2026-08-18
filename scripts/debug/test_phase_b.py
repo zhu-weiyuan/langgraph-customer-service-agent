@@ -40,9 +40,11 @@ def test_gateway_returns_degraded_result_when_candidates_fail(monkeypatch):
 def test_context_monitor_thresholds(caplog):
     from agent.context_monitor import TokenEstimator
     estimator = TokenEstimator()
-    warning = estimator.monitor(system_prompt="x" * 140, context_window=100)
+    text = "token " * 400
+    tokens = estimator.estimate_text(text)
+    warning = estimator.monitor(system_prompt=text, context_window=max(1, int(tokens / 0.7)))
     assert warning.level == "warning"
-    dumb_zone = estimator.monitor(system_prompt="x" * 180, context_window=100)
+    dumb_zone = estimator.monitor(system_prompt=text, context_window=max(1, int(tokens / 0.9)))
     assert dumb_zone.level == "dumb_zone"
 
 
@@ -78,7 +80,7 @@ def test_high_risk_tool_requires_confirmation(caplog):
 
 
 def test_app_degraded_response_contract():
-    from app import ChatHandler
+    from archive.legacy_backend.app_legacy import ChatHandler
     handler = object.__new__(ChatHandler)
     result = handler._degraded_response("sensitive user input", "session-1", "request-1")
     assert result["fallback"] is True

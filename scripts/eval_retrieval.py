@@ -22,17 +22,8 @@
 
 from __future__ import annotations
 
-<<<<<<< HEAD
 # 注意：load_dotenv() 不在模块级别调用，避免污染测试进程环境。
 # 仅在 CLI 入口（main）和需要环境变量的后端（make_hybrid_retriever）中加载。
-=======
-# .env 加载（脚本独立运行也生效；python-dotenv 缺失时静默跳过）
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
->>>>>>> origin/master
 
 import argparse
 import json
@@ -161,14 +152,11 @@ def make_tfidf_retriever() -> Callable[[str], List[Dict]]:
 
 def make_hybrid_retriever(backend: str) -> Callable[[str], List[Dict]]:
     import os
-<<<<<<< HEAD
     try:
         from dotenv import load_dotenv
         load_dotenv()
     except ImportError:
         pass
-=======
->>>>>>> origin/master
     os.environ["RAG_BACKEND"] = backend
     from agent.hybrid_rag import build_retriever_from_env
     retriever = build_retriever_from_env()
@@ -180,14 +168,11 @@ def make_hybrid_retriever(backend: str) -> Callable[[str], List[Dict]]:
 # ---------------------------------------------------------------------------
 
 def main() -> int:
-<<<<<<< HEAD
     try:
         from dotenv import load_dotenv
         load_dotenv()
     except ImportError:
         pass
-=======
->>>>>>> origin/master
     ap = argparse.ArgumentParser(description="Retrieval eval: HitRate@5 / MRR")
     ap.add_argument("--backend", default="mock",
                     choices=["mock", "tfidf", "hybrid", "pgvector"])

@@ -6,6 +6,7 @@ ingest_knowledge.py — knowledge/*.md → chunk(child300/parent1200) → embed 
 用法：
     python scripts/ingest_knowledge.py                # 真实导入（需 PG + OPENAI_API_KEY）
     python scripts/ingest_knowledge.py --dry-run      # 只统计分块，不连 PG、不嵌入
+    python scripts/ingest_knowledge.py --prune-stale  # 显式删除知识目录中已移除的旧索引
     python scripts/ingest_knowledge.py --kb-dir path\\to\\knowledge
 
 环境（.env 自动加载）：
@@ -73,7 +74,7 @@ def collect_chunk_stats(kb_dir: Path,
 # ── 真实导入 ─────────────────────────────────────────────────
 
 def run_ingest(kb_dir: Path, child_size: int, parent_size: int,
-               index_version: int) -> int:
+               index_version: int, prune_stale: bool = False) -> int:
     from agent.embedding_client import EmbeddingClient
     from agent.pgvector_hybrid import PgHybridStore
 
@@ -89,7 +90,6 @@ def run_ingest(kb_dir: Path, child_size: int, parent_size: int,
     print(f"[ingest] ensuring schema (equivalent to migrations/001_hybrid_rag.sql)")
     store.ensure_schema()
 
-<<<<<<< HEAD
     # 语料清单 + 指纹（防删除危险：manifest 外旧文档会被清理）
     import hashlib
     manifest = {md.stem: md.name for md in md_files}
@@ -100,8 +100,6 @@ def run_ingest(kb_dir: Path, child_size: int, parent_size: int,
     corpus_hash = h.hexdigest()[:12]
     print(f"[ingest] manifest={len(manifest)} files, corpus_hash={corpus_hash}")
 
-=======
->>>>>>> origin/master
     total = {"parents": 0, "children": 0}
     for i, md in enumerate(md_files, 1):
         text = md.read_text(encoding="utf-8")
@@ -115,7 +113,6 @@ def run_ingest(kb_dir: Path, child_size: int, parent_size: int,
         total["parents"] += counts["parents"]
         total["children"] += counts["children"]
 
-<<<<<<< HEAD
     # 陈旧文档检测：库中 doc_id 不在当前 manifest → 删除（级联删 chunk）
     with store._connect().cursor() as cur:
         cur.execute("SELECT doc_id FROM rag_documents")
@@ -123,9 +120,12 @@ def run_ingest(kb_dir: Path, child_size: int, parent_size: int,
         stale = sorted(existing - set(manifest))
         if stale:
             print(f"[ingest] stale docs (deleted from KB but still indexed): {stale}")
-            cur.execute(
-                "DELETE FROM rag_documents WHERE doc_id = ANY(%s)", (stale,))
-            print(f"[ingest] deleted {len(stale)} stale doc(s) + their chunks")
+            if prune_stale:
+                cur.execute(
+                    "DELETE FROM rag_documents WHERE doc_id = ANY(%s)", (stale,))
+                print(f"[ingest] deleted {len(stale)} stale doc(s) + their chunks")
+            else:
+                print("[ingest] kept stale docs (safe default). Re-run with --prune-stale to delete them.")
         else:
             print("[ingest] no stale docs")
         cur.execute(
@@ -135,10 +135,6 @@ def run_ingest(kb_dir: Path, child_size: int, parent_size: int,
     print(f"[ingest] DONE files={len(md_files)} parents={total['parents']} "
           f"children={total['children']} index_version={index_version} "
           f"corpus_hash={corpus_hash}")
-=======
-    print(f"[ingest] DONE files={len(md_files)} parents={total['parents']} "
-          f"children={total['children']} index_version={index_version}")
->>>>>>> origin/master
     print("[ingest] 验证：python scripts/eval_retrieval.py --backend pgvector")
     return 0
 
@@ -153,6 +149,8 @@ def main(argv: List[str] = None) -> int:
     ap.add_argument("--parent-size", type=int, default=PARENT_SIZE)
     ap.add_argument("--dry-run", action="store_true",
                     help="只统计分块（不连 PG、不嵌入）")
+    ap.add_argument("--prune-stale", action="store_true",
+                    help="显式删除 knowledge 目录中已不存在、但数据库仍保留的旧文档索引")
     args = ap.parse_args(argv)
 
     kb_dir = Path(args.kb_dir)
@@ -171,7 +169,8 @@ def main(argv: List[str] = None) -> int:
 
     index_version = parse_index_version(
         os.environ.get("RAG_INDEX_VERSION", "v1"))
-    return run_ingest(kb_dir, args.child_size, args.parent_size, index_version)
+    return run_ingest(kb_dir, args.child_size, args.parent_size, index_version,
+                      prune_stale=args.prune_stale)
 
 
 if __name__ == "__main__":

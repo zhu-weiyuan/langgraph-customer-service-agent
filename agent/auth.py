@@ -20,16 +20,12 @@ import hashlib
 import hmac
 import json
 import os
-<<<<<<< HEAD
 import secrets
-=======
->>>>>>> origin/master
 import time
 import urllib.parse
 from typing import Optional
 
 
-<<<<<<< HEAD
 JWT_SECRET_MIN_BYTES = 32  # 256 bits — OWASP minimum for HMAC-SHA256
 
 
@@ -44,28 +40,19 @@ def _jwt_secret() -> str:
                 f"(got {len(secret.encode('utf-8'))} bytes). Use: python -c 'import secrets; print(secrets.token_urlsafe(48))'"
             )
     return secret
-=======
-def _jwt_secret() -> str:
-    return os.getenv("JWT_SECRET", "").strip()
->>>>>>> origin/master
 
 
 def _jwt_ttl() -> int:
     try:
-<<<<<<< HEAD
         # JWT_ACCESS_TTL_SECONDS is the public access-token setting; keep
         # JWT_TTL_SECONDS as a backwards-compatible fallback.
         raw = os.getenv("JWT_ACCESS_TTL_SECONDS",
                         os.getenv("JWT_TTL_SECONDS", "3600"))
         return int(raw)
-=======
-        return int(os.getenv("JWT_TTL_SECONDS", "3600"))
->>>>>>> origin/master
     except ValueError:
         return 3600
 
 
-<<<<<<< HEAD
 
 
 def _refresh_token_ttl() -> int:
@@ -124,8 +111,6 @@ def _reject_production_placeholder(secret: str) -> None:
         raise ValueError("JWT_SECRET is a placeholder and cannot be used in production")
 
 
-=======
->>>>>>> origin/master
 # ════════════════════════════════════════════════════════════════════
 # JWT 编解码：PyJWT 优先（守卫导入），缺席时降级纯 stdlib HS256 实现。
 # 两条路径均产出标准 HS256 JWT，互相可解码 —— 保证：
@@ -220,10 +205,7 @@ def create_access_token(subject: str, tenant: str = "default",
     secret = _jwt_secret()
     if not secret:
         raise ValueError("JWT_SECRET is not configured; token issuance disabled")
-<<<<<<< HEAD
     _reject_production_placeholder(secret)
-=======
->>>>>>> origin/master
     if not subject:
         raise ValueError("subject must not be empty")
     now = int(time.time())
@@ -308,8 +290,8 @@ class AuthMiddleware:
 
         成功时在 request_handler 上设置：
             auth_scheme    "jwt" | "api_key"
-            auth_subject   JWT sub 或 "api-key"
-            auth_tenant_id JWT tenant_id 或 "default"
+            auth_subject   JWT sub or a one-way API-key fingerprint
+            auth_tenant_id JWT tenant_id or "default"
 
         Args:
             request_handler: 需有 .headers (mapping) 与 .path (str，可为完整 URL)
@@ -331,13 +313,13 @@ class AuthMiddleware:
                     str(claims.get("tenant_id", "default")) or "default")
                 return True
             if cls._validate_key(token):
-                cls._set_auth_context(request_handler, "api_key", "api-key", "default")
+                cls._set_auth_context(request_handler, "api_key", cls._api_key_subject(token), "default")
                 return True
 
         # 2) X-API-Key header
         api_key_header = request_handler.headers.get("X-API-Key", "") or ""
         if api_key_header and cls._validate_key(api_key_header):
-            cls._set_auth_context(request_handler, "api_key", "api-key", "default")
+            cls._set_auth_context(request_handler, "api_key", cls._api_key_subject(api_key_header), "default")
             return True
 
         # 3) Query parameter（向后兼容）。parse_qs 正确处理 URL 编码、
@@ -348,10 +330,21 @@ class AuthMiddleware:
             params = urllib.parse.parse_qs(query, keep_blank_values=False)
             for key in params.get("api_key", []):
                 if key and cls._validate_key(key):
-                    cls._set_auth_context(request_handler, "api_key", "api-key", "default")
+                    cls._set_auth_context(request_handler, "api_key", cls._api_key_subject(key), "default")
                     return True
 
         return False
+
+    @staticmethod
+    def _api_key_subject(api_key: str) -> str:
+        """Return an opaque stable subject for a validated API key.
+
+        The raw key is never placed in request state, logs, session ownership,
+        or database records.  A per-key subject prevents all valid API keys
+        from collapsing into the old shared ``api-key`` identity.
+        """
+        digest = hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:24]
+        return f"api-{digest}"
 
     @staticmethod
     def _set_auth_context(request_handler, scheme: str, subject: str, tenant_id: str) -> None:
@@ -389,7 +382,6 @@ class AuthMiddleware:
 
     @staticmethod
     def _validate_key(api_key: str) -> bool:
-<<<<<<< HEAD
         """Validate API key against stored keys (comma-separated in API_KEYS env).
 
         Uses constant-time comparison (hmac.compare_digest) to prevent timing
@@ -403,11 +395,6 @@ class AuthMiddleware:
             if hmac.compare_digest(api_key, valid_key):
                 return True
         return False
-=======
-        """Validate API key against stored keys (comma-separated in API_KEYS env)."""
-        valid_keys = [k.strip() for k in os.getenv("API_KEYS", "").split(",") if k.strip()]
-        return bool(api_key) and api_key in valid_keys
->>>>>>> origin/master
 
     @staticmethod
     def is_public_endpoint(path: str) -> bool:
@@ -419,12 +406,8 @@ class AuthMiddleware:
         # path 可能是完整 URL（app_fastapi 传 str(request.url)），统一取 path 部分
         pure_path = urllib.parse.urlparse(path).path or path
         public_paths = ["/", "/index.html", "/health", "/api/health", "/api/ready", "/healthz", "/api/metrics",
-<<<<<<< HEAD
                         "/api/auth/login", "/api/auth/register", "/api/auth/token",
                         "/api/auth/refresh", "/api/auth/logout", "/api/auth/me"]
-=======
-                        "/api/auth/login", "/api/auth/register", "/api/auth/token", "/api/chat"]
->>>>>>> origin/master
         return pure_path in public_paths or pure_path.startswith("/static/")
 
 
