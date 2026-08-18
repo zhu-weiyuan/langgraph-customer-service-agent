@@ -27,6 +27,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 
+# Runtime data must never be emitted into the repository root.
+DEFAULT_BAD_CASE_PATH = Path(__file__).resolve().parent.parent / "data" / "bad_cases.jsonl"
+
+
 # ── 1. Bad Case Collector ───────────────────────────────────────
 
 @dataclass
@@ -48,8 +52,10 @@ class BadCaseCollector:
     使用 JSONL 格式存储（每行一个 JSON），方便增量追加和流式处理。
     """
 
-    def __init__(self, storage_path: str = "bad_cases.jsonl"):
-        self.storage_path = Path(storage_path)
+    def __init__(self, storage_path: Optional[str] = None):
+        # Callers can inject a path for tests or exports. The default is ignored
+        # runtime data, not a JSONL artifact beside the application source files.
+        self.storage_path = Path(storage_path) if storage_path else DEFAULT_BAD_CASE_PATH
         self.storage_path.parent.mkdir(parents=True, exist_ok=True)
 
     def record(self, case: BadCase) -> None:
@@ -382,9 +388,7 @@ class SelfImprovementPipeline:
 
         project_root = _Path(__file__).parent.parent
 
-        self.collector = collector or BadCaseCollector(
-            storage_path=str(project_root / "bad_cases.jsonl")
-        )
+        self.collector = collector or BadCaseCollector()
         self.evaluator = evaluator
         self.gap_detector = gap_detector or KnowledgeGapDetector(
             kb_dir=kb_dir or project_root / "knowledge"

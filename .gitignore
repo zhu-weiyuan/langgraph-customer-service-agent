@@ -78,6 +78,8 @@ frontend/dist/
 !/archive/__init__.py
 !/archive/legacy_backend/
 !/archive/legacy_backend/**
+!/archive/legacy_root_tests/
+!/archive/legacy_root_tests/**
 /memory/
 
 # SQLite WAL artifacts

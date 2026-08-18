@@ -18,7 +18,7 @@ from agent.feedback_store import FeedbackStore                       # noqa: E40
 from agent.prompt_registry import (                                  # noqa: E402
     PromptRegistry, seed_default_prompts, extract_system_prompt_from_nodes)
 from agent.self_improve import (                                     # noqa: E402
-    PromptOptimizer, run_improvement_cycle_programmatic, structured_diff)
+    BadCaseCollector, PromptOptimizer, run_improvement_cycle_programmatic, structured_diff)
 from agent.shadow_eval import ShadowEvalRunner, pairwise_judge, rule_score  # noqa: E402
 
 
@@ -61,6 +61,21 @@ def bad_candidate_llm(system: str, user: str) -> str:
     if "BADPROMPT" in system:
         return ""
     return good_llm(system, user)
+
+
+class TestBadCaseCollector(unittest.TestCase):
+    def test_default_storage_stays_in_runtime_data(self):
+        collector = BadCaseCollector()
+        self.assertEqual(collector.storage_path.name, "bad_cases.jsonl")
+        self.assertEqual(collector.storage_path.parent.name, "data")
+        self.assertNotEqual(collector.storage_path.parent, PROJECT_ROOT)
+
+    def test_custom_storage_path_is_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cases.jsonl"
+            collector = BadCaseCollector(str(path))
+            self.assertEqual(collector.storage_path, path)
+
 
 
 class TestFeedbackStore(unittest.TestCase):

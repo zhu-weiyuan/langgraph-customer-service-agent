@@ -1,5 +1,5 @@
 @echo off
-cd /d C:\Users\Administrator\.openclaw\workspace\langgraph-customer-service-agent
+cd /d %~dp0..\..
 set MOCK_LLM=1
 set WORKERS=100
 set MOCK_LLM_DELAY_MS=50

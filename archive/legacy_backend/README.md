@@ -1,8 +1,9 @@
 # Archived legacy backend
 
-This directory preserves the three historical synchronous `http.server` entry
-points for code-study and migration comparison only:
+This directory preserves historical backend entry points for code-study and
+migration comparison only:
 
+- `server_legacy.py` — former minimal FastAPI/server experiment
 - `app_legacy.py`
 - `app_sync_legacy.py`
 - `app_original_sync_legacy.py`

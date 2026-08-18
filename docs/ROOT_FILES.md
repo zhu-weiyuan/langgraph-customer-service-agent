@@ -18,14 +18,16 @@
 
 ## 兼容入口和历史版本
 
-- archive/legacy_backend/：已归档的 app_legacy.py、app_sync_legacy.py、app_original_sync_legacy.py；它们不是当前主线入口。
+- archive/legacy_backend/：已归档的旧后端入口（含 server_legacy.py）；它们不是当前主线入口。
+- archive/legacy_root_tests/：已归档的根目录测试/排障脚本；正式测试只看 tests/。
+- archive/root_artifacts/：本机历史输出与评测产物，默认不纳入版本管理。
 - agent/runner.py.bak、agent/nodes.py.*：流式改造过程中的备份/恢复文件。
 - archive/：旧前端、旧后端和历史资料；仅 archive/legacy_backend/ 中的源码会被版本管理。
 
 ## 一次性排障脚本
 
-根目录的 _*.py、*_debug.py、trace_*.py、_dashboard.html 等文件主要用于某次修复、数据库检查或 SSE 排障，不是稳定 API。
+一次性排障脚本和历史输出统一放在 archive/legacy_root_tests/ 与 archive/root_artifacts/，不再堆在项目根目录。
 
 ## 运行产物
 
-*.log、*.db、*.db-shm、*.db-wal、*.csv、结果 JSON 和 output 文本多数是运行/评测产物。源码学习时优先查看生成脚本。
+*.log、*.db、*.db-shm、*.db-wal、*.csv、结果 JSON 和 output 文本多数是运行/评测产物。评测源代码仍放在 eval/，评测结果放在 eval/reports/（忽略）；源码学习时优先查看生成脚本。
