@@ -36,6 +36,21 @@ sys.path.insert(0, str(ROOT))
 DEFAULT_KB_DIR = ROOT / "knowledge"
 CHILD_SIZE = 300
 PARENT_SIZE = 1200
+# Documentation files are for maintainers, not customer-facing knowledge.
+EXCLUDED_FILES = frozenset({"README.md"})
+
+
+def knowledge_files(kb_dir: Path) -> List[Path]:
+    """Return importable knowledge markdown files in deterministic order.
+
+    README files describe the repository and must never be embedded as customer
+    knowledge; importing one creates misleading RAG hits and contaminates evals.
+    """
+    kb_dir = Path(kb_dir)
+    if not kb_dir.is_dir():
+        return []
+    return [p for p in sorted(kb_dir.glob("*.md"))
+            if p.name not in EXCLUDED_FILES and not p.name.startswith("_")]
 
 
 # ── 纯函数（stdlib 单测覆盖）─────────────────────────────────
@@ -56,7 +71,7 @@ def collect_chunk_stats(kb_dir: Path,
     kb_dir = Path(kb_dir)
     if not kb_dir.is_dir():
         return stats
-    for md in sorted(kb_dir.glob("*.md")):
+    for md in knowledge_files(kb_dir):
         text = md.read_text(encoding="utf-8")
         chunked = chunk_document(text, child_size=child_size,
                                  parent_size=parent_size, doc_id=md.stem)
@@ -79,13 +94,16 @@ def run_ingest(kb_dir: Path, child_size: int, parent_size: int,
     from agent.pgvector_hybrid import PgHybridStore
 
     kb_dir = Path(kb_dir)
-    md_files = sorted(kb_dir.glob("*.md")) if kb_dir.is_dir() else []
+    md_files = knowledge_files(kb_dir)
     if not md_files:
         print(f"[ingest] no *.md found under {kb_dir} — nothing to do")
         return 1
 
     client = EmbeddingClient.from_env(strict=True)  # 缺配置 → 清晰报错
-    store = PgHybridStore.from_env(embed_fn=client.embed_one)
+    store = PgHybridStore.from_env(
+        embed_fn=client.embed_one,
+        embed_many_fn=client.embed,
+    )
 
     print(f"[ingest] ensuring schema (equivalent to migrations/001_hybrid_rag.sql)")
     store.ensure_schema()
@@ -143,7 +161,7 @@ def run_ingest(kb_dir: Path, child_size: int, parent_size: int,
 
 def main(argv: List[str] = None) -> int:
     import os
-    ap = argparse.ArgumentParser(description="knowledge/*.md → pgvector 导入")
+    ap = argparse.ArgumentParser(description="knowledge/*.md → pgvector 导入（排除 README.md）")
     ap.add_argument("--kb-dir", default=str(DEFAULT_KB_DIR))
     ap.add_argument("--child-size", type=int, default=CHILD_SIZE)
     ap.add_argument("--parent-size", type=int, default=PARENT_SIZE)

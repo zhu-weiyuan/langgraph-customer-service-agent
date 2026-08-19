@@ -114,3 +114,11 @@ eval/vector_agentic_details.json
 # Archive documentation/source is versioned; interpreter caches are not.
 /archive/**/__pycache__/
 /archive/**/*.py[cod]
+
+# Keep explicitly archived legacy tests/documentation versioned.
+!/archive/legacy_tests/
+!/archive/legacy_tests/**
+
+# Re-apply cache ignores after unignoring the archived source tree.
+/archive/legacy_tests/**/__pycache__/
+/archive/legacy_tests/**/*.py[cod]

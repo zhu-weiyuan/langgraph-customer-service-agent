@@ -64,6 +64,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 from agent.llm_client import LLMClient  # noqa: E402
 from agent.json_parsing import parse_json_object  # noqa: E402
 from agent.rag_backend import retrieve_with_backend  # noqa: E402
+from scripts.ingest_knowledge import knowledge_files  # noqa: E402
 
 # 默认数据集 = v2（85 条）。旧 golden_set.jsonl（63 条）仅作历史参考，用 --dataset 显式指定。
 GOLDEN_SET = PROJECT_ROOT / "eval" / "golden_set_v2.jsonl"
@@ -262,19 +263,46 @@ class RealEvaluator:
         self.multi_turn = bool(multi_turn)
         self.query_rewrite = False
         self.repeat = max(1, int(repeat))
+        self._llm_model_source = "configured"
+        self._llm_model_available = []
         self.llm = self._build_llm()
         self._llm_warm = False
         self.judge_raw_log: List[Dict[str, Any]] = []  # 每次 judge 调用的原始响应（步骤2分析用）
         self._conversation_ids: set = set()  # 数据集里带 conversation 前缀的 item id
 
     def _build_llm(self) -> LLMClient:
-        """显式传参走 direct HTTP（不走 gateway，避免 fallback chain 干扰评估）。"""
+        """Build a direct client and reconcile its model id with the live endpoint.
+
+        Local OpenAI-compatible servers often expose a generated filename as the
+        real model id.  An old ``OPENAI_MODEL`` value must not make the report
+        claim that a different model was evaluated, nor cause requests to fail.
+        """
         base_url = os.getenv("OPENAI_BASE_URL", "").rstrip("/")
         api_key = os.getenv("OPENAI_API_KEY", "") or "sk-local"
-        # llama.cpp 的模型 id：优先 /v1/models 探测，否则用 env OPENAI_MODEL 或默认
-        model = os.getenv("OPENAI_MODEL", "") or "Ternary-Bonsai-27B-Q2_0.gguf"
-        return LLMClient(base_url=base_url, api_key=api_key, model=model,
-                         max_tokens=LLM_MAX_TOKENS)
+        configured_model = os.getenv("OPENAI_MODEL", "").strip()
+        model = configured_model or "Ternary-Bonsai-27B-Q2_0.gguf"
+        client = LLMClient(base_url=base_url, api_key=api_key, model=model,
+                           max_tokens=LLM_MAX_TOKENS)
+
+        # Probe the live /v1/models endpoint when available.  Keep the configured
+        # value if the endpoint is unavailable, so offline/unit-test behavior is
+        # unchanged.
+        try:
+            available = [str(item.get("id", "")).strip()
+                         for item in client.list_models(timeout=10)
+                         if isinstance(item, dict) and item.get("id")]
+            self._llm_model_available = available
+            if available:
+                if configured_model and configured_model in available:
+                    self._llm_model_source = "env_and_endpoint"
+                else:
+                    client.model = available[0]
+                    self._llm_model_source = "endpoint_probe"
+        except Exception as exc:  # noqa: BLE001
+            self._llm_model_source = "configured_unverified"
+            if self.verbose:
+                print(f"[eval] /models probe unavailable; using configured model: {exc}")
+        return client
 
     # ── data loading ─────────────────────────────────────────
 
@@ -308,7 +336,7 @@ class RealEvaluator:
             commit = "unknown"
         h = hashlib.sha256()
         try:
-            for p in sorted((PROJECT_ROOT / "knowledge").glob("*.md")):
+            for p in knowledge_files(PROJECT_ROOT / "knowledge"):
                 h.update(p.name.encode("utf-8"))
                 h.update(p.read_bytes())
         except OSError:
@@ -322,6 +350,8 @@ class RealEvaluator:
             "git_commit": commit,
             "corpus_hash": h.hexdigest()[:12],
             "llm_model": self.llm.model,
+            "llm_model_source": self._llm_model_source,
+            "llm_models_available": self._llm_model_available,
             "llm_base_url": os.getenv("OPENAI_BASE_URL", ""),
             "embedding_model": os.getenv("EMBEDDING_MODEL", "") or "unknown",
             "embedding_base_url": os.getenv("EMBEDDING_BASE_URL", ""),

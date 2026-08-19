@@ -5,6 +5,7 @@ Run:
 """
 import os
 import sys
+import time
 import unittest
 from unittest import mock
 
@@ -65,7 +66,8 @@ class TestTokenEstimator(unittest.TestCase):
         # Force the optional encoder into its degraded state so this test is
         # deterministic even when tiktoken is installed locally.
         text = "订单 order-123 需要修复"
-        with mock.patch.object(token_estimator, "_ENCODER", False):
+        with mock.patch.object(token_estimator, "_ENCODER", False), \
+             mock.patch.object(token_estimator, "_ENCODER_FAILED_AT", time.monotonic()):
             self.assertEqual(estimate_tokens(text), _heuristic_estimate(text))
             self.assertGreater(estimate_tokens(text), 0)
 

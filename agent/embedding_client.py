@@ -10,7 +10,7 @@ OPENAI_API_KEY/.env → 请求 401。本客户端统一走 OpenAI 兼容协议�
 
 特性：
   * 批量：每次调用 ≤ 32 条文本（batch_size 可配）
-  * 超时 + 2 次重试
+  * 超时 + 可配置重试
   * 传输层：httpx 优先 → requests 降级 → 均缺失时报出清晰错误
   * transport 可注入（stdlib 单测无需网络/三方库）
   * 纯函数 batched() / build_headers() 可独测
@@ -183,6 +183,7 @@ class EmbeddingClient:
             model=model,
             transport=transport,
             dimensions=dimensions,
+            batch_size=_env_int("EMBEDDING_BATCH_SIZE", DEFAULT_BATCH_SIZE),
             timeout=_env_float("EMBEDDING_TIMEOUT_SECONDS", DEFAULT_TIMEOUT),
             max_retries=_env_int("EMBEDDING_MAX_RETRIES", DEFAULT_MAX_RETRIES),
             allow_truncation=_env_bool("EMBEDDING_ALLOW_TRUNCATION"),

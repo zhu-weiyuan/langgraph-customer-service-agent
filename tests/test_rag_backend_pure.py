@@ -122,6 +122,26 @@ class TestBackendFallback(unittest.TestCase):
                     fallback_fn=lambda q, k: self.fail("must not fall back"))
 
 
+    def test_pgvector_query_embedding_strict_mode_raises(self):
+        """严格评测不能把 embedding 故障伪装成关键词检索。"""
+        def broken_embed(query):
+            raise TimeoutError("embedding timeout")
+
+        store = PgHybridStore("postgresql://unused", embed_fn=broken_embed)
+        with mock.patch.dict(os.environ, {"RAG_STRICT": "true"}):
+            with self.assertRaisesRegex(RuntimeError, "embedding unavailable"):
+                store._query_embedding("q")
+
+    def test_pgvector_query_embedding_default_mode_returns_none(self):
+        """生产模式仍保留关键词降级，但只在非严格模式发生。"""
+        def broken_embed(query):
+            raise TimeoutError("embedding timeout")
+
+        store = PgHybridStore("postgresql://unused", embed_fn=broken_embed)
+        with mock.patch.dict(os.environ, {"RAG_STRICT": "0"}):
+            self.assertIsNone(store._query_embedding("q"))
+
+
 class TestPgvectorRuntimeCache(unittest.TestCase):
 
     def tearDown(self):

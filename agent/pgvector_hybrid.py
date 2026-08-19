@@ -211,18 +211,21 @@ class PgHybridStore:
 
     Args:
         dsn: postgres 连接串（如 postgresql://user:pass@localhost:5432/rag）
-        embed_fn: fn(text) -> List[float]，向量路需要；None 时向量路返回空
+        embed_fn: fn(text) -> List[float]，查询向量路需要；None 时向量路返回空
+        embed_many_fn: fn(texts) -> List[List[float]]，导入时按批嵌入 child 块
         dim: 向量维度（须与建表一致）
     """
 
     def __init__(self, dsn: str,
                  embed_fn: Optional[Callable[[str], List[float]]] = None,
+                 embed_many_fn: Optional[Callable[[Sequence[str]], List[List[float]]]] = None,
                  dim: int = EMBED_DIM):
         if not _PSYCOPG_OK:
             raise RuntimeError(
                 "psycopg 未安装：pip install 'psycopg[binary]' pgvector")
         self.dsn = dsn
         self.embed_fn = embed_fn
+        self.embed_many_fn = embed_many_fn
         self.dim = dim
         self._conn = None
         # Embedding 服务短暂失败时，不应让已经可用的关键词 RAG 一并不可用。
@@ -236,14 +239,15 @@ class PgHybridStore:
         self._embedding_failure_logged = False
 
     @classmethod
-    def from_env(cls, embed_fn: Optional[Callable] = None) -> "PgHybridStore":
+    def from_env(cls, embed_fn: Optional[Callable] = None,
+                 embed_many_fn: Optional[Callable] = None) -> "PgHybridStore":
         dsn = (os.environ.get("PG_DSN")
                or os.environ.get("RAG_PG_DSN")
                or os.environ.get("DATABASE_URL")
                or "postgresql://postgres:postgres@localhost:5432/agent")
         if embed_fn is None:
             embed_fn = _default_embed_fn()
-        return cls(dsn, embed_fn=embed_fn)
+        return cls(dsn, embed_fn=embed_fn, embed_many_fn=embed_many_fn)
 
     # -- connection --
 
@@ -292,6 +296,28 @@ class PgHybridStore:
         chunked = chunk_document(text, child_size=child_size,
                                  parent_size=parent_size, doc_id=doc_id)
         tags = tags or []
+        children = list(chunked["children"])
+
+        # 导入路径使用批量 embedding：避免每个 child 单独建立一次远程 HTTP
+        # 请求；在 SiliconFlow 等远程服务下，这会把一次知识库重建从数十分钟
+        # 降至按批次请求的耗时。向量必须在删除旧 chunk 前全部准备好，失败则
+        # 保留原索引而不是静默写入没有 embedding 的半成品。
+        child_embeddings: Dict[str, Optional[List[float]]] = {}
+        if children and self.embed_many_fn is not None:
+            try:
+                vectors = self.embed_many_fn([child["text"] for child in children])
+            except Exception as exc:
+                raise RuntimeError(
+                    f"failed to embed {len(children)} chunks for document {doc_id}") from exc
+            if len(vectors) != len(children):
+                raise RuntimeError(
+                    f"embedding count mismatch for document {doc_id}: "
+                    f"expected {len(children)}, got {len(vectors)}")
+            child_embeddings = {
+                child["child_id"]: vector
+                for child, vector in zip(children, vectors)
+            }
+
         # 小节标注：按字符偏移把每个 chunk 映射到所在 markdown 小节标题
         section_map = _section_for_chunk(text)  # chunk_start -> section title
         conn = self._connect()
@@ -316,12 +342,15 @@ class PgHybridStore:
                 self._insert_chunk(cur, pid, doc_id, None, True, title, source,
                                    sec, tenant_id, tags, parent["text"],
                                    embedding=None, index_version=index_version)
-            for child in chunked["children"]:
-                emb = None
-                if self.embed_fn is not None:
+            for child in children:
+                emb = child_embeddings.get(child["child_id"])
+                if self.embed_many_fn is None and self.embed_fn is not None:
                     try:
                         emb = self.embed_fn(child["text"])
                     except Exception:
+                        logger.warning("[pgvector] embedding failed while importing %s; "
+                                       "writing this child without a vector", child["child_id"],
+                                       exc_info=True)
                         emb = None
                 sec = section_map.get(child.get("start", 0), "")
                 self._insert_chunk(cur, child["child_id"], doc_id,
@@ -369,6 +398,16 @@ class PgHybridStore:
             self._embedding_failure_logged = False
             return list(qvec)
         except Exception as exc:
+            # Evaluation can opt into fail-fast semantics.  Production keeps the
+            # resilient keyword fallback, but a strict RAG evaluation must never
+            # silently turn an embedding outage into a different retrieval system.
+            strict = os.getenv("RAG_STRICT", "0").strip().lower() in {
+                "1", "true", "yes", "on"
+            }
+            if strict:
+                raise RuntimeError(
+                    f"embedding unavailable in strict pgvector mode: {exc}"
+                ) from exc
             self._embedding_failed_until = now + self._embedding_failure_cooldown
             if not self._embedding_failure_logged:
                 logger.warning(
