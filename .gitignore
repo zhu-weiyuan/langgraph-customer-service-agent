@@ -101,6 +101,7 @@ eval/reports/
 
 # Keep the golden dataset despite the *.jsonl rule
 !eval/golden_set_v2.jsonl
+!eval/golden_set_v2_noise_probes.jsonl
 
 # Legacy evaluation scripts may write local, reproducible result artifacts.
 # Keep the source datasets and harnesses in Git; keep run outputs out of it.
