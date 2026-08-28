@@ -1,24 +1,18 @@
-﻿# -*- coding: utf-8 -*-
-"""
-app_fastapi.py 鈥?鐢熶骇鍏ュ彛锛圥2 闆嗘垚鐗堬級銆?
+# -*- coding: utf-8 -*-
+"""FastAPI production entrypoint for the customer-service agent.
 
-鏇夸唬鏃?app_original_sync.py锛堣鏂囦欢淇濈暀涓嶅姩锛屼粎浣滃綊妗ｅ弬鑰冿級锛?
-- 涓氬姟鎵ц璧?agent/runner.py锛坓raph.invoke + PostgreSQL PostgresSaver锛夈€?
-- 闄愭祦/骞跺彂闂?棰勭畻/涓婁笅鏂囪秴闄?鈫?agent/rate_limiter.py + agent/llm_gateway.py 寮傚父璇箟銆?
-- 瑙傛祴鎺ョ嚎锛歛gent/logging_setup + agent/otel_setup + agent/metrics +
-  agent/observability锛圱raceSession 璇锋眰鍐呭垱寤猴紝finally finalize_and_save锛?
-  AlertService 30s 鍚庡彴浠诲姟锛夈€?
-- Feedback and ratings are stored in PostgreSQL through the runtime DB layer.
-- prompt 绠＄悊绔細/api/admin/prompts*锛坅gent/prompt_registry 鐘舵€佹満锛夈€?
+This module owns HTTP routing, authentication, health/readiness checks, metrics,
+streaming responses, feedback, sessions, memory, and administrative endpoints.
+The business graph lives in agent/runner.py; persistence uses PostgreSQL.
 
-鍚姩:
-    python app_fastapi.py                       # uvicorn 澶?worker锛?WORKERS锛岄粯璁?2锛?
-    uvicorn app_fastapi:app --port 7860         # 鍗?worker 璋冭瘯
+Run locally with:
+    python app_fastapi.py
+    uvicorn app_fastapi:app --port 7860
 """
 from __future__ import annotations
 
-# 鈹€鈹€ .env 鍔犺浇锛堝繀椤诲湪璇诲彇浠讳綍 env/config 甯搁噺銆乮mport agent 妯″潡涔嬪墠锛?
-#    python-dotenv 鏈畨瑁呮椂闈欓粯璺宠繃锛岃涓轰笌鏃х増涓€鑷达級鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# Load .env before importing agent modules.
+# python-dotenv is optional; without it, environment loading is skipped.
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -41,15 +35,16 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Dict, Optional
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse,
                                PlainTextResponse, Response, StreamingResponse)
 from pydantic import BaseModel, Field
 
-# 鈹€鈹€ agent 灞傦紙鍏ㄩ儴 import 瀹夊叏锛氫笁鏂逛緷璧栧唴閮ㄥ畧鍗級鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# Agent-layer imports.
 from agent import refresh_tokens, runner
 from agent.auth import AuthMiddleware
+from agent.voice import handle_voice_websocket
 from agent.http_helpers import (FEEDBACK_DDL, FEEDBACK_INSERT, RATINGS_DDL,
                                 RATINGS_INSERT, REACTIONS_DDL, REACTIONS_INSERT,
                                 admin_auth_status, admin_prompt_action,
@@ -67,7 +62,7 @@ from agent.rate_limiter import RateLimitExceeded, get_rate_limiter
 from agent.runtime_db import (close_pools, connect as pg_connect,
                                init_runtime_schema, pool_stats)
 
-# 鈹€鈹€ 鍙€変笁鏂逛緷璧栵紙瀹堝崼锛夆攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# Optional dependencies are guarded below.
 try:
     from agent.security.prompt_guard import scan_input as _prompt_scan
 except Exception:  # pragma: no cover
@@ -102,7 +97,7 @@ TRACE_DB = "postgresql"
 SHUTDOWN_DRAIN_SECONDS = float(os.getenv("SHUTDOWN_TIMEOUT_SECONDS", "30"))
 CONCURRENCY_WAIT_SECONDS = float(os.getenv("CONCURRENCY_WAIT_SECONDS", "10"))
 
-# 鈹€鈹€ 杩愯鎬侊紙姣?worker 杩涚▼鐙珛锛夆攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# Request lifecycle bookkeeping.
 _inflight = 0                     # 瑙傛祴涓棿浠剁淮鎶わ紝shutdown drain 鐢?
 _redis_available = False
 _alert_task: Optional[asyncio.Task] = None
@@ -239,9 +234,9 @@ except (TypeError, ValueError):
     IMPLICIT_SIGNAL_WORKERS = 4
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Database helpers.
 # PostgreSQL short-transaction helpers (live requests never write SQLite)
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Database helpers.
 
 def _sync_db(fn: Callable[[Any], Any]) -> Any:
     """Run a short PostgreSQL transaction outside the event loop."""
@@ -270,10 +265,10 @@ async def db_write(ddl: str, dml: str, params: tuple) -> None:
 
 
 # lifespan
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Background alert loop.
 
 async def _alert_loop() -> None:
-    """AlertService 鍚庡彴宸℃锛氭瘡 30s 璇勪及涓€娆℃粦鍔ㄧ獥鍙ｈ鍒欍€?"""
+    """Run the AlertService sliding-window checks every 30 seconds."""
     while True:
         await asyncio.sleep(30)
         try:
@@ -323,7 +318,7 @@ async def _check_redis() -> bool:
     try:
         import redis.asyncio as aioredis  # type: ignore
     except Exception:
-        logger.warning("redis package not installed 鈥?rate limiting will run "
+        logger.warning("redis package not installed - rate limiting will run "
                        "fail-closed on the local conservative limiter")
         return False
     try:
@@ -337,7 +332,7 @@ async def _check_redis() -> bool:
             with contextlib.suppress(Exception):
                 await client.aclose()
     except Exception as exc:
-        logger.warning("redis unreachable (%s) 鈥?rate limiting degrades "
+        logger.warning("redis unreachable (%s) - rate limiting degrades "
                        "fail-closed to local 50%% limits", exc)
         return False
 
@@ -422,12 +417,12 @@ async def lifespan(app: FastAPI):
     )
     await _implicit_signal_queue.start()
 
-    # 2. graph / checkpointer 棰勭儹锛坙anggraph 缂哄腑鏃堕檷绾у惎鍔紝chat 杩斿洖 503锛?
+# Startup readiness.
     graph_ok = await runner.prewarm()
     logger.info("graph prewarm: %s", "ok" if graph_ok else "unavailable")
 
     # 鍚戦噺绱㈠紩鍚姩棰勫缓(鍚庡彴,涓嶉樆濉炲惎鍔?:閬垮厤棣栦釜鐢ㄦ埛璇锋眰鎵挎媴鍏ㄩ噺
-    # embedding 鍐峰惎鍔ㄣ€俁AG_BACKEND=pgvector 鏃跺悜閲忓湪搴撻噷,鏃犻渶棰勫缓銆?
+# Background indexing task.
     _index_task = None
     if os.getenv("RAG_BACKEND", "").strip().lower() != "pgvector":
         async def _prebuild_vector_index():
@@ -439,10 +434,10 @@ async def lifespan(app: FastAPI):
                 logger.warning("vector index prebuild failed: %s", exc)
         _index_task = asyncio.create_task(_prebuild_vector_index())
 
-    # 4. redis 鎺㈡祴锛堝畧鍗紝涓嶉樆鏂級
+# Observability setup.
     # Redis availability was checked before schema initialization.
 
-    # 5. trace service锛堥娆¤皟鐢ㄥ喅瀹?db 璺緞锛? prompt registry seed
+# Observability setup.
     get_trace_service()
     if prompt_registry is not None:
         try:
@@ -475,7 +470,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        # shutdown: 鍋滃悗鍙颁换鍔?鈫?drain 鍦ㄩ€旇姹傦紙鈮?0s锛夆啋 鍏抽棴璧勬簮
+# Shutdown background tasks.
         if _alert_task is not None:
             _alert_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -509,7 +504,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="LangGraph Customer Service Agent",
               version="3.0.0", lifespan=lifespan)
 
-# CORS锛堥粯璁ゅ悓婧愰儴缃诧紱璺ㄥ煙鐢?CORS_ALLOW_ORIGINS=閫楀彿鍒嗛殧瑕嗙洊锛?
+# CORS configuration.
 _cors_origins = [o.strip() for o in os.getenv("CORS_ALLOW_ORIGINS", "").split(",")
                  if o.strip()]
 app.add_middleware(
@@ -521,9 +516,9 @@ app.add_middleware(
 )
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-# 涓棿浠讹細瑙傛祴锛坢etrics + request_id + alert锛変笌 auth
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Authentication refresh cookie.
+# Authentication refresh cookie.
+# Authentication refresh cookie.
 
 
 # Browser authentication uses a short-lived access JWT plus a rotating opaque
@@ -554,6 +549,16 @@ def _allow_header_identity_fallback() -> bool:
     if _is_production():
         return False
     return _auth_env_bool("AUTH_ALLOW_HEADER_FALLBACK", True)
+
+
+def _password_required() -> bool:
+    """Require password credentials for every production browser account.
+
+    Development keeps the one-click demo login by default.  Production is
+    fail-safe: an accidental ``AUTH_REQUIRE_PASSWORD=0`` cannot re-enable
+    passwordless registration or login.
+    """
+    return _is_production() or _auth_env_bool("AUTH_REQUIRE_PASSWORD", False)
 
 
 # Browser-generated anonymous client IDs are identifiers, not credentials.  The
@@ -693,13 +698,12 @@ async def observe_request(request: Request, call_next):
 
 @app.middleware("http")
 async def authenticate_request(request: Request, call_next):
-    """娌跨敤 AuthMiddleware锛圝WT / API key / query 鍙傛暟锛夊绾︼紝骞惰В鍑?user_id銆?
+    """Resolve the request identity from AuthMiddleware, JWT, API key, or query data.
 
-    **鍏抽敭鏂板 request.state.user_id 鈥斺€?闀挎湡璁板繂涓婚敭**锛岀嫭绔嬩簬 session_id锛?
-      - Bearer <jwt> 鏈夋晥 鈫?user_id = claims.sub锛堣法浼氳瘽绋冲畾锛夈€?
-      - 鍚﹀垯 X-User-Id 澶达紙鍓嶇鍖垮悕鏍囪瘑锛夈€?
-      - 閮芥病鏈?鈫?鍖垮悕鍥為€€ anon-<ip 鍝堝笇>锛屼繚璇佹棫鍖垮悕娴佺▼涓嶇牬鍧忋€?
-    """
+The resolved value is placed on request.state.user_id and is independent of the
+session_id used for conversation ownership.  JWT identity is preferred, followed
+by an explicit client identity and finally a stable anonymous fallback.
+"""
     request.state.auth_scheme = ""
     request.state.auth_subject = ""
     request.state.auth_tenant_id = "default"
@@ -712,7 +716,7 @@ async def authenticate_request(request: Request, call_next):
     if _is_lightweight_probe(request.url.path):
         return await call_next(request)
 
-    # 鍏堝皾璇曡В JWT锛堝嵆浣跨鐐规槸鍏紑鐨勶紝涔熻鎷垮埌 user_id 鐢ㄤ簬璁板繂褰掑睘锛夈€?
+# Resolve request identity.
     auth_header = request.headers.get("Authorization", "") or ""
     jwt_claims = None
     if auth_header.startswith("Bearer "):
@@ -769,7 +773,7 @@ async def authenticate_request(request: Request, call_next):
 
 
 def _user_id_for_request(request: Request) -> str:
-    """闀挎湡璁板繂涓婚敭锛堜腑闂翠欢宸插啓鍏?request.state.user_id锛夈€?"""
+    """Return the authenticated or anonymous identity used for long-term memory."""
     return getattr(request.state, "user_id", "") or "anon-unknown"
 
 
@@ -796,14 +800,14 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     alert_service.record("rate_limited", 1)
     return JSONResponse(
         status_code=429,
-        content={"error": "璇锋眰杩囦簬棰戠箒锛岃绋嶅悗鍐嶈瘯", "layer": exc.layer,
+        content={"error": "请求过于频繁，请稍后再试", "layer": exc.layer,
                  "retry_after": round(exc.retry_after, 1)},
         headers={"Retry-After": str(max(1, int(exc.retry_after + 0.999)))})
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Request models.
 # 璇锋眰妯″瀷
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Request models.
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
@@ -820,7 +824,7 @@ class RatingRequest(BaseModel):
 class ReactionRequest(BaseModel):
     session_id: str = ""
     message_id: str = ""
-    emoji: str = "馃憤"
+    emoji: str = "👍"
     active: bool = True
 
 
@@ -861,14 +865,177 @@ class RegisterRequest(BaseModel):
     tenant_id: str = Field(default="default", min_length=1, max_length=128)
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+class AgvOperationPrepareRequest(BaseModel):
+    tool_name: str = Field(min_length=1, max_length=80)
+    arguments: dict[str, Any] = Field(default_factory=dict)
+    ttl_seconds: int = Field(default=120, ge=15, le=600)
+
+
+class AgvOperationConfirmRequest(BaseModel):
+    confirmation_id: str = Field(min_length=16, max_length=160)
+
+
+def _agv_identity(request: Request) -> tuple[str, str, str]:
+    """Resolve identity only from server-side auth middleware state."""
+    return (_tenant_for_request(request), _user_id_for_request(request),
+            getattr(request.state, "request_id", "") or uuid4().hex)
+
+
+def _require_agv_write_auth(request: Request) -> None:
+    if getattr(request.state, "auth_scheme", "") not in {"jwt", "api_key"}:
+        raise HTTPException(status_code=401,
+                            detail="AGV write operations require authentication")
+
+
+def _agv_result(tool_name: str, arguments: dict[str, Any], *, request: Request,
+                confirmed: bool = False, idempotency_key: str = "") -> dict[str, Any]:
+    from agent.agv.provider import AGVProviderError, get_agv_provider_info
+    from agent.agv.tools import execute_agv_tool
+    tenant_id, user_id, request_id = _agv_identity(request)
+    try:
+        result = execute_agv_tool(tool_name, arguments, tenant_id=tenant_id,
+                                  user_id=user_id, request_id=request_id,
+                                  confirmed=confirmed,
+                                  idempotency_key=idempotency_key)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown AGV tool: {exc.args[0]}") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except TypeError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid AGV arguments: {exc}") from exc
+    except AGVProviderError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    provider = get_agv_provider_info()
+    return {"provider": provider.name, "production_ready": provider.production_ready,
+            "tool_name": tool_name, "result": result}
+
+
+def _agv_read(request: Request, tool_name: str, **arguments: Any) -> dict[str, Any]:
+    return _agv_result(tool_name, arguments, request=request)
+
+
+@app.get("/api/agv/status/{agv_id}")
+async def agv_status(request: Request, agv_id: str):
+    return await asyncio.to_thread(_agv_read, request, "get_agv_status", agv_id=agv_id)
+
+
+@app.get("/api/agv/battery/{agv_id}")
+async def agv_battery(request: Request, agv_id: str):
+    return await asyncio.to_thread(_agv_read, request, "get_agv_battery", agv_id=agv_id)
+
+
+@app.get("/api/agv/position/{agv_id}")
+async def agv_position(request: Request, agv_id: str):
+    return await asyncio.to_thread(_agv_read, request, "get_agv_position", agv_id=agv_id)
+
+
+@app.get("/api/agv/faults/{agv_id}")
+async def agv_faults(request: Request, agv_id: str, fault_code: str | None = None):
+    return await asyncio.to_thread(_agv_read, request, "get_agv_faults", agv_id=agv_id,
+                                   fault_code=fault_code)
+
+
+@app.get("/api/agv/tasks")
+async def agv_tasks(request: Request, agv_id: str | None = None,
+                    task_id: str | None = None):
+    return await asyncio.to_thread(_agv_read, request, "get_agv_task",
+                                   agv_id=agv_id, task_id=task_id)
+
+
+@app.get("/api/agv/queue")
+async def agv_queue(request: Request):
+    return await asyncio.to_thread(_agv_read, request, "get_agv_queue")
+
+
+@app.get("/api/agv/stations")
+async def agv_stations(request: Request, station_id: str | None = None):
+    return await asyncio.to_thread(_agv_read, request, "get_station_config",
+                                   station_id=station_id)
+
+
+@app.get("/api/agv/tickets")
+async def agv_tickets(request: Request, ticket_id: str | None = None,
+                      agv_id: str | None = None):
+    return await asyncio.to_thread(_agv_read, request, "get_maintenance_ticket",
+                                   ticket_id=ticket_id, agv_id=agv_id)
+
+
+@app.get("/api/recommendations")
+async def recommendations(request: Request, intent: str = "", limit: int = 4) -> dict[str, Any]:
+    from agent.recommendations import recommended_questions
+    return {"items": recommended_questions(last_intent=intent, limit=limit),
+            "source": "curated", "user_id": _user_id_for_request(request)}
+
+
+@app.post("/api/agv/operations/prepare")
+async def agv_operation_prepare(request: Request, data: AgvOperationPrepareRequest):
+    _require_agv_write_auth(request)
+    from agent.agv.tools import get_agv_tool_registry
+    from agent.agv.policy import create_confirmation
+    try:
+        tool = get_agv_tool_registry().get(data.tool_name)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown AGV tool: {data.tool_name}") from exc
+    if tool.risk_level.value == "TOOL_READ":
+        raise HTTPException(status_code=400, detail="Read-only tools do not need confirmation")
+    from agent.agv.tools import validate_agv_tool_arguments
+    try:
+        arguments = validate_agv_tool_arguments(data.tool_name, data.arguments)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid AGV arguments: {exc}") from exc
+    tenant_id, user_id, request_id = _agv_identity(request)
+    confirmation = await asyncio.to_thread(
+        create_confirmation, tenant_id=tenant_id, user_id=user_id,
+        tool_name=data.tool_name, arguments=arguments,
+        ttl_seconds=data.ttl_seconds)
+    from agent.agv.provider import get_agv_provider_info
+    provider = get_agv_provider_info()
+    if not provider.writes_enabled:
+        raise HTTPException(status_code=503, detail=provider.detail)
+    return {"ok": True, "provider": provider.name, "production_ready": provider.production_ready,
+            "request_id": request_id, "confirmation": {
+                "confirmation_id": confirmation.confirmation_id,
+                "tool_name": confirmation.tool_name,
+                "arguments": confirmation.arguments,
+                "expires_at": confirmation.expires_at,
+            }, "message": "请确认以上操作；确认令牌只能使用一次。"}
+
+
+@app.post("/api/agv/operations/confirm")
+async def agv_operation_confirm(request: Request, data: AgvOperationConfirmRequest):
+    _require_agv_write_auth(request)
+    from agent.agv.policy import consume_confirmation
+    tenant_id, user_id, request_id = _agv_identity(request)
+    confirmation = await asyncio.to_thread(
+        consume_confirmation, data.confirmation_id, tenant_id=tenant_id,
+        user_id=user_id)
+    if confirmation is None:
+        raise HTTPException(status_code=409,
+                            detail="Confirmation is expired, already used, or not owned by this user")
+    return await asyncio.to_thread(
+        _agv_result, confirmation.tool_name, confirmation.arguments,
+        request=request, confirmed=True,
+        idempotency_key=request.headers.get("Idempotency-Key", ""),
+    )
+
+
+# Client IP helpers.
 # 浼氳瘽褰掑睘
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Client IP helpers.
 
 def _client_ip(request: Request) -> str:
-    fwd = request.headers.get("X-Forwarded-For", "")
-    if fwd:
-        return fwd.split(",")[0].strip()
+    """Return a rate-limit/audit IP without trusting client-spoofed headers.
+
+    ``X-Forwarded-For`` is used only behind a deliberately configured trusted
+    reverse proxy.  The proxy must strip any incoming XFF header before adding
+    the client chain; otherwise leave ``TRUST_PROXY`` disabled.
+    """
+    if _auth_env_bool("TRUST_PROXY", False):
+        fwd = request.headers.get("X-Forwarded-For", "")
+        if fwd:
+            candidate = fwd.split(",")[0].strip()
+            if candidate:
+                return candidate
     return request.client.host if request.client else "unknown"
 
 
@@ -903,9 +1070,39 @@ def _owns_session(request: Request, session_id: str, *,
     return hmac.compare_digest(str(owner), _user_id_for_request(request))
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-# 闈欐€侀〉闈?
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+@app.websocket("/api/voice/ws/{session_id}")
+async def voice_websocket(websocket: WebSocket, session_id: str):
+    """Authenticated voice session: JWT only, with persisted session ownership."""
+    auth_header = websocket.headers.get("authorization", "")
+    token = ""
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()
+    token = token or str(websocket.query_params.get("access_token") or "").strip()
+    claims = AuthMiddleware._decode_jwt(token) if token else None
+    if not claims or not claims.get("sub"):
+        await websocket.close(code=1008)
+        return
+    user_id = str(claims["sub"])
+    tenant_id = str(claims.get("tenant_id") or "default")
+    try:
+        from agent import memory
+        owner = await asyncio.to_thread(memory.get_session_owner, session_id)
+    except Exception:
+        logger.warning("voice session owner lookup failed: session=%s", session_id, exc_info=True)
+        await websocket.close(code=1008)
+        return
+    if owner is None or not hmac.compare_digest(str(owner), user_id):
+        await websocket.close(code=1008)
+        return
+
+    async def _voice_graph_runner(voice_session_id: str, transcript: str, *, user_id: str, tenant_id: str):
+        return await runner.run(voice_session_id, transcript, user_id=user_id, tenant_id=tenant_id)
+
+    await handle_voice_websocket(websocket, session_id, user_id, tenant_id, _voice_graph_runner)
+
+
+# Root page.
+# 根路径：保留旧前端归档说明。
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/index.html", response_class=HTMLResponse)
@@ -949,13 +1146,13 @@ async def static_file(file_path: str):
     return FileResponse(target)
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Health and readiness endpoints.
 # 鍋ュ悍 / 灏辩华 / 鎸囨爣
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Health and readiness endpoints.
 
 @app.get("/healthz")
 async def healthz() -> dict:
-    """绾瓨娲绘帰閽堬紙docker healthcheck / k8s livenessProbe锛夈€?"""
+    """Lightweight liveness probe for Docker healthcheck and Kubernetes."""
     return {"status": "ok", "version": app.version,
             "uptime_seconds": int(time.monotonic() - APP_STARTED_AT)}
 
@@ -1068,7 +1265,7 @@ async def ready() -> JSONResponse:
 
 
 async def _llm_reachable(timeout: float = 3.0) -> bool:
-    """LLM 杩為€氭€ф帰娴嬶紙httpx 瀹堝崼锛?s锛屽け璐ヤ笉鑷村懡锛夈€?"""
+    """Check LLM connectivity with a bounded httpx request."""
     try:
         import httpx  # type: ignore
     except Exception:
@@ -1217,9 +1414,9 @@ async def metrics_endpoint(request: Request) -> Response:
         headers={"Cache-Control": "no-store"})
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Chat request guards.
 # /api/chat
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Chat request guards.
 
 def _guard_chat(message: str) -> Optional[JSONResponse]:
     if not message:
@@ -1238,7 +1435,7 @@ def _guard_chat(message: str) -> Optional[JSONResponse]:
 
 
 def _record_implicit_signals(session_id: str, message: str) -> None:
-    """姣忚疆鐢ㄦ埛娑堟伅锛氳繛缁拷闂娴嬶紙P4 闅愬紡淇″彿锛宼o_thread 鍐呰皟鐢級銆?"""
+    """Periodically inspect implicit user signals in the background."""
     if feedback_store is not None:
         with contextlib.suppress(Exception):
             feedback_store.record_repeat_question(session_id, message)
@@ -1263,7 +1460,7 @@ async def _run_with_overflow_retry(session_id: str, message: str,
                                    idem_key: Optional[str],
                                    user_id: str = "",
                                     tenant_id: str = "default") -> Dict[str, Any]:
-    """ContextOverflowError 鈫?瑙﹀彂涓€娆″帇缂╅噸璇曪紱浠嶆孩鍑哄垯涓婃姏缁欑鐐硅浆 413銆?"""
+    """Map a context overflow to one compression retry, then return HTTP 413."""
     try:
         return await runner.run(session_id, message, trace_session=trace,
                                 idempotency_key=idem_key, user_id=user_id, tenant_id=tenant_id)
@@ -1285,7 +1482,7 @@ async def chat(request: Request, payload: ChatRequest):
         return rejected
 
     session_id = _session_id_for_request(request)
-    memory_user_id = _user_id_for_request(request)  # 闀挎湡璁板繂涓婚敭
+    memory_user_id = _user_id_for_request(request)  # 长期记忆所属用户
     tenant_id = _tenant_for_request(request)
     if payload.session_id:
         owns_requested_session = _owns_session(
@@ -1295,11 +1492,11 @@ async def chat(request: Request, payload: ChatRequest):
                                 detail="Session does not belong to authenticated user")
         session_id = payload.session_id
 
-    if _pii_scan is not None:  # 闈為樆鏂璁?
+    if _pii_scan is not None:  # 启用 PII 扫描审计。
         with contextlib.suppress(Exception):
             _pii_scan(message)
 
-    # 鍒嗗眰闄愭祦锛圧ateLimitExceeded 鈫?鍏ㄥ眬 429 handler锛?
+# Apply layered rate limits.
     limiter = get_rate_limiter()
     user_id = getattr(request.state, "auth_subject", "") or session_id
     limiter_user_id, limiter_session_id = _rate_limit_identity(request, session_id)
@@ -1344,10 +1541,17 @@ async def chat(request: Request, payload: ChatRequest):
     except ContextOverflowError:
         return JSONResponse(status_code=413,
                             content={"error": "瀵硅瘽涓婁笅鏂囪繃闀匡紝璇峰紑鍚柊浼氳瘽"})
+    except runner.GraphCapacityExceeded:
+        alert_service.record("chat_error", 1)
+        return JSONResponse(
+            status_code=503,
+            content={"error": "service busy; please retry shortly"},
+            headers={"Retry-After": "1"},
+        )
     except asyncio.TimeoutError:
         alert_service.record("chat_error", 1)
         return JSONResponse(status_code=504,
-                            content={"error": "璇锋眰澶勭悊瓒呮椂锛岃绋嶅悗鍐嶈瘯"})
+                            content={"error": "请求处理超时，请稍后再试"})
     except RateLimitExceeded:
         raise
     except Exception as exc:
@@ -1364,11 +1568,11 @@ async def _chat_sse(request: Request, session_id: str, message: str,
                     idem_key: Optional[str],
                     user_id: str = "",
                      tenant_id: str = "default") -> AsyncIterator[str]:
-    """SSE 浜嬩欢娴侊細甯?= {"progress"} / {"token"} / {"done":true,...} / {"error"}銆?
+    """Stream SSE events such as progress, token, done, and error.
 
-    姣忓抚鍙戦€佸墠妫€鏌?request.is_disconnected()锛屾柇杩炵珛鍗冲彇娑?runner 浠诲姟
-    锛坅sync generator aclose 鍦?finally 閲屽叧闂簳灞?astream锛夈€?
-    """
+Check request.is_disconnected() before each frame and always close the
+underlying async stream in finally.
+"""
     limiter = get_rate_limiter()
     gen = None
     try:
@@ -1395,6 +1599,12 @@ async def _chat_sse(request: Request, session_id: str, message: str,
         yield sse_format({"error": "budget exhausted; please retry later"})
     except ContextOverflowError:
         yield sse_format({"error": "context too long; please start a new session"})
+    except runner.GraphCapacityExceeded:
+        alert_service.record("chat_error", 1)
+        yield sse_format({
+            "error": "service busy; please retry shortly",
+            "retry_after": 1,
+        })
     except asyncio.TimeoutError:
         alert_service.record("chat_error", 1)
         yield sse_format({"error": "request timed out; please retry later"})
@@ -1409,9 +1619,9 @@ async def _chat_sse(request: Request, session_id: str, message: str,
         await get_trace_service(TRACE_DB).finalize_and_save(trace)
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Ratings and feedback endpoints.
 # Feedback endpoints (PostgreSQL + feedback_store)
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Ratings and feedback endpoints.
 
 @app.post("/api/rating")
 async def rating(request: Request, data: RatingRequest) -> dict:
@@ -1467,18 +1677,17 @@ async def feedback(request: Request, data: FeedbackRequest) -> dict:
     return {"ok": True}
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Session endpoints.
 # Sessions / analytics (PostgreSQL)
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Session endpoints.
 
 @app.get("/api/sessions")
 async def sessions(request: Request, search: str = "") -> dict:
-    """杩斿洖**褰撳墠 user_id 鐨勫巻鍙蹭細璇濆垪琛?*锛堟爣棰?鏃堕棿/娑堟伅鏁帮級銆?
+    """Return conversation sessions owned by the current user.
 
-    褰㈢姸锛歿"user_id", "sessions": [{session_id, title, created_at,
-    last_active, message_count}, ...]}銆俿earch 涓虹┖鏃跺垪鍑鸿鐢ㄦ埛鍏ㄩ儴浼氳瘽锛?
-    JWT 鏈厤缃殑鍖垮悕鐢ㄦ埛鎸?anon-<ip> user_id 褰掑睘銆?
-    """
+The response contains user_id and session summaries.  An empty search lists all
+sessions visible to that identity.
+"""
     from agent import memory
     user_id = _user_id_for_request(request)
     try:
@@ -1499,7 +1708,7 @@ def _session_owner(session_id: str) -> Optional[str]:
 
 @app.get("/api/session/{session_id}")
 async def session_detail(request: Request, session_id: str) -> dict:
-    # 褰掑睘鏍￠獙锛氫紭鍏堟寜 user_id锛坰essions 琛級锛屽洖閫€鏃?session 褰掑睘閫昏緫銆?
+# Enforce session ownership.
     owner = await asyncio.to_thread(_session_owner, session_id)
     if owner is not None and owner != _user_id_for_request(request):
         raise HTTPException(status_code=403,
@@ -1525,16 +1734,16 @@ async def analytics() -> dict:
                 "intents": {}, "emotions": {}, "error": str(exc)}
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-# /api/memory 鈥?褰撳墠鐢ㄦ埛鐨勯暱鏈熻蹇嗭紙鍙煡鐪?鍒犻櫎鍗曟潯锛岀敤鎴峰彲缂栬緫锛?
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Long-term memory endpoints.
+# Long-term memory endpoints.
+# Long-term memory endpoints.
 
 @app.get("/api/memory")
 async def memory_list(request: Request) -> dict:
-    """鍒楀嚭褰撳墠 user_id 鐨勯暱鏈熻蹇嗭紙user_id/tenant 鍦ㄥ瓨鍌ㄥ眰 SQL 纭繃婊わ級銆?
+    """List long-term memories for the current user.
 
-    褰㈢姸锛歿"user_id", "memories": [{id, content, kind, importance, created_at}]}
-    """
+Storage enforces user_id and tenant boundaries at the SQL layer.
+"""
     user_id = _user_id_for_request(request)
     tenant = _tenant_for_request(request)
     try:
@@ -1589,7 +1798,7 @@ async def memory_backfill(request: Request, limit: int = 100) -> dict:
 
 @app.delete("/api/memory/{memory_id}")
 async def memory_delete(request: Request, memory_id: str) -> dict:
-    """鍒犻櫎褰撳墠鐢ㄦ埛鐨勪竴鏉￠暱鏈熻蹇嗭紙瀛樺偍灞傛寜 user_id 纭牎楠岋紝鍙兘鍒犺嚜宸辩殑锛夈€?"""
+    """Delete one long-term memory belonging to the current user."""
     try:
         from agent.user_memory import get_memory_store
     except Exception:
@@ -1614,9 +1823,9 @@ async def export_session(request: Request, session_id: str) -> dict:
     return data
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-# auth token 绔偣锛堟部鐢ㄦ棫濂戠害锛?
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Authentication session endpoint.
+# Authentication token endpoint.
+# Authentication token endpoint.
 
 @app.get("/api/auth/session")
 async def auth_session(request: Request):
@@ -1639,10 +1848,10 @@ async def token_exchange(data: TokenRequest):
     return {"access_token": token, "token_type": "bearer", "session_id": sid}
 
 
-# 鈹€鈹€ 杞婚噺鐢ㄦ埛鐧诲綍 / 娉ㄥ唽 / me锛坲ser_id = username锛汮WT 鎵胯浇韬唤锛夆攢鈹€鈹€鈹€鈹€鈹€
+# Lightweight user login, registration, and identity endpoints.
 
 def _issue_user_token(user_id: str, tenant_id: str) -> Optional[str]:
-    """绛惧彂鐢ㄦ埛 JWT锛汮WT_SECRET 鏈厤缃椂杩斿洖 None锛堝墠绔彲鐢?X-User-Id 鍏滃簳锛夈€?"""
+    """Issue a JWT when JWT_SECRET is configured; otherwise return no token."""
     try:
         from agent.auth import create_access_token
         return create_access_token(user_id, tenant=tenant_id)
@@ -1656,6 +1865,9 @@ async def auth_register(data: RegisterRequest, request: Request):
     from agent import memory
     user_id = data.username.strip()
     tenant_id = data.tenant_id.strip() or "default"
+    if _password_required() and not (data.password or "").strip():
+        raise HTTPException(status_code=422,
+                            detail="Password is required by this deployment")
     client_ip = _client_ip(request)
 
     # Per-IP auth rate limit (prevent mass account creation)
@@ -1673,12 +1885,12 @@ async def auth_register(data: RegisterRequest, request: Request):
         memory.create_user, user_id, data.password,
         data.display_name, tenant_id)
     if not res["created"]:
-        # Existing user -- this is not a failure, just a no-op.
-        pass
-    else:
-        # New account created -- clear any failure history for this IP
-        # (successful creation means the IP is not an attacker).
-        _auth_limiter.clear(client_ip)
+        # Registration must never issue a credential for an existing account.
+        # Clients should authenticate through /api/auth/login instead.
+        raise HTTPException(status_code=409, detail="Username is already registered")
+    # New account created -- clear any failure history for this IP
+    # (successful creation means the IP is not an attacker).
+    _auth_limiter.clear(client_ip)
     token = _issue_user_token(user_id, tenant_id)
     payload = {"ok": True, "user_id": user_id, "created": res["created"],
                "access_token": token, "token_type": "bearer"}
@@ -1698,16 +1910,17 @@ async def auth_register(data: RegisterRequest, request: Request):
 
 @app.post("/api/auth/login")
 async def auth_login(data: LoginRequest, request: Request):
-    """杞婚噺鐧诲綍锛歶sername 鍗?user_id銆?
+    """Authenticate a user by username and password.
 
-    - users 琛ㄦ湁 password_hash 鈫?鏍￠獙瀵嗙爜锛?
-    - 鏃?password_hash 鎴栫敤鎴蜂笉瀛樺湪 鈫?鍏嶅瘑/棣栨鐧诲綍鍗虫敞鍐屻€?
-    鎴愬姛杩斿洖 JWT + user_id锛圝WT_SECRET 鏈厤缃椂 access_token=None锛?
-    鍓嶇鏀圭敤 X-User-Id 澶存壙杞借韩浠斤紝闀挎湡璁板繂浠嶆寜 user_id 褰掑睘锛夈€?
-    """
+A successful response contains user_id and, when configured, an access JWT.
+"""
     from agent import memory
     user_id = data.username.strip()
     tenant_id = data.tenant_id.strip() or "default"
+    require_password = _password_required()
+    if require_password and not (data.password or "").strip():
+        raise HTTPException(status_code=422,
+                            detail="Password is required by this deployment")
     client_ip = _client_ip(request)
 
     # Per-IP auth rate limit (brute-force defence)
@@ -1723,7 +1936,9 @@ async def auth_login(data: LoginRequest, request: Request):
 
     try:
         res = await asyncio.to_thread(
-            memory.authenticate_user, user_id, data.password, True)
+            memory.authenticate_user, user_id, data.password,
+            allow_register=not require_password,
+            require_password=require_password)
         if not res["ok"]:
             _auth_limiter.record_failure(client_ip)
             raise HTTPException(status_code=401, detail=res["reason"])
@@ -1812,7 +2027,7 @@ async def auth_logout(request: Request):
 
 @app.get("/api/auth/me")
 async def auth_me(request: Request):
-    """杩斿洖褰撳墠璇锋眰鐨勮韩浠斤紙JWT sub / X-User-Id / 鍖垮悕锛夈€?"""
+    """Return the identity associated with the current request."""
     user_id = _user_id_for_request(request)
     return {"user_id": user_id,
             "tenant_id": _tenant_for_request(request),
@@ -1820,9 +2035,9 @@ async def auth_me(request: Request):
             "authenticated": getattr(request.state, "auth_scheme", "") == "jwt"}
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-# /api/admin/prompts 鈥?prompt registry 绠＄悊绔紙JWT scope=admin锛?
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Admin prompt registry guard.
+# Admin prompt registry guard.
+# Admin prompt registry guard.
 
 def _admin_gate(request: Request) -> None:
     jwt_configured = bool(os.getenv("JWT_SECRET", "").strip())
@@ -1871,9 +2086,9 @@ async def admin_prompts_rollback(request: Request, data: PromptActionRequest):
     return JSONResponse(status_code=status, content=body)
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Local development entrypoint.
 # 鍏ュ彛
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# Local development entrypoint.
 
 if __name__ == "__main__":
     import uvicorn
